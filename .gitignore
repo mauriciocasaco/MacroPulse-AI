@@ -1,0 +1,24 @@
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Credentials
+.env
+.env.*
+!.env.example
+
+# Local databases and data
+data/
+*.db
+*.sqlite3
+
+# Frontend
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
