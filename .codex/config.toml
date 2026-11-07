@@ -1,0 +1,19 @@
+model = "gpt-6.1-sol"
+model_reasoning_effort = "low"
+
+# Default to one agent outside the project launcher.
+[agents]
+enabled = false
+max_concurrent_threads_per_session = 2
+
+[agents.ejecutor_ligero]
+description = "Implements a bounded MarketPulse AI contract in MEDIO."
+config_file = "agents/ejecutor_ligero.toml"
+
+[agents.ejecutor]
+description = "Implements and verifies the authorized MarketPulse AI contract in ELABORADO."
+config_file = "agents/ejecutor.toml"
+
+[agents.auditor]
+description = "Independently reviews the ELABORADO result in read-only mode."
+config_file = "agents/auditor.toml"
