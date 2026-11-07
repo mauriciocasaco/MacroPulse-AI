@@ -67,21 +67,68 @@ goes to stdout.
 
 ## Codex Desktop
 
-Open the trusted MarketPulse AI folder as a local project and start a fresh chat
-after configuration changes. Desktop shares the Codex configuration layers.
-The composer model and effort controls, including `/model` and `/reasoning`
-where available, can set those values for a chat. A prompt such as
-`MODE: ELABORADO` is ordinary text. No documented Desktop composer command binds
-these project-specific modes to the launcher, runs the AUTO preflight, or applies
-the launcher's agent limits. The project defaults keep delegation disabled.
-For exact mode selection, run the PowerShell commands below from the Desktop
-integrated terminal when available, or from an external PowerShell terminal.
-The resulting run is a CLI session. UI availability and role activation on the
-installed Desktop build remain unverified.
-[Desktop settings](https://learn.chatgpt.com/docs/developer-settings),
-[Desktop slash commands](https://learn.chatgpt.com/docs/app/slash-commands),
-and [project trust](https://learn.chatgpt.com/docs/config-file/config-basic)
-describe the available controls.
+1. In Codex Desktop for Windows, open the existing MarketPulse AI folder as a
+   trusted local project. Start a new local Codex chat at its root after the
+   configuration change. Keep the effective host permissions appropriate to
+   the task. Use read-only permissions for smoke tests where available.
+2. Select GPT-6.1 Sol and the effort from the mode table in the composer
+   before sending. Use the model and effort controls exposed by your build.
+3. Start the first message with one of these lines, followed by the task.
+
+   ```text
+   MODE: SIMPLE
+   MODE: MEDIO
+   MODE: ELABORADO
+   ```
+
+The first-message marker requests the AGENTS.md workflow. The project enables
+multi-agent tools with two concurrently open subordinate threads, excluding
+the primary. SIMPLE must spawn none. MEDIO uses one `ejecutor_ligero`.
+ELABORADO uses one `ejecutor` and an independent `auditor`, reusing those
+threads for corrections and review. The same three-round limit and full
+auditor gate apply, including a weighted score of at least 8.50. Desktop has
+no project AUTO preflight. The launcher still applies its per-run overrides.
+
+Check the selected model, effort and effective permissions exposed by the host.
+Inspect Desktop subagent activity and thread metadata for actual distinct
+participants, named roles and effective settings. A prompt, role file, slot
+limit or agent self-report alone cannot establish these facts. Report missing
+evidence explicitly. If a required role or setting is unavailable or conflicts
+with the contract, stop and report the blocker. See the permissions section
+below for the auditor's inherited sandbox.
+[Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
+[Desktop settings](https://learn.chatgpt.com/docs/developer-settings), and
+[project trust](https://learn.chatgpt.com/docs/config-file/config-basic).
+
+### Desktop smoke test
+
+Run each in a separate fresh chat with the matching composer settings. Append
+the following task after the corresponding mode marker. Require synthetic data
+only, no edits or service calls, and report host evidence and gaps.
+
+- SIMPLE asks the primary to sort the numbers 3, 1, 2.
+- MEDIO asks the lightweight executor to sort the same numbers and the
+  Coordinator to verify the answer and inspect the one subordinate thread.
+- ELABORADO asks the executor to sort those numbers and the independent auditor
+  to verify ordering and multiset preservation under the full audit gate.
+  Verify the two named threads, frozen workspace evidence and audit round count.
+
+### Desktop telemetry
+
+The current local collector consumes the launcher's structured CLI event stream.
+A Desktop chat does not go through that collector. Until an adapter is verified,
+record only sanitized observations from the UI, such as role activity and the
+audit verdict, separately from CLI run records.
+
+Project hooks are a candidate for local lifecycle evidence. The documented
+`SubagentStop` payload exposes agent identity and role, and `Stop` exposes a
+turn identifier. These events can recur within a task. Their payloads do not
+establish exact token usage, effective models or complete run boundaries. Before
+adding a hook, verify event delivery and trust controls in a fresh Windows
+Desktop chat, correlate IDs across continuations, and allowlist metadata without
+retaining messages, transcripts or transcript paths. Keep unavailable metrics
+unknown. No hooks or collector changes are needed for mode selection.
+[Codex hooks](https://learn.chatgpt.com/docs/hooks).
 
 ## Auditor permissions
 

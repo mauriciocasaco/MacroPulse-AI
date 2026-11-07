@@ -1,9 +1,9 @@
 model = "gpt-6.1-sol"
 model_reasoning_effort = "low"
 
-# Default to one agent outside the project launcher.
+# Enable delegation in trusted Desktop sessions. AGENTS.md governs mode selection.
 [agents]
-enabled = false
+enabled = true
 max_concurrent_threads_per_session = 2
 
 [agents.ejecutor_ligero]

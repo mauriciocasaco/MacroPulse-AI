@@ -22,16 +22,28 @@ Use synthetic fixtures for local verification.
 
 ## Mode contract
 
-The [CLI guide](docs/codex-orchestration.md) describes the supported launcher.
-Without its launch context, work single-agent and treat the primary settings as
-host defaults. If the user requests a configured mode in an existing session,
-explain that the mode needs a fresh CLI launch with matching settings.
+The [orchestration guide](docs/codex-orchestration.md) describes the CLI
+launcher and local Codex Desktop. Honor the launcher context when present.
+In a fresh Desktop chat for this trusted checkout, accept an explicit first
+request for SIMPLE, MEDIO or ELABORADO. Select the primary model and effort
+through host controls before sending the task. Without either entry point,
+work single-agent with host defaults. A mode change requires a fresh session.
 
-For a launcher session, honor its selected mode. Reassess the task's scope,
-architectural impact, uncertainty and security risk before any work or spawn.
+Reassess the task's scope, architectural impact, uncertainty and security risk
+before any work or spawn.
 If the requested mode is unsafe, report the mismatch and ask for authorization
 to relaunch in the appropriate mode. Do not switch modes inside the session.
 Report unavailable roles/settings as blockers rather than substituting agents.
+In Desktop, a mode prompt requests the contract. It does not configure models,
+permissions or agent counts. Check available host evidence before work and
+after each spawn as applicable. Stop on a known mismatch or missing required
+capability. Report any effective model, effort, role, participant count or
+permission the host cannot verify. The two concurrent slots do not authorize
+replacement agents or additional participants over the task's lifetime.
+
+The primary uses GPT-6.1 Sol Low in SIMPLE and GPT-6.1 Sol Medium in MEDIO
+and ELABORADO. Use the registered roles without model or effort overrides.
+`ejecutor_ligero` and `auditor` use GPT-6.1 Sol Low. `ejecutor` uses GPT-6 Luna High.
 
 - **SIMPLE** uses only the primary. Implement directly, run proportional checks
   and report results and limits.
@@ -55,5 +67,6 @@ The Coordinator owns the audit counter, with at most three rounds per task,
 including continuations. Forward all findings to the executor. Reopen review
 only after corrections or new evidence and after affected checks run. Stop on
 PASS, an unresolved host blocker, or the third REJECT. Report pending items and
-never claim PASS without the auditor's full gate. Verify participation with
+never claim PASS without the auditor's full gate, including a weighted score
+of at least 8.50 before rounding. Verify participation with
 host evidence when available and report missing evidence explicitly.
