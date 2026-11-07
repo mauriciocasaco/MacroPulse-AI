@@ -22,3 +22,6 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# Local Codex telemetry and generated reports
+/.local/codex-telemetry/

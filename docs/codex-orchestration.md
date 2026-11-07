@@ -143,3 +143,5 @@ governs those and the three-round limit. Filesystem isolation alone does not
 constrain connectors. The auditor must maintain read-only behavior regardless.
 Record unavailable or unsupported capabilities separately from failed checks.
 Keep raw traces private and share only sanitized evidence.
+
+See [local telemetry](codex-telemetry.md) for task IDs, quality evidence and cost reports.
