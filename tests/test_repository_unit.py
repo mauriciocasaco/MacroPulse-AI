@@ -169,3 +169,46 @@ def test_read_daily_reconstructs_rolling_without_inferring_exchange_times(reposi
     assert "mappings.rolling_method" in execute.call_args.args[0].as_string()
     assert result == (replace(bar, asset_source_id=MAPPING_ID, rolling_method="unknown"),)
     assert result[0].exchange_trade_date is result[0].settlement_time is result[0].availability_time is None
+
+
+def test_daily_query_validation_rejects_invalid_values_before_connecting():
+    connect = MagicMock()
+    repository = PostgresPriceRepository("", connect=connect)
+    injection = "1; DROP TABLE market_data.price_bars; --"
+    for mapping_id in (injection, True, 0, 2**63):
+        with pytest.raises(ValueError, match="mapping_id"):
+            repository.read_daily(mapping_id)
+        with pytest.raises(ValueError, match="mapping_id"):
+            repository.read_latest_daily(mapping_id, 1)
+        with pytest.raises(ValueError, match="mapping_id"):
+            repository.compare_daily(MAPPING_ID, mapping_id, WINDOW)
+    for limit in (injection, True, 0, 1001, 1.5):
+        with pytest.raises(ValueError, match="limit"):
+            repository.read_latest_daily(MAPPING_ID, limit)
+    with pytest.raises(ValueError, match="DateRange"):
+        repository.read_daily(MAPPING_ID, injection)
+    with pytest.raises(ValueError, match="DateRange"):
+        repository.compare_daily(MAPPING_ID, 2, None)
+    with pytest.raises(ValueError, match="distinct"):
+        repository.compare_daily(MAPPING_ID, MAPPING_ID, WINDOW)
+    with pytest.raises(ValueError, match="earlier"):
+        DateRange(WINDOW.end_exclusive, WINDOW.start)
+    connect.assert_not_called()
+
+
+def test_daily_queries_bind_parameters_and_compare_in_one_statement():
+    connect = MagicMock()
+    execute = connect.return_value.__enter__.return_value.execute
+    execute.return_value.fetchall.return_value = []
+    repository = PostgresPriceRepository("", connect=connect)
+    for call, expected in (
+        (lambda: repository.read_daily(91, WINDOW), (91, WINDOW.start, WINDOW.end_exclusive)),
+        (lambda: repository.read_latest_daily(91, 18), (91, 18)),
+        (lambda: repository.compare_daily(91, 92, WINDOW), (91, 92, WINDOW.start, WINDOW.end_exclusive)),
+    ):
+        execute.reset_mock()
+        assert call() == ()
+        execute.assert_called_once()
+        query, params = execute.call_args.args
+        assert params == expected
+        assert query.as_string().count("%s") == len(params)

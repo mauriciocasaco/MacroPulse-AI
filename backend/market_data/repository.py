@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import timezone
+from datetime import date, timezone
 from decimal import Decimal
 import re
 from typing import Protocol
@@ -16,6 +16,40 @@ from psycopg.types.json import Jsonb
 
 from .catalog import ASSET_SOURCES
 from .models import AssetSource, DateRange, NormalizedBatch, PriceBar1d, RunSummary
+
+
+MAX_LATEST_DAILY = 1000
+
+
+@dataclass(frozen=True)
+class AvailableAsset:
+    asset_source_id: int
+    asset_id: str
+    name: str
+    source_id: str
+    provider_name: str
+    symbol: str
+    economic_unit: str
+    calendar_code: str
+    first_date: date | None
+    last_date: date | None
+    bar_count: int
+
+
+@dataclass(frozen=True)
+class ComparisonPoint:
+    asset_source_id: int
+    asset_id: str
+    source_id: str
+    symbol: str
+    economic_unit: str
+    bar_date: date
+    close: Decimal
+
+
+def _validate_mapping_id(mapping_id: int) -> None:
+    if type(mapping_id) is not int or not 1 <= mapping_id <= 2**63 - 1:
+        raise ValueError("mapping_id must be a positive PostgreSQL bigint")
 
 
 class PriceRepository(Protocol):
@@ -138,7 +172,69 @@ class PostgresPriceRepository:
                 raise ValueError("ingestion run is missing or no longer running")
         return RunSummary(run_id, "failed", *row, error_code=safe_code)
 
-    def read_daily(self, mapping_id: int, window: DateRange) -> tuple[PriceBar1d, ...]:
+    def list_available_assets(self) -> tuple[AvailableAsset, ...]:
+        """List verified mappings, including those with no stored daily bars."""
+        with self._connect() as connection:
+            rows = connection.execute(sql.SQL("""
+                SELECT m.id, a.id, a.name, s.id, s.name, m.symbol, a.economic_unit,
+                       a.calendar_code, min(b.bar_date), max(b.bar_date), count(b.bar_date)
+                FROM {schema}.asset_sources AS m
+                JOIN {schema}.assets AS a ON a.id = m.asset_id
+                JOIN {schema}.data_sources AS s ON s.id = m.source_id
+                LEFT JOIN {schema}.price_bars AS b
+                    ON b.asset_source_id = m.id AND b.interval = '1d'
+                WHERE starts_with(m.source_convention, 'verified:')
+                GROUP BY m.id, a.id, s.id
+                ORDER BY a.id, s.id, m.symbol
+            """).format(schema=self._schema)).fetchall()
+        return tuple(AvailableAsset(*row) for row in rows)
+
+    def read_daily(self, mapping_id: int, window: DateRange | None = None) -> tuple[PriceBar1d, ...]:
+        """Read chart-ready daily bars, optionally restricted to [start, end_exclusive)."""
+        _validate_mapping_id(mapping_id)
+        if window is None:
+            return self._read_daily(mapping_id, sql.SQL("ORDER BY bars.bar_date"), ())
+        if not isinstance(window, DateRange):
+            raise ValueError("window must be a DateRange")
+        return self._read_daily(mapping_id, sql.SQL(
+            "AND bars.bar_date >= %s AND bars.bar_date < %s ORDER BY bars.bar_date"
+        ), (window.start, window.end_exclusive))
+
+    def read_latest_daily(self, mapping_id: int, limit: int) -> tuple[PriceBar1d, ...]:
+        """Return up to limit stored observations in ascending date order."""
+        _validate_mapping_id(mapping_id)
+        if type(limit) is not int or not 1 <= limit <= MAX_LATEST_DAILY:
+            raise ValueError(f"limit must be an integer from 1 to {MAX_LATEST_DAILY}")
+        bars = self._read_daily(mapping_id, sql.SQL("ORDER BY bars.bar_date DESC LIMIT %s"), (limit,))
+        return bars[::-1]
+
+    def compare_daily(
+        self, first_mapping_id: int, second_mapping_id: int, window: DateRange,
+    ) -> tuple[ComparisonPoint, ...]:
+        """Read observed closes for two mappings in one query, each in its own unit."""
+        _validate_mapping_id(first_mapping_id)
+        _validate_mapping_id(second_mapping_id)
+        if first_mapping_id == second_mapping_id:
+            raise ValueError("comparison requires two distinct mapping IDs")
+        if not isinstance(window, DateRange):
+            raise ValueError("window must be a DateRange")
+        with self._connect() as connection:
+            rows = connection.execute(sql.SQL("""
+                SELECT m.id, m.asset_id, m.source_id, m.symbol, a.economic_unit, b.bar_date, b.close
+                FROM {schema}.price_bars AS b
+                JOIN {schema}.asset_sources AS m ON m.id = b.asset_source_id
+                JOIN {schema}.assets AS a ON a.id = m.asset_id
+                WHERE b.asset_source_id IN (%s, %s) AND b.interval = '1d'
+                  AND b.bar_date >= %s AND b.bar_date < %s
+                ORDER BY b.bar_date, b.asset_source_id
+            """).format(schema=self._schema), (
+                first_mapping_id, second_mapping_id, window.start, window.end_exclusive,
+            )).fetchall()
+        return tuple(ComparisonPoint(*row) for row in rows)
+
+    def _read_daily(
+        self, mapping_id: int, suffix: sql.SQL, params: tuple[date | int, ...],
+    ) -> tuple[PriceBar1d, ...]:
         with self._connect() as connection:
             rows = connection.execute(sql.SQL(
                 "SELECT bars.asset_source_id, mappings.asset_id, mappings.source_id, mappings.symbol, "
@@ -150,9 +246,9 @@ class PostgresPriceRepository:
                 "JOIN {}.asset_sources AS mappings ON mappings.id = bars.asset_source_id "
                 "JOIN {}.ingestion_runs AS runs ON runs.id = bars.run_id "
                 "WHERE bars.asset_source_id = %s AND bars.interval = '1d' "
-                "AND bars.bar_date >= %s AND bars.bar_date < %s ORDER BY bars.bar_date"
-            ).format(self._schema, self._schema, self._schema),
-                (mapping_id, window.start, window.end_exclusive)).fetchall()
+                "{}"
+            ).format(self._schema, self._schema, self._schema, suffix),
+                (mapping_id, *params)).fetchall()
         return tuple(PriceBar1d(
             asset_source_id=row[0], asset_id=row[1], source_id=row[2], symbol=row[3], bar_date=row[4],
             interval=row[5], open=row[6], high=row[7], low=row[8], close=row[9], adjusted_close=row[10],

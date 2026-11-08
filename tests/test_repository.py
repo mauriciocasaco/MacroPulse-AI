@@ -84,6 +84,69 @@ def _run(repository, mapping_id, batch):
     return repository.save_batch(run_id, batch)
 
 
+def test_daily_queries_preserve_observations_and_instrument_units(repository, schema):
+    btc_id = _mapping_id(schema)
+    wti_id = _mapping_id(schema, "wti_future")
+    friday, saturday, monday = (date(2026, 10, day) for day in (2, 3, 5))
+    btc = _batch()
+    btc_bar = btc.bars[0]
+    assert _run(repository, btc_id, replace(
+        btc, bars=(btc_bar, replace(btc_bar, bar_date=friday), replace(btc_bar, bar_date=saturday)),
+        received_count=3,
+    )).inserted_count == 3
+
+    wti = ASSET_SOURCES["wti_future"]
+    wti_raw = RawBatch(
+        asset_id=wti.asset_id, mapping=wti, provider=wti.source_id, ticker=wti.symbol,
+        requested_range=WINDOW, interval="1d", retrieved_at=RETRIEVED_AT, adapter_version="1.0.0",
+        rows=(RawRow(int(datetime(2026, 10, 2, 4, tzinfo=timezone.utc).timestamp()), {
+            "Open": -5, "High": -2, "Low": -8, "Close": -3, "Adj Close": -4, "Volume": 0,
+        }),),
+        temporal_metadata={"index_timezone": "America/New_York"},
+    )
+    assert _run(repository, wti_id, normalize(wti_raw, ASSETS[wti.asset_id], wti, WINDOW)).inserted_count == 1
+
+    # A registered but unverified mapping is excluded from the enabled catalog.
+    with psycopg.connect(DSN) as connection:
+        connection.execute(f"""
+            INSERT INTO {schema}.asset_sources (asset_id, source_id, symbol, source_convention)
+            VALUES ('bitcoin_usd', 'yahoo_finance', 'UNVERIFIED', 'unknown')
+        """)
+    assets = {entry.symbol: entry for entry in repository.list_available_assets()}
+    assert len(assets) == 6 and "UNVERIFIED" not in assets
+    btc_asset = assets["BTC-USD"]
+    assert (btc_asset.asset_source_id, btc_asset.provider_name, btc_asset.economic_unit) == (
+        btc_id, "Yahoo Finance", "USD/BTC",
+    )
+    assert (btc_asset.first_date, btc_asset.last_date, btc_asset.bar_count) == (friday, monday, 3)
+    assert (assets["VT"].first_date, assets["VT"].last_date, assets["VT"].bar_count) == (None, None, 0)
+
+    history = repository.read_daily(btc_id)
+    assert [bar.bar_date for bar in history] == [friday, saturday, monday]
+    assert history[0].close == Decimal("10")
+    assert history[0].adjusted_close == Decimal("9.5")
+    assert history[0].retrieved_at == RETRIEVED_AT
+    window = DateRange(friday, monday)
+    assert repository.read_daily(btc_id, window) == history[:2]
+    assert repository.read_latest_daily(btc_id, 2) == history[-2:]
+    assert repository.read_latest_daily(btc_id, 1000) == history
+    assert repository.read_daily(btc_id, DateRange(date(2026, 10, 6), date(2026, 10, 7))) == ()
+    unknown_id = 2**63 - 1
+    assert repository.read_daily(unknown_id) == repository.read_latest_daily(unknown_id, 1) == ()
+
+    points = repository.compare_daily(btc_id, wti_id, window)
+    assert [point.bar_date for point in points] == [friday, friday, saturday]
+    assert [(p.bar_date, p.close, p.economic_unit) for p in points if p.asset_source_id == wti_id] == [
+        (friday, Decimal("-3"), "USD/bbl"),
+    ]
+    assert [(p.bar_date, p.close, p.economic_unit) for p in points if p.asset_source_id == btc_id] == [
+        (friday, Decimal("10"), "USD/BTC"), (saturday, Decimal("10"), "USD/BTC"),
+    ]
+    assert repository.compare_daily(btc_id, unknown_id, window) == tuple(
+        point for point in points if point.asset_source_id == btc_id
+    )
+
+
 def test_catalog_migration_integrity_and_initial_read(repository, schema):
     with psycopg.connect(DSN) as connection:
         mappings = connection.execute(

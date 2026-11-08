@@ -52,6 +52,92 @@ a content conflict. Older observations are stale. A later correction replaces
 the full observation, including optional values that become NULL. NULL volume
 remains distinct from zero, and adjusted close stays separate from close.
 
+## Daily read queries
+
+All queries are available through `PostgresPriceRepository`. Use the
+`asset_source_id` from the catalog query, or resolve an existing
+`AssetSource` with `resolve_mapping_id`. Mapping IDs identify both the
+instrument and its provider. The read methods bind values as SQL parameters.
+
+| Query | Python call | Result |
+| --- | --- | --- |
+| Available assets | `list_available_assets()` | One `AvailableAsset` per enabled mapping. It includes the asset ID and name, mapping ID, provider ID and name, provider symbol, economic unit, calendar, first and last stored dates, and bar count. |
+| Full history | `read_daily(mapping_id)` | Daily `PriceBar1d` records ordered by ascending date. |
+| Date range | `read_daily(mapping_id, window)` | Daily records with `start <= bar_date < end_exclusive`, ordered by ascending date. |
+| Latest observations | `read_latest_daily(mapping_id, limit)` | The last 1 to 1,000 available observations, returned in ascending date order. The limit counts stored bars across calendar gaps. |
+| Two instruments | `compare_daily(first_mapping_id, second_mapping_id, window)` | One `ComparisonPoint` per observed close, ordered by date then mapping ID. Each point includes the asset ID, mapping ID, provider ID, symbol, economic unit, date and close. |
+| Chart data | `read_daily(mapping_id, window)` | The same `PriceBar1d` structure includes date, separate OHLC and adjusted close, volume, asset and provider identity, UTC retrieval time, source convention, value bases, quality and session status, adapter and provider versions, rolling method and volume unit. |
+
+The schema represents enabled mappings through the `verified:` prefix on
+`source_convention`. A verified mapping without bars has count zero and
+two null coverage dates. All results are tuples. Reads for a valid unknown
+mapping ID or a range with no observations return an empty tuple. A
+comparison retains any observations from the known side. Mapping IDs must
+be positive PostgreSQL bigints, and comparisons require distinct IDs.
+`DateRange` takes Python `date` values with start strictly before end.
+
+```python
+from datetime import date
+
+from backend.market_data import DateRange
+
+# repository is an already configured PostgresPriceRepository.
+assets = {(row.source_id, row.symbol): row for row in repository.list_available_assets()}
+wti = assets["yahoo_finance", "CL=F"].asset_source_id
+btc = assets["yahoo_finance", "BTC-USD"].asset_source_id
+window = DateRange(date(2020, 4, 17), date(2020, 4, 22))
+history = repository.read_daily(wti)
+chart = repository.read_daily(wti, window)
+latest = repository.read_latest_daily(wti, 20)
+comparison = repository.compare_daily(wti, btc, window)
+```
+
+Dates are provider labels as described above. Comparisons keep each
+instrument's observed dates and native units. CL=F uses USD per barrel,
+GC=F USD per troy ounce, ^GSPC index points, VT and VWO USD per share,
+and BTC-USD USD per BTC. The result includes no interpolation,
+forward-fill, currency conversion or base-100 normalization. A date in
+both series can represent different observation times. `retrieved_at`
+records when the provider value was retrieved. It gives no historical
+availability guarantee for point-in-time backtests.
+
+## Phase 2.6 DEV audit
+
+The following command uses the existing DEV connection guard and verifies
+the initial archives locally before opening a repeatable-read, read-only
+transaction. It checks the exact migration checksums, DDL and catalog, bar
+content and provenance, per-run reconciliation, archive diagnostics and
+the negative WTI observation. The historical window is
+`[2019-11-08, 2026-11-08)`.
+
+```powershell
+python -m backend.market_data.dev_audit --input-dir ./data/backfills/normalized/2019-11-08_2026-11-08 --archive-dir ./data/backfills
+```
+
+The DEV snapshot at 2026-11-08 23:07:14 UTC contained 11,352 bars and 12
+completed runs (six succeeded and six partial). All six series start
+2019-11-08. BTC-USD has 2,557 bars through 2026-11-07. GC=F has 1,761,
+CL=F has 1,760, and ^GSPC, VT and VWO each have 1,758 through 2026-11-06.
+Each pass received 11,358 observations and recorded the same six source
+rejections. The first pass inserted 11,352 bars and the replay recorded
+11,352 unchanged, with zero corrections or stale observations in either
+pass. All bars matched their verified archives and linked the original
+run to the matching replay. All reported integrity counters were zero.
+Adjusted close was present on all bars and differed from close on 1,722
+observations each for VT and VWO. WTI retained a close of about
+−37.63 USD/bbl on 2020-04-20.
+
+The B-tree primary key on `price_bars` starts with
+`(asset_source_id, interval, bar_date)`. On DEV, `EXPLAIN` without
+`ANALYZE` used that key for the bar-access portion of the BTC full
+history and date-range queries, and scanned it backward under `LIMIT`
+for the 20 latest WTI observations. The BTC/WTI range probe used the same
+key and sorted an estimated 55 rows by date and mapping. These are
+planner estimates for the bar filters and ordering, without join or
+end-to-end latency measurements. The run and last-seen indexes support
+provenance lookups. The observed plans support keeping the existing
+indexes at the current dataset size.
+
 ## Historical importer
 
 Run the following in PowerShell from the repository root. Dry-run is the
