@@ -195,10 +195,9 @@ anomalías financieras independientes. Compara las fechas normalizadas
 de ^GSPC, VT y VWO con el calendario documentado arriba.
 
 Las observaciones de BTC-USD, ^GSPC, VT y VWO quedan normalizadas localmente.
-El repositorio PostgreSQL vigente permite barras solo para BTC-USD y exige
-que la convención coincida con el mapeo persistido. Una etapa posterior
-deberá revisar la validación del repositorio y los mapeos de renta variable
-antes de poder cargarlos.
+La Fase 2.2 incorpora al repositorio las seis tuplas Yahoo revisadas. La
+persistencia requiere aplicar la migración incremental y que la convención
+de cada observación coincida con el mapeo persistido.
 
 ## Etapa 1C · Fecha diaria que Yahoo publica para GC=F y CL=F
 
@@ -246,5 +245,5 @@ en `data/backfills/normalized/<inicio>_<fin_exclusivo>/`. Cada lote
 contiene aceptadas, rechazadas, versión y procedencia, y enlaza al gzip
 original por ruta y SHA-256. Los importes Decimal se serializan como texto
 y NULL conserva su significado. No se modifica el gzip original. La
-persistencia remota requiere revisar los mapeos y el control del repositorio
-en una etapa posterior.
+verificación en PostgreSQL y la carga desde estos archivos quedan para
+fases posteriores.

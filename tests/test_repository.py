@@ -2,13 +2,16 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from hashlib import sha256
 import os
+from threading import Barrier
 from uuid import uuid4
 
 import psycopg
 import pytest
 
 from backend.market_data import ASSETS, ASSET_SOURCES, DateRange, RawBatch, RawRow, normalize
+from backend.market_data import migrations
 from backend.market_data.migrations import apply_migrations
 from backend.market_data.models import NormalizedBatch, RejectedObservation
 from backend.market_data.pipeline import ingest_daily
@@ -19,6 +22,7 @@ DSN = os.environ.get("MARKET_DATA_TEST_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="MARKET_DATA_TEST_DSN is unset")
 WINDOW = DateRange(date(2026, 10, 1), date(2026, 11, 1))
 RETRIEVED_AT = datetime(2026, 11, 1, 12, tzinfo=timezone.utc)
+VERSIONS = ("202611070001", "202611080001")
 
 
 @pytest.fixture
@@ -26,8 +30,8 @@ def schema():
     assert DSN is not None
     test_schema = "mdt_" + uuid4().hex[:20]
     result = apply_migrations(DSN, schema=test_schema)
-    assert result.applied_versions == ("202611070001",)
-    assert result.current_versions == ("202611070001",)
+    assert result.applied_versions == VERSIONS
+    assert result.current_versions == VERSIONS
     assert (result.asset_count, result.source_count, result.mapping_count) == (6, 1, 6)
     return test_schema
 
@@ -81,6 +85,14 @@ def _run(repository, mapping_id, batch):
 
 
 def test_catalog_migration_integrity_and_initial_read(repository, schema):
+    with psycopg.connect(DSN) as connection:
+        mappings = connection.execute(
+            f"SELECT asset_id, source_id, symbol, source_convention, rolling_method FROM {schema}.asset_sources"
+        ).fetchall()
+    assert set(mappings) == {
+        (mapping.asset_id, mapping.source_id, mapping.symbol, mapping.source_convention, mapping.rolling_method)
+        for mapping in ASSET_SOURCES.values()
+    }
     mapping_id = _mapping_id(schema)
     summary = _run(repository, mapping_id, _batch())
     assert summary.status == "succeeded"
@@ -129,7 +141,7 @@ def test_acquisition_failure_finalizes_run_without_persisting_bars(repository, s
 def test_migration_rerun_is_noop_and_preserves_seed_counts(schema):
     result = apply_migrations(DSN, schema=schema)
     assert result.applied_versions == ()
-    assert result.current_versions == ("202611070001",)
+    assert result.current_versions == VERSIONS
     assert (result.asset_count, result.source_count, result.mapping_count) == (6, 1, 6)
 
 
@@ -245,32 +257,20 @@ def test_all_rejected_batch_is_auditable(repository, schema):
 
 def test_wti_negative_prices_are_allowed_and_asset_histories_are_isolated(repository, schema):
     btc_mapping_id = _mapping_id(schema)
-    wti_mapping_id = _mapping_id(schema, "wti_future")
-    convention = "verified:yahoo_exchange_date:v1:America/Chicago"
-    with psycopg.connect(DSN) as connection:
-        connection.execute(
-            f"UPDATE {schema}.asset_sources SET source_convention = %s WHERE id = %s",
-            (convention, wti_mapping_id),
-        )
-    run_id = repository.start_run(wti_mapping_id, WINDOW)
-    with psycopg.connect(DSN) as connection:
-        connection.execute(
-            f"UPDATE {schema}.asset_sources SET source_convention = %s WHERE id = %s",
-            (convention, wti_mapping_id),
-        )
-        connection.execute(
-            f"INSERT INTO {schema}.price_bars "
-            "(asset_source_id, interval, bar_date, ohlc_basis, open, high, low, close, volume, retrieved_at, "
-            "source_convention, session_status, quality_status, run_id, last_seen_at, last_seen_run_id) "
-            "VALUES (%s, '1d', '2026-10-05', 'provider_unadjusted', -5, 2, -8, -3, 0, %s, %s, "
-            "'unknown', 'complete', %s, %s, %s)",
-            (wti_mapping_id, RETRIEVED_AT, convention, run_id, RETRIEVED_AT, run_id),
-        )
-        connection.execute(
-            f"UPDATE {schema}.ingestion_runs SET status = 'succeeded', finished_at = clock_timestamp(), "
-            "received_count = 1, inserted_count = 1 WHERE id = %s", (run_id,),
-        )
-    assert repository.read_daily(wti_mapping_id, WINDOW)[0].close == -3
+    mapping = ASSET_SOURCES["wti_future"]
+    wti_mapping_id = repository.resolve_mapping_id(mapping)
+    raw = RawBatch(
+        asset_id=mapping.asset_id, mapping=mapping, provider=mapping.source_id, ticker=mapping.symbol,
+        requested_range=WINDOW, interval="1d", retrieved_at=RETRIEVED_AT, adapter_version="1.0.0",
+        rows=(RawRow(int(datetime(2026, 10, 5, 4, tzinfo=timezone.utc).timestamp()), {
+            "Open": -5, "High": -2, "Low": -8, "Close": -3, "Volume": 0,
+        }),),
+        temporal_metadata={"index_timezone": "America/New_York"},
+    )
+    batch = normalize(raw, ASSETS[mapping.asset_id], mapping, WINDOW)
+    assert _run(repository, wti_mapping_id, batch).inserted_count == 1
+    bar = repository.read_daily(wti_mapping_id, WINDOW)[0]
+    assert (bar.close, bar.adjusted_close, bar.volume, bar.rolling_method) == (-3, None, 0, "unknown")
     assert repository.read_daily(btc_mapping_id, WINDOW) == ()
 
 
@@ -327,6 +327,11 @@ def test_sql_checks_reject_bad_foreign_keys_adjusted_basis_and_identity_edits(re
 
 def test_repository_rejects_bars_with_unverified_symbol_mapping(repository, schema):
     mapping_id = _mapping_id(schema, "wti_future")
+    with psycopg.connect(DSN) as connection:
+        connection.execute(
+            f"UPDATE {schema}.asset_sources SET source_convention = 'unknown' WHERE id = %s",
+            (mapping_id,),
+        )
     run_id = repository.start_run(mapping_id, WINDOW)
     batch = _batch()
     bad_bar = replace(batch.bars[0], asset_id="wti_future", source_id="yahoo_finance", symbol="CL=F",
@@ -339,24 +344,17 @@ def test_repository_rejects_bars_with_unverified_symbol_mapping(repository, sche
     assert repository.read_daily(mapping_id, WINDOW) == ()
 
 
-def test_unverified_mappings_can_persist_withheld_rows_and_diagnostics(repository, schema):
-    symbols = (
-        ("gold_future", "America/Chicago"),
-        ("wti_future", "America/Chicago"),
-        ("sp500_index", "America/New_York"),
-        ("world_equity_etf", "America/New_York"),
-        ("emerging_markets_etf", "America/New_York"),
-    )
-    for asset_id, zone_name in symbols:
-        # The current database seed uses the original, unverified mappings.
-        mapping = replace(ASSET_SOURCES[asset_id], source_convention="unknown")
+def test_verified_mappings_can_record_withheld_rows_and_diagnostics(repository, schema):
+    for asset_id, mapping in ASSET_SOURCES.items():
+        if asset_id == "bitcoin_usd":
+            continue
         raw = RawBatch(
             asset_id=asset_id, mapping=mapping, provider="yahoo_finance", ticker=mapping.symbol,
             requested_range=WINDOW, interval="1d", retrieved_at=RETRIEVED_AT, adapter_version="1.0.0",
             rows=(RawRow(int(datetime(2026, 10, 5, 12, tzinfo=timezone.utc).timestamp()), {
                 "Open": 10, "High": 12, "Low": 9, "Close": 11,
             }),),
-            temporal_metadata={"index_timezone": zone_name, "provider_session_label_convention": "unverified"},
+            temporal_metadata={"index_timezone": "America/Chicago", "provider_session_label_convention": "unverified"},
             provider_version="1.8.0",
         )
         normalized = normalize(raw, ASSETS[asset_id], mapping, WINDOW)
@@ -367,3 +365,203 @@ def test_unverified_mappings_can_persist_withheld_rows_and_diagnostics(repositor
         assert summary.status == "partial" and summary.rejected_count == 1
         assert summary.diagnostics[0] == "0:temporal_convention_unverified"
         assert repository.read_daily(mapping_id, WINDOW) == ()
+
+
+@pytest.mark.parametrize("asset_id", ASSET_SOURCES)
+def test_catalog_asset_round_trip(repository, asset_id):
+    mapping = ASSET_SOURCES[asset_id]
+    raw, _ = _raw_batch()
+    zone, hour, minute = ("UTC", 0, 0) if asset_id == "bitcoin_usd" else ("America/New_York", 13, 30)
+    label = datetime(2026, 10, 5, hour, minute, tzinfo=timezone.utc)
+    raw = replace(
+        raw, asset_id=asset_id, mapping=mapping, ticker=mapping.symbol,
+        rows=(RawRow(int(label.timestamp()), raw.rows[0].fields),),
+        temporal_metadata={"index_timezone": zone},
+    )
+    batch = normalize(raw, ASSETS[asset_id], mapping, WINDOW)
+    mapping_id = repository.resolve_mapping_id(mapping)
+    assert _run(repository, mapping_id, batch).inserted_count == 1
+    (bar,) = repository.read_daily(mapping_id, WINDOW)
+    assert (bar.asset_id, bar.source_id, bar.provider, bar.symbol) == (
+        asset_id, mapping.source_id, mapping.source_id, mapping.symbol,
+    )
+    assert (bar.asset_source_id, bar.interval, bar.source_convention, bar.rolling_method) == (
+        mapping_id, "1d", mapping.source_convention, mapping.rolling_method,
+    )
+    assert (bar.bar_date, bar.retrieved_at, bar.adapter_version, bar.provider_version) == (
+        label.date(), RETRIEVED_AT, "1.0.0", "1.8.0",
+    )
+    assert (bar.close, bar.adjusted_close, bar.adjusted_close_basis) == (10, Decimal("9.5"), "provider_reported")
+
+
+@pytest.mark.parametrize("changes", [
+    {"high": Decimal("9")},
+    {"volume": Decimal("-1")},
+], ids=["invalid-ohlc", "negative-volume"])
+def test_sql_rejection_rolls_back_prior_bar_in_batch(repository, schema, changes):
+    mapping_id = _mapping_id(schema)
+    run_id = repository.start_run(mapping_id, WINDOW)
+    batch = _batch()
+    (valid,) = batch.bars
+    invalid = replace(valid, bar_date=date(2026, 10, 6), **changes)
+    with pytest.raises(psycopg.errors.CheckViolation) as caught:
+        repository.save_batch(run_id, replace(batch, bars=(valid, invalid), received_count=2))
+    assert caught.value.diag.table_name == "price_bars"
+    assert repository.read_daily(mapping_id, WINDOW) == ()
+    with psycopg.connect(DSN) as connection:
+        run = connection.execute(
+            f"SELECT status, received_count, inserted_count, error_code, finished_at IS NOT NULL "
+            f"FROM {schema}.ingestion_runs WHERE id = %s", (run_id,),
+        ).fetchone()
+    assert run == ("failed", 2, 0, "persistence_failed", True)
+
+
+def test_sql_requires_close(repository, schema):
+    mapping_id = _mapping_id(schema)
+    _run(repository, mapping_id, _batch())
+    with pytest.raises(psycopg.errors.NotNullViolation) as caught:
+        with psycopg.connect(DSN) as connection:
+            connection.execute(f"UPDATE {schema}.price_bars SET close = NULL")
+    assert caught.value.diag.column_name == "close"
+    assert repository.read_daily(mapping_id, WINDOW)[0].close == 10
+
+
+def test_exact_replay_and_equal_timestamp_conflict(repository, schema):
+    mapping_id = _mapping_id(schema)
+    batch = _batch()
+    first = _run(repository, mapping_id, batch)
+    replay = _run(repository, mapping_id, batch)
+    conflict = _run(repository, mapping_id, _batch(close=11))
+    assert (first.inserted_count, replay.unchanged_count) == (1, 1)
+    assert (conflict.status, conflict.rejected_count, conflict.corrected_count) == ("partial", 1, 0)
+    assert "equal_timestamp_conflict:2026-10-05" in conflict.diagnostics
+    (bar,) = repository.read_daily(mapping_id, WINDOW)
+    assert (bar.close, bar.retrieved_at, bar.provider_version) == (10, RETRIEVED_AT, "1.8.0")
+    with psycopg.connect(DSN) as connection:
+        bars = connection.execute(
+            f"SELECT run_id, last_seen_run_id, retrieved_at, last_seen_at FROM {schema}.price_bars"
+        ).fetchall()
+        runs = connection.execute(
+            f"SELECT id, status, adapter_version, provider_version, received_count, inserted_count, "
+            f"unchanged_count, rejected_count, finished_at >= started_at FROM {schema}.ingestion_runs ORDER BY id"
+        ).fetchall()
+    assert bars == [(first.run_id, replay.run_id, RETRIEVED_AT, RETRIEVED_AT)]
+    assert runs == [
+        (first.run_id, "succeeded", "1.0.0", "1.8.0", 1, 1, 0, 0, True),
+        (replay.run_id, "succeeded", "1.0.0", "1.8.0", 1, 0, 1, 0, True),
+        (conflict.run_id, "partial", "1.0.0", "1.8.0", 1, 0, 0, 1, True),
+    ]
+
+
+def test_concurrent_runs_preserve_content_and_last_seen_provenance(repository, schema):
+    mapping_id = _mapping_id(schema)
+    run_ids = [repository.start_run(mapping_id, WINDOW) for _ in range(2)]
+    ready = Barrier(2, timeout=10)
+    batch = _batch()
+
+    def write(run_id):
+        ready.wait()
+        return repository.save_batch(run_id, batch)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        summaries = tuple(executor.map(write, run_ids))
+    (inserted,) = [summary for summary in summaries if summary.inserted_count == 1]
+    assert all(summary.status == "succeeded" for summary in summaries)
+    with psycopg.connect(DSN) as connection:
+        bars = connection.execute(
+            f"SELECT close, run_id, last_seen_run_id FROM {schema}.price_bars"
+        ).fetchall()
+    assert bars == [(10, inserted.run_id, max(run_ids))]
+
+
+@pytest.fixture
+def initial_schema(monkeypatch):
+    name = "mdt_" + uuid4().hex[:20]
+    with monkeypatch.context() as patch:
+        patch.setattr(migrations, "_MARKET_DATA_MIGRATIONS", migrations._MARKET_DATA_MIGRATIONS[:1])
+        assert apply_migrations(DSN, schema=name).applied_versions == VERSIONS[:1]
+    return name
+
+
+def _mapping_rows(connection, schema):
+    return connection.execute(f"SELECT * FROM {schema}.asset_sources ORDER BY id").fetchall()
+
+
+def test_incremental_upgrade_preserves_catalog_and_records_checksums(initial_schema):
+    schema = initial_schema
+    with psycopg.connect(DSN) as connection:
+        before = _mapping_rows(connection, schema)
+    result = apply_migrations(DSN, schema=schema)
+    assert result.applied_versions == VERSIONS[1:]
+    assert result.current_versions == VERSIONS
+    with psycopg.connect(DSN) as connection:
+        after = _mapping_rows(connection, schema)
+        assert after == [
+            (*row[:4], ASSET_SOURCES[row[1]].source_convention, *row[5:]) for row in before
+        ]
+        assert connection.execute(
+            f"SELECT sign_policy FROM {schema}.assets WHERE id = 'wti_future'"
+        ).fetchone() == ("signed_allowed",)
+        assert {row[1]: row[6] for row in after if row[1] in ("gold_future", "wti_future")} == {
+            "gold_future": "unknown", "wti_future": "unknown",
+        }
+        log_query = f"SELECT version, checksum_sha256, applied_at FROM {schema}.schema_migrations ORDER BY version"
+        log = connection.execute(log_query).fetchall()
+        paths = [migrations._MIGRATIONS / name for name in migrations._MARKET_DATA_MIGRATIONS]
+        assert [(version, checksum) for version, checksum, _ in log] == [
+            (version, sha256(path.read_text(encoding="utf-8").encode("utf-8")).hexdigest())
+            for version, path in zip(VERSIONS, paths, strict=True)
+        ]
+        assert all(applied_at is not None for _, _, applied_at in log)
+        connection.execute(paths[1].read_text(encoding="utf-8").replace("market_data", schema))
+        assert _mapping_rows(connection, schema) == after
+        assert connection.execute(log_query).fetchall() == log
+    assert apply_migrations(DSN, schema=schema).applied_versions == ()
+
+
+@pytest.mark.parametrize(("change", "message"), [
+    ("UPDATE {schema}.asset_sources SET source_convention = 'unexpected' WHERE symbol = 'VWO'", "convention"),
+    ("DELETE FROM {schema}.asset_sources WHERE symbol = 'VWO'", "identity"),
+])
+def test_incremental_upgrade_rejects_unexpected_state_atomically(initial_schema, change, message):
+    schema = initial_schema
+    with psycopg.connect(DSN) as connection:
+        connection.execute(change.format(schema=schema))
+        before = _mapping_rows(connection, schema)
+    with pytest.raises(psycopg.errors.RaiseException, match=f"unexpected Yahoo mapping {message} for VWO"):
+        apply_migrations(DSN, schema=schema)
+    with psycopg.connect(DSN) as connection:
+        assert _mapping_rows(connection, schema) == before
+        assert migrations.inspect_schema(connection, schema=schema).current_versions == VERSIONS[:1]
+
+
+def test_migration_runner_rejects_checksum_mismatch(schema):
+    with psycopg.connect(DSN) as connection:
+        connection.execute(
+            f"UPDATE {schema}.schema_migrations SET checksum_sha256 = %s WHERE version = %s",
+            ("0" * 64, VERSIONS[1]),
+        )
+    with pytest.raises(RuntimeError, match=f"migration checksum changed after application: {VERSIONS[1]}"):
+        apply_migrations(DSN, schema=schema)
+
+
+def test_schema_contains_persistence_indexes_and_triggers(schema):
+    with psycopg.connect(DSN) as connection:
+        indexes = connection.execute(
+            "SELECT indexname FROM pg_indexes WHERE schemaname = %s", (schema,),
+        ).fetchall()
+        triggers = connection.execute(
+            "SELECT DISTINCT trigger_name FROM information_schema.triggers WHERE trigger_schema = %s", (schema,),
+        ).fetchall()
+        constraints = connection.execute(
+            "SELECT DISTINCT constraint_type FROM information_schema.table_constraints "
+            "WHERE table_schema = %s AND table_name = 'price_bars'", (schema,),
+        ).fetchall()
+    assert {name for (name,) in indexes} >= {
+        "asset_sources_asset_idx", "ingestion_runs_source_started_idx",
+        "price_bars_run_idx", "price_bars_last_seen_run_idx",
+    }
+    assert {name for (name,) in triggers} == {
+        "price_bars_sign_policy", "assets_sign_policy_guard", "asset_source_identity_guard",
+    }
+    assert {kind for (kind,) in constraints} >= {"CHECK", "PRIMARY KEY", "FOREIGN KEY"}

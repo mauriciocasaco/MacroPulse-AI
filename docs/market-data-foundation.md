@@ -319,7 +319,7 @@ son especificaciones sin comportamiento ejecutable.
 
 La [verificación temporal de Yahoo](market-data-yahoo.md#etapa-1b--fecha-de-sesión-de-gspc-vt-y-vwo)
 habilita la normalización local de ^GSPC, VT y VWO en el rango auditado. Las
-reglas financieras y la persistencia vigente conservan su alcance. GC=F y
+reglas financieras conservan su alcance. GC=F y
 CL=F siguen pendientes de verificar su fecha de negociación.
 
 ## Etapa 1C · Etiqueta publicada de los futuros
@@ -329,3 +329,11 @@ fecha oficial de negociación, liquidación y disponibilidad permanecen
 desconocidas, igual que la metodología de roll. El reproceso local conserva
 estas distinciones sin cambios al esquema PostgreSQL.
 [Evidencia de Yahoo](market-data-yahoo.md#etapa-1c--fecha-diaria-que-yahoo-publica-para-gcf-y-clf)
+
+## Fase 2.2 · Compatibilidad PostgreSQL
+
+La migración incremental alinea los cinco mapeos pendientes con las
+convenciones Yahoo del catálogo Python. Con ambas versiones aplicadas, el
+repositorio admite los seis activos diarios. El detalle de la admisión y
+de las correcciones está en la [documentación de persistencia](market-data-postgres.md).
+La verificación de integración y la carga histórica quedan para fases posteriores.

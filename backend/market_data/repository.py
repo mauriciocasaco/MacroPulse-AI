@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timezone
 from decimal import Decimal
@@ -13,6 +14,7 @@ import psycopg
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
+from .catalog import ASSET_SOURCES
 from .models import AssetSource, DateRange, NormalizedBatch, PriceBar1d, RunSummary
 
 
@@ -37,11 +39,18 @@ class _Counts:
 class PostgresPriceRepository:
     """Use one short transaction per run operation and per saved batch."""
 
-    def __init__(self, dsn: str, *, schema: str = "market_data") -> None:
+    def __init__(
+        self, dsn: str, *, schema: str = "market_data",
+        connect: Callable[[str], psycopg.Connection] | None = None,
+    ) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", schema):
             raise ValueError("schema must be a lowercase PostgreSQL identifier")
         self._dsn = dsn
         self._schema = sql.Identifier(schema)
+        self._connection_factory = connect
+
+    def _connect(self) -> psycopg.Connection:
+        return (self._connection_factory or psycopg.connect)(self._dsn)
 
     def resolve_mapping_id(self, mapping: AssetSource) -> int:
         asset_id = getattr(mapping, "asset_id", None)
@@ -49,7 +58,7 @@ class PostgresPriceRepository:
         symbol = getattr(mapping, "symbol", None)
         if not all(isinstance(value, str) and value for value in (asset_id, source_id, symbol)):
             raise ValueError("asset source mapping must include asset, source, and symbol identities")
-        with psycopg.connect(self._dsn) as connection:
+        with self._connect() as connection:
             row = connection.execute(sql.SQL(
                 "SELECT id FROM {}.asset_sources WHERE asset_id = %s AND source_id = %s AND symbol = %s"
             ).format(self._schema), (asset_id, source_id, symbol)).fetchone()
@@ -58,7 +67,7 @@ class PostgresPriceRepository:
         return row[0]
 
     def start_run(self, mapping_id: int, window: DateRange) -> int:
-        with psycopg.connect(self._dsn) as connection:
+        with self._connect() as connection:
             row = connection.execute(sql.SQL(
                 "INSERT INTO {}.ingestion_runs "
                 "(asset_source_id, interval, start_date, end_date_exclusive, status, adapter_version) "
@@ -68,7 +77,7 @@ class PostgresPriceRepository:
 
     def save_batch(self, run_id: int, batch: NormalizedBatch) -> RunSummary:
         try:
-            with psycopg.connect(self._dsn) as connection:
+            with self._connect() as connection:
                 with connection.transaction():
                     run = connection.execute(sql.SQL(
                         "SELECT asset_source_id, start_date, end_date_exclusive, status "
@@ -119,7 +128,7 @@ class PostgresPriceRepository:
 
     def fail_run(self, run_id: int, code: str) -> RunSummary:
         safe_code = _safe_error_code(code)
-        with psycopg.connect(self._dsn) as connection:
+        with self._connect() as connection:
             row = connection.execute(sql.SQL(
                 "UPDATE {}.ingestion_runs SET status = 'failed', finished_at = clock_timestamp(), "
                 "error_code = %s WHERE id = %s AND status = 'running' "
@@ -130,13 +139,13 @@ class PostgresPriceRepository:
         return RunSummary(run_id, "failed", *row, error_code=safe_code)
 
     def read_daily(self, mapping_id: int, window: DateRange) -> tuple[PriceBar1d, ...]:
-        with psycopg.connect(self._dsn) as connection:
+        with self._connect() as connection:
             rows = connection.execute(sql.SQL(
                 "SELECT bars.asset_source_id, mappings.asset_id, mappings.source_id, mappings.symbol, "
                 "bars.bar_date, bars.interval, bars.open, bars.high, bars.low, bars.close, "
                 "bars.adjusted_close, bars.volume, bars.ohlc_basis, bars.adjusted_close_basis, "
                 "bars.retrieved_at, bars.session_status, bars.quality_status, bars.source_convention, "
-                "runs.adapter_version, runs.provider_version, mappings.volume_unit "
+                "runs.adapter_version, runs.provider_version, mappings.volume_unit, mappings.rolling_method "
                 "FROM {}.price_bars AS bars "
                 "JOIN {}.asset_sources AS mappings ON mappings.id = bars.asset_source_id "
                 "JOIN {}.ingestion_runs AS runs ON runs.id = bars.run_id "
@@ -150,20 +159,21 @@ class PostgresPriceRepository:
             volume=row[11], ohlc_basis=row[12], adjusted_close_basis=row[13],
             retrieved_at=row[14].astimezone(timezone.utc), session_status=row[15], quality_status=row[16],
             source_convention=row[17], provider=row[2], adapter_version=row[18], provider_version=row[19],
-            volume_unit=row[20],
+            volume_unit=row[20], rolling_method=row[21],
         ) for row in rows)
 
     def _validate_batch(self, batch: NormalizedBatch, mapping_id: int, mapping: tuple[object, ...], start_date, end_date, counts: _Counts) -> tuple[PriceBar1d, ...]:
         if batch.received_count != len(batch.bars) + len(batch.rejected):
             raise ValueError("normalized batch received count does not match its rows and diagnostics")
         asset_id, source_id, symbol, source_convention = mapping
-        if batch.provenance.get("asset_id") != asset_id or batch.provenance.get("source_id") != source_id:
+        if (batch.provenance.get("asset_id") != asset_id or batch.provenance.get("source_id") != source_id
+                or batch.provenance.get("provider") != source_id):
             raise ValueError("normalized batch provenance does not match ingestion mapping")
         if batch.provenance.get("symbol") != symbol or batch.provenance.get("source_convention") != source_convention:
             raise ValueError("normalized batch provenance does not match ingestion mapping")
         if batch.provenance.get("requested_start") != start_date or batch.provenance.get("requested_end_exclusive") != end_date:
             raise ValueError("normalized batch range does not match ingestion run")
-        if batch.bars and not _is_verified_convention(asset_id, source_id, symbol, source_convention):
+        if not _is_verified_convention(asset_id, source_id, symbol, source_convention):
             raise ValueError("repository refuses to persist bars with an unverified source convention")
         candidates: dict[tuple[object, ...], list[PriceBar1d]] = defaultdict(list)
         for bar in batch.bars:
@@ -171,6 +181,8 @@ class PostgresPriceRepository:
                 asset_id, source_id, symbol, source_convention
             ):
                 raise ValueError("normalized observation does not match ingestion mapping")
+            if bar.provider != source_id or bar.interval != "1d":
+                raise ValueError("normalized observation has an incompatible provider or interval")
             if bar.asset_source_id is not None and bar.asset_source_id != mapping_id:
                 raise ValueError("normalized observation has a different asset source id")
             if not start_date <= bar.bar_date < end_date:
@@ -208,6 +220,10 @@ class PostgresPriceRepository:
         incoming_content = _bar_content(bar)
         last_seen = (current[12], current[13])
         observation = (bar.retrieved_at, run_id)
+        if incoming_content != existing_content and bar.retrieved_at in (current[7], last_seen[0]):
+            counts.rejected += 1
+            counts.diagnostics.append(f"equal_timestamp_conflict:{bar.bar_date.isoformat()}")
+            return
         if observation < last_seen:
             counts.stale += 1
             return
@@ -218,10 +234,6 @@ class PostgresPriceRepository:
                     "WHERE asset_source_id = %s AND interval = '1d' AND bar_date = %s AND ohlc_basis = %s"
                 ).format(self._schema), (bar.retrieved_at, run_id, mapping_id, bar.bar_date, bar.ohlc_basis))
             counts.unchanged += 1
-            return
-        if observation == last_seen:
-            counts.rejected += 1
-            counts.diagnostics.append(f"equal_timestamp_conflict:{bar.bar_date.isoformat()}")
             return
         connection.execute(sql.SQL(
             "UPDATE {}.price_bars SET open = %s, high = %s, low = %s, close = %s, adjusted_close = %s, "
@@ -236,7 +248,7 @@ class PostgresPriceRepository:
         counts.corrected += 1
 
     def _fail_run_after_rollback(self, run_id: int, code: str, received_count: int) -> None:
-        with psycopg.connect(self._dsn) as connection:
+        with self._connect() as connection:
             connection.execute(sql.SQL(
                 "UPDATE {}.ingestion_runs SET status = 'failed', finished_at = clock_timestamp(), "
                 "received_count = %s, error_code = %s WHERE id = %s AND status = 'running'"
@@ -261,9 +273,9 @@ def _safe_error_code(code: str) -> str:
 
 
 def _is_verified_convention(asset_id: str, source_id: str, symbol: str, convention: str) -> bool:
+    mapping = ASSET_SOURCES.get(asset_id)
     return (
-        asset_id == "bitcoin_usd"
-        and source_id == "yahoo_finance"
-        and symbol == "BTC-USD"
-        and convention == "verified:yahoo_bitcoin_utc_date:v1"
+        mapping is not None
+        and mapping.source_convention.startswith("verified:")
+        and (source_id, symbol, convention) == (mapping.source_id, mapping.symbol, mapping.source_convention)
     )

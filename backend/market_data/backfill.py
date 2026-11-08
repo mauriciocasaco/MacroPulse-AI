@@ -19,7 +19,7 @@ from time import sleep
 from zoneinfo import ZoneInfo
 
 from .catalog import ASSETS, ASSET_SOURCES, is_yahoo_us_equity_open_date, matches_archived_mapping
-from .models import AssetSource, DateRange, PriceAdapter, RawBatch, RawRow
+from .models import AssetSource, DateRange, NormalizedBatch, PriceAdapter, RawBatch, RawRow
 from .normalizer import financial_rejection, normalize
 from .session_calendar import US_EQUITY_FULL_CLOSURES, US_EQUITY_VERIFIED_DATES
 from .yahoo_adapter import YahooAdapter, YahooAdapterError
@@ -80,6 +80,10 @@ def read_raw(path: Path) -> RawBatch:
     """Load an archived Yahoo batch and verify the gzip checksum."""
     with gzip.open(path, "rt", encoding="utf-8") as source:
         payload = json.load(source)
+    return _decode_raw(payload)
+
+
+def _decode_raw(payload: dict) -> RawBatch:
     if payload["format_version"] != FORMAT_VERSION:
         raise ValueError("unsupported raw cache format")
     raw_rows = payload["rows"]
@@ -118,24 +122,29 @@ def _export_path(output: Path, mapping: AssetSource, window: DateRange) -> Path:
     return output / "normalized" / f"{window.start}_{window.end_exclusive}" / f"{mapping.asset_id}.json.gz"
 
 
+def _normalized_records(batch: RawBatch, normalized: NormalizedBatch) -> tuple[list[dict], list[dict]]:
+    rejected = {item.position: item.code for item in normalized.rejected}
+    accepted_bars = iter(normalized.bars)
+    accepted_records = []
+    rejected_records = []
+    for position, (row, label) in enumerate(zip(batch.rows, _local_labels(batch), strict=True)):
+        origin = {"raw_position": position, "original_label": row.original_label}
+        if position in rejected:
+            rejected_records.append({
+                **origin, "provider_local_date": label.date(), "code": rejected[position],
+            })
+        else:
+            accepted_records.append({**origin, "bar": asdict(next(accepted_bars))})
+    return accepted_records, rejected_records
+
+
 def export_normalized(result: AssetBackfill, output: Path, window: DateRange) -> Path:
     """Write validated bars and diagnostic records with verifiable raw references."""
     asset = ASSETS[result.mapping.asset_id]
     batches = []
     for path, batch in sorted(result.batches.items()):
         normalized = normalize(batch, asset, result.mapping, batch.requested_range)
-        rejected = {item.position: item.code for item in normalized.rejected}
-        accepted_bars = iter(normalized.bars)
-        accepted_records = []
-        rejected_records = []
-        for position, (row, label) in enumerate(zip(batch.rows, _local_labels(batch), strict=True)):
-            origin = {"raw_position": position, "original_label": row.original_label}
-            if position in rejected:
-                rejected_records.append({
-                    **origin, "provider_local_date": label.date(), "code": rejected[position],
-                })
-            else:
-                accepted_records.append({**origin, "bar": asdict(next(accepted_bars))})
+        accepted_records, rejected_records = _normalized_records(batch, normalized)
         with path.open("rb") as source:
             raw_sha256 = file_digest(source, "sha256").hexdigest()
         batches.append({
