@@ -160,31 +160,57 @@ does not lock out other writers after it ends.
 ## Local tests
 
 Install the pinned development requirements from the
-[README](../README.md#run-the-tests-locally). Without
-`MARKET_DATA_TEST_DSN`, tests needing PostgreSQL are skipped. For the full
-suite, use a disposable PostgreSQL 17 instance bound to loopback. These
-fixtures create schemas and may create a temporary database. For example,
-in PowerShell with Docker running:
+[README](../README.md#run-the-tests-locally). From the repository root in
+PowerShell 7.4 or newer with Docker running, copy the whole block below.
+It starts disposable PostgreSQL 17 on loopback, configures a temporary
+TLS certificate and runs the full suite with both test DSNs set.
 
 ```powershell
-docker run --rm -d --name marketpulse-test-pg -e POSTGRES_HOST_AUTH_METHOD=trust --publish 127.0.0.1::5432 postgres:17
-docker exec marketpulse-test-pg pg_isready -U postgres
-```
+& {
+    $ErrorActionPreference = 'Stop'
+    $PSNativeCommandUseErrorActionPreference = $true
+    $marketPulseTestId = [guid]::NewGuid().ToString('N')
+    $marketPulseTestContainer = "marketpulse-test-pg-$marketPulseTestId"
+    $marketPulseTestCa = Join-Path ([System.IO.Path]::GetTempPath()) "$marketPulseTestContainer.crt"
+    $marketPulsePreviousDataDsn = $env:MARKET_DATA_TEST_DSN
+    $marketPulsePreviousApiDsn = $env:MARKET_API_TEST_DSN
+    $marketPulseStarted = $false
+    try {
+        docker run --rm -d --name $marketPulseTestContainer -e POSTGRES_HOST_AUTH_METHOD=trust --publish 127.0.0.1::5432 postgres:17
+        $marketPulseStarted = $true
+        docker exec $marketPulseTestContainer sh -ec 'for attempt in $(seq 1 30); do if pg_isready -h 127.0.0.1 -U postgres; then exit 0; fi; sleep 1; done; exit 1'
 
-Once PostgreSQL accepts connections, run:
+        docker exec -u postgres $marketPulseTestContainer openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 -subj /CN=localhost -addext subjectAltName=IP:127.0.0.1 -keyout /tmp/mp-test.key -out /tmp/mp-test.crt
+        docker exec -u postgres $marketPulseTestContainer chmod 600 /tmp/mp-test.key
+        docker exec $marketPulseTestContainer psql -U postgres -v ON_ERROR_STOP=1 `
+            -c "ALTER SYSTEM SET ssl_cert_file = '/tmp/mp-test.crt'" `
+            -c "ALTER SYSTEM SET ssl_key_file = '/tmp/mp-test.key'" `
+            -c "ALTER SYSTEM SET ssl = 'on'" -c 'SELECT pg_reload_conf()'
+        docker exec $marketPulseTestContainer sh -ec 'for attempt in $(seq 1 10); do if psql "host=127.0.0.1 user=postgres sslmode=require" -Atqc "SHOW ssl" 2>/dev/null | grep -qx on; then exit 0; fi; sleep 1; done; exit 1'
+        docker cp "${marketPulseTestContainer}:/tmp/mp-test.crt" $marketPulseTestCa
 
-```powershell
-$marketPulseTestPort = (docker port marketpulse-test-pg 5432/tcp) -replace '^127\.0\.0\.1:', ''
-if ($marketPulseTestPort -notmatch '^\d+$') { throw 'Local PostgreSQL port unavailable' }
-$env:MARKET_DATA_TEST_DSN = "host=127.0.0.1 port=$marketPulseTestPort dbname=postgres user=postgres sslmode=disable"
-try {
-    python -m pytest -ra
-} finally {
-    Remove-Item Env:MARKET_DATA_TEST_DSN
-    docker stop marketpulse-test-pg
+        $marketPulseTestPort = (docker port $marketPulseTestContainer 5432/tcp) -replace '^127\.0\.0\.1:', ''
+        if ($marketPulseTestPort -notmatch '^\d+$') { throw 'Local PostgreSQL port unavailable' }
+        $marketPulseCaDsn = $marketPulseTestCa.Replace('\', '/').Replace("'", "\'")
+        $marketPulseTestBaseDsn = "host=127.0.0.1 port=$marketPulseTestPort dbname=postgres user=postgres"
+        $env:MARKET_DATA_TEST_DSN = "$marketPulseTestBaseDsn sslmode=disable"
+        $env:MARKET_API_TEST_DSN = "$marketPulseTestBaseDsn sslmode=verify-full sslrootcert='$marketPulseCaDsn'"
+        .\.venv\Scripts\python.exe -m pytest -ra
+    } finally {
+        $marketPulseExitCode = $LASTEXITCODE
+        $env:MARKET_DATA_TEST_DSN = $marketPulsePreviousDataDsn
+        $env:MARKET_API_TEST_DSN = $marketPulsePreviousApiDsn
+        try {
+            if (Test-Path -LiteralPath $marketPulseTestCa) { Remove-Item -LiteralPath $marketPulseTestCa }
+        } finally {
+            if ($marketPulseStarted) { docker stop $marketPulseTestContainer }
+            if ($marketPulseExitCode -ne 0) { $global:LASTEXITCODE = $marketPulseExitCode }
+        }
+    }
 }
 ```
 
-Keep this trust-authenticated instance local and disposable. The test
-suite uses synthetic records and does not require access to Yahoo or
-Supabase. The Phase 2 close ran all 200 tests with PostgreSQL enabled.
+The fixtures use synthetic data and create schemas and temporary databases.
+Market data and news integration tests require `MARKET_DATA_TEST_DSN`. The
+FastAPI TLS tests require `MARKET_API_TEST_DSN`. The workflow restores prior
+environment values and removes the disposable instance and certificate.

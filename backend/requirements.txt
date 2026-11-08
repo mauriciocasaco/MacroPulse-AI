@@ -1,3 +1,6 @@
 psycopg[binary]==3.3.8
 python-dotenv==1.2.4
 yfinance==1.8.0
+fastapi==0.129.0
+pydantic==2.12.5
+uvicorn==0.41.0

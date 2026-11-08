@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import re
 from typing import Protocol
@@ -45,6 +45,13 @@ class ComparisonPoint:
     economic_unit: str
     bar_date: date
     close: Decimal
+    adjusted_close: Decimal | None = None
+    adjusted_close_basis: str | None = None
+    ohlc_basis: str | None = None
+    session_status: str | None = None
+    source_convention: str | None = None
+    rolling_method: str | None = None
+    retrieved_at: datetime | None = None
 
 
 def _validate_mapping_id(mapping_id: int) -> None:
@@ -211,7 +218,7 @@ class PostgresPriceRepository:
     def compare_daily(
         self, first_mapping_id: int, second_mapping_id: int, window: DateRange,
     ) -> tuple[ComparisonPoint, ...]:
-        """Read observed closes for two mappings in one query, each in its own unit."""
+        """Read two mappings in one query, preserving close bases, units and provenance."""
         _validate_mapping_id(first_mapping_id)
         _validate_mapping_id(second_mapping_id)
         if first_mapping_id == second_mapping_id:
@@ -220,7 +227,9 @@ class PostgresPriceRepository:
             raise ValueError("window must be a DateRange")
         with self._connect() as connection:
             rows = connection.execute(sql.SQL("""
-                SELECT m.id, m.asset_id, m.source_id, m.symbol, a.economic_unit, b.bar_date, b.close
+                SELECT m.id, m.asset_id, m.source_id, m.symbol, a.economic_unit, b.bar_date, b.close,
+                       b.adjusted_close, b.adjusted_close_basis, b.ohlc_basis, b.session_status,
+                       b.source_convention, m.rolling_method, b.retrieved_at
                 FROM {schema}.price_bars AS b
                 JOIN {schema}.asset_sources AS m ON m.id = b.asset_source_id
                 JOIN {schema}.assets AS a ON a.id = m.asset_id
@@ -230,7 +239,7 @@ class PostgresPriceRepository:
             """).format(schema=self._schema), (
                 first_mapping_id, second_mapping_id, window.start, window.end_exclusive,
             )).fetchall()
-        return tuple(ComparisonPoint(*row) for row in rows)
+        return tuple(ComparisonPoint(*row[:-1], row[-1].astimezone(timezone.utc)) for row in rows)
 
     def _read_daily(
         self, mapping_id: int, suffix: sql.SQL, params: tuple[date | int, ...],
