@@ -13,6 +13,7 @@ try {
     $mock = Join-Path $fixture 'offline mock.cjs'
     @"
 const fs = require('node:fs');
+const assert = require('node:assert/strict');
 const args = process.argv.slice(2);
 if (args.includes('--version')) { console.log('codex-cli 0.166.0'); process.exit(0); }
 const input = fs.readFileSync(0, 'utf8');
@@ -24,6 +25,31 @@ if (args.includes('--output-schema')) {
   emit({type:'turn.completed', usage:{...usage, input_tokens: 8, cached_input_tokens: 3, output_tokens: 2, reasoning_output_tokens: 1}});
   process.exit(0);
 }
+const mode = input.match(/^MarketPulse launcher context: .*? selected=(\w+)/m)?.[1];
+const profiles = {
+  SIMPLE: {effort:'low', slots:0},
+  MEDIO: {effort:'medium', slots:1, executorModel:'gpt-6.1-sol', executorEffort:'low'},
+  ELABORADO: {effort:'medium', slots:2, executorModel:'gpt-6-luna', executorEffort:'high'}
+};
+const profile = profiles[mode];
+assert.ok(profile, 'Missing launcher mode');
+assert.equal(args[args.indexOf('--model') + 1], 'gpt-6.1-sol');
+assert.equal(args[args.indexOf('--ask-for-approval') + 1], 'never');
+assert.equal(args[args.indexOf('--sandbox') + 1], 'read-only');
+const agentConfig = args.filter((arg, index) => args[index - 1] === '-c' &&
+  (arg.startsWith('agents.') || arg.startsWith('model_reasoning_effort=')));
+const expectedConfig = [
+  'model_reasoning_effort="' + profile.effort + '"',
+  'agents.enabled=' + Boolean(profile.slots)
+];
+if (profile.slots) {
+  expectedConfig.push(
+    'agents.max_concurrent_threads_per_session=' + profile.slots,
+    'agents.default_subagent_model="' + profile.executorModel + '"',
+    'agents.default_subagent_reasoning_effort="' + profile.executorEffort + '"'
+  );
+}
+assert.deepEqual(agentConfig.sort(), expectedConfig.sort());
 emit({type:'item.completed', item:{type:'agent_message', text:'PRIVATE_SENTINEL reply'}});
 if (input.includes('offline failure')) { emit({type:'turn.failed'}); process.exit(17); }
 if (input.includes('offline interrupted')) process.exit(130);
@@ -77,7 +103,7 @@ emit({type:'turn.completed', usage, child_usage:{input_tokens:999}, payload:'PRI
             $record.classifier_usage.status -ne 'observed')) { throw 'Classifier usage was lost.' }
     }
     if (@(Get-ChildItem -LiteralPath $records -Filter '*.json').Count -ne 8) { throw 'Run records collided.' }
-    'PASS 8 offline launcher cases, JSONL preservation, privacy, token boundaries, outcomes and exit codes'
+    'PASS 8 offline launcher cases, topology and model flags, JSONL preservation, privacy, token boundaries, outcomes and exit codes'
 } finally {
     $resolved = (Resolve-Path -LiteralPath $fixture -ErrorAction SilentlyContinue).Path
     if ($resolved -and $resolved -eq $fixture -and (Split-Path -Parent $resolved) -eq $root) {

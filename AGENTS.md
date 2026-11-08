@@ -23,27 +23,36 @@ Use synthetic fixtures for local verification.
 ## Mode contract
 
 The [orchestration guide](docs/codex-orchestration.md) describes the CLI
-launcher and local Codex Desktop. Honor the launcher context when present.
+launcher and local Codex Desktop. MODE determines roles and participant count.
+Honor the launcher context when present.
 In a fresh Desktop chat for this trusted checkout, accept an explicit first
-request for SIMPLE, MEDIO or ELABORADO. Select the primary model and effort
-through host controls before sending the task. Without either entry point,
+request for SIMPLE, MEDIO or ELABORADO. The user chooses the primary model and
+effort in the composer. The executors inherit both unless the user explicitly
+configures a supported host override. Without either entry point,
 work single-agent with host defaults. A mode change requires a fresh session.
 
 Reassess the task's scope, architectural impact, uncertainty and security risk
 before any work or spawn.
 If the requested mode is unsafe, report the mismatch and ask for authorization
 to relaunch in the appropriate mode. Do not switch modes inside the session.
-Report unavailable roles/settings as blockers rather than substituting agents.
-In Desktop, a mode prompt requests the contract. It does not configure models,
-permissions or agent counts. Check available host evidence before work and
-after each spawn as applicable. Stop on a known mismatch or missing required
-capability. Report any effective model, effort, role, participant count or
-permission the host cannot verify. The two concurrent slots do not authorize
-replacement agents or additional participants over the task's lifetime.
+Stop if a required role or delegation capability is unavailable, if the
+observed topology conflicts with the contract, or if permissions, unresolved
+security risks or unexpected repository conflicts prevent the work. Respect
+host restrictions and use only the registered roles without passing model or
+effort overrides at spawn. Use exactly the participants listed below over
+the task's lifetime. The two concurrent slots are a capacity limit.
 
-The primary uses GPT-6.1 Sol Low in SIMPLE and GPT-6.1 Sol Medium in MEDIO
-and ELABORADO. Use the registered roles without model or effort overrides.
-`ejecutor_ligero` and `auditor` use GPT-6.1 Sol Low. `ejecutor` uses GPT-6 Luna High.
+In CLI, the launcher sets GPT-6.1 Sol Low for the SIMPLE primary, GPT-6.1 Sol
+Medium for both Coordinators, GPT-6.1 Sol Low for `ejecutor_ligero` and GPT-6
+Luna High for `ejecutor`. On both surfaces the independent `auditor` role
+specifies GPT-6.1 Sol Low.
+
+Check available host evidence before work and after each spawn as applicable.
+Report observed settings, including deviations from requested settings, and
+identify any unverified roles, participant counts or permissions. When model
+or effort metadata is unavailable, report `modelo/esfuerzo efectivos: no verificables`
+for the unavailable values and continue. Missing model or effort metadata
+alone never requires stopping or opening a fresh session.
 
 - **SIMPLE** uses only the primary. Implement directly, run proportional checks
   and report results and limits.

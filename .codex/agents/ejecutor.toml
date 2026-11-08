@@ -1,6 +1,4 @@
 name = "ejecutor"
-model = "gpt-6-luna"
-model_reasoning_effort = "high"
 description = "Implementation and verification executor for MarketPulse AI."
 
 developer_instructions = '''

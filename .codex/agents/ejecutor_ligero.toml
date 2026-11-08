@@ -1,6 +1,4 @@
 name = "ejecutor_ligero"
-model = "gpt-6.1-sol"
-model_reasoning_effort = "low"
 description = "Lightweight executor for bounded MarketPulse AI tasks."
 
 developer_instructions = '''

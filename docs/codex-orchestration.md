@@ -17,11 +17,30 @@ configuration. An existing chat cannot apply these launcher overrides to itself.
 and [project subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)
 describe the relevant CLI behavior.
 
-| Mode | Primary | Participants |
-| --- | --- | --- |
-| SIMPLE | GPT-6.1 Sol Low | Primary only |
-| MEDIO | GPT-6.1 Sol Medium | Coordinator and `ejecutor_ligero` (GPT-6.1 Sol Low) |
-| ELABORADO | GPT-6.1 Sol Medium | Coordinator, `ejecutor` (GPT-6 Luna High) and `auditor` (GPT-6.1 Sol Low) |
+## Topology
+
+| Mode | Total participants | Roles |
+| --- | ---: | --- |
+| SIMPLE | 1 | Primary only |
+| MEDIO | 2 | Coordinator and one `ejecutor_ligero` |
+| ELABORADO | 3 | Coordinator, one `ejecutor` and one independent `auditor` |
+
+## CLI model and reasoning settings
+
+| Mode | Primary | Executor | Independent auditor |
+| --- | --- | --- | --- |
+| SIMPLE | GPT-6.1 Sol Low | — | — |
+| MEDIO | GPT-6.1 Sol Medium | GPT-6.1 Sol Low | — |
+| ELABORADO | GPT-6.1 Sol Medium | GPT-6 Luna High | GPT-6.1 Sol Low |
+
+The launcher sets the primary with `--model` and `-c model_reasoning_effort`.
+For delegated modes it sets `agents.default_subagent_model` and
+`agents.default_subagent_reasoning_effort` for the invocation. CLI overrides
+take precedence over project and personal defaults, subject to host policy.
+Use the registered role without model or effort arguments when spawning. The
+executors use the invocation defaults and the auditor's explicit role settings
+take precedence over them. See [configuration precedence](https://learn.chatgpt.com/docs/config-file/config-basic)
+and [subagent settings](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
 Run from the project root. Supply the task via `-Task` with no private inputs,
 credentials or confidential snippets. Treat the execution event stream as private.
@@ -71,8 +90,10 @@ goes to stdout.
    trusted local project. Start a new local Codex chat at its root after the
    configuration change. Keep the effective host permissions appropriate to
    the task. Use read-only permissions for smoke tests where available.
-2. Select GPT-6.1 Sol and the effort from the mode table in the composer
-   before sending. Use the model and effort controls exposed by your build.
+2. Select any model and effort supported by the host in the composer. The
+   executors inherit the primary's selection unless the user explicitly
+   configures a supported host override. The auditor role specifies GPT-6.1
+   Sol Low.
 3. Start the first message with one of these lines, followed by the task.
 
    ```text
@@ -81,7 +102,8 @@ goes to stdout.
    MODE: ELABORADO
    ```
 
-The first-message marker requests the AGENTS.md workflow. The project enables
+The first-message marker selects the topology in AGENTS.md. Open a fresh
+session when changing topology. The project enables
 multi-agent tools with two concurrently open subordinate threads, excluding
 the primary. SIMPLE must spawn none. MEDIO uses one `ejecutor_ligero`.
 ELABORADO uses one `ejecutor` and an independent `auditor`, reusing those
@@ -89,20 +111,27 @@ threads for corrections and review. The same three-round limit and full
 auditor gate apply, including a weighted score of at least 8.50. Desktop has
 no project AUTO preflight. The launcher still applies its per-run overrides.
 
-Check the selected model, effort and effective permissions exposed by the host.
-Inspect Desktop subagent activity and thread metadata for actual distinct
-participants, named roles and effective settings. A prompt, role file, slot
-limit or agent self-report alone cannot establish these facts. Report missing
-evidence explicitly. If a required role or setting is unavailable or conflicts
-with the contract, stop and report the blocker. See the permissions section
-below for the auditor's inherited sandbox.
+Inspect Desktop subagent activity and host metadata for distinct participants,
+roles, permissions and effective settings. Record observed model and effort,
+including any deviation from the user's selection. A prompt, role file, slot
+limit or agent self-report establishes intended settings only. When model or
+effort metadata is unavailable, record `modelo/esfuerzo efectivos: no verificables`
+for the unavailable values and continue in the same session. For example,
+`MODE: MEDIO` with any supported composer selection activates the Coordinator
+and one `ejecutor_ligero` even when effective settings are unavailable.
+
+Report any operational blocker, such as a missing required role, unavailable
+delegation, insufficient permissions, unresolved security risks or unexpected
+repository conflicts. See the permissions section below for the auditor's
+inherited sandbox.
 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
 [Desktop settings](https://learn.chatgpt.com/docs/developer-settings), and
 [project trust](https://learn.chatgpt.com/docs/config-file/config-basic).
 
 ### Desktop smoke test
 
-Run each in a separate fresh chat with the matching composer settings. Append
+Run each in a separate fresh chat with a supported composer selection. Use
+High for the MEDIO check and Medium for ELABORADO to exercise inheritance. Append
 the following task after the corresponding mode marker. Require synthetic data
 only, no edits or service calls, and report host evidence and gaps.
 

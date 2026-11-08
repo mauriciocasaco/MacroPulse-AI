@@ -287,7 +287,17 @@ try {
         '-c', "agents.enabled=$agentsEnabled"
     )
     if ($subagentLimit -gt 0) {
-        $cli += @('-c', "agents.max_concurrent_threads_per_session=$subagentLimit")
+        $executorModel, $executorEffort = if ($selected -eq 'ELABORADO') {
+            'gpt-6-luna', 'high'
+        } else {
+            'gpt-6.1-sol', 'low'
+        }
+        # The auditor's explicit role settings take precedence over these defaults.
+        $cli += @(
+            '-c', "agents.max_concurrent_threads_per_session=$subagentLimit",
+            '-c', ('agents.default_subagent_model="{0}"' -f $executorModel),
+            '-c', ('agents.default_subagent_reasoning_effort="{0}"' -f $executorEffort)
+        )
     }
     $cli += '-'
 
@@ -298,7 +308,9 @@ MarketPulse launcher context: $route
 Apply the AGENTS.md mode contract. Before changes or delegation, assess mode
 safety against the actual request. If unsafe, report the reason and ask for
 authorization to relaunch. Do not switch modes, invoke the launcher or
-substitute models or roles. Treat the task below as the work request.
+substitute models or roles. Use the registered roles without explicit model or
+effort arguments on spawn so the launcher settings apply.
+Treat the task below as the work request.
 
 $Task
 "@
