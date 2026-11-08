@@ -1,56 +1,26 @@
-# Market Data PostgreSQL persistence
+# Market data in PostgreSQL
 
-The initial Supabase migration is
-`supabase/migrations/202611070001_market_data.sql`. It creates the dedicated
-`market_data` schema, five operational tables, integrity
-triggers and the six initial asset mappings. Catalog inserts preserve existing
-rows and abort when a seeded identity conflicts.
+## Schema and migration runner
 
-`supabase/migrations/202611080001_yahoo_daily_conventions.sql` updates the
-conventions for GC=F, CL=F, ^GSPC, VT and VWO. It checks the provider, symbol
-and asset identity, accepts the original `unknown` value or the expected
-final convention, and fails on missing or conflicting mappings. It leaves
-Bitcoin, sign policies, and futures rolling metadata intact.
+`supabase/migrations/202611070001_market_data.sql` creates the
+`market_data` schema, catalog, ingestion runs, daily bars and integrity
+triggers. `202611080001_yahoo_daily_conventions.sql` updates the verified
+Yahoo date conventions for GC=F, CL=F, ^GSPC, VT and VWO. It preserves the
+Bitcoin mapping, sign policies and futures rolling metadata.
 
-`backend.market_data.migrations.apply_migrations(dsn)` is the supported
-application entry point. The checked-in SQL defines the schema objects and
-catalog seed. The Python runner creates `market_data.schema_migrations`, then
-applies the allowlisted SQL and records its version and SHA-256 checksum in
-that ledger in the same transaction. Running the SQL file by itself does not
-record a migration version. The runner rejects a previously recorded version
-if its checksum has changed and reports the catalog counts. For Supabase,
-pass the existing DSN through
-`backend.market_data.connection.secure_supabase_dsn(dsn)` before supplying it
-to `apply_migrations` or `PostgresPriceRepository`. This helper adds
-`sslmode="verify-full"`, `gssencmode="disable"`, and the repository-local
-`Certificate/prod-ca-2021.crt` path. Keep generic or disposable PostgreSQL DSNs
-unchanged. Keep credentials in memory and out of command transcripts and
-repository files. Before applying to any connected database, inspect its
-identity and confirm it is the authorized development destination using an
-independent project reference, such as the development Dashboard. Compare that
-reference with the direct database host or the username when using a shared
-pooler. A hostname that passes TLS verification alone does not identify the
-Supabase project.
+The application entry point is
+`backend.market_data.migrations.apply_migrations(dsn)`. The runner
+applies allowlisted SQL in transactions, records each version and SHA-256
+in `schema_migrations`, and rejects checksum drift. Executing a SQL file
+directly bypasses the ledger.
 
-`PostgresPriceRepository` resolves an `AssetSource` to a database mapping ID,
-starts an ingestion run, persists a normalized batch transactionally and reads
-daily rows by mapping and half-open date range. With both migrations applied,
-it accepts all six reviewed Yahoo mappings. The asset, provider, symbol and
-date convention must agree with the Python catalog, and bars must use the
-daily interval. Futures keep the date published by Yahoo and rolling
-`unknown`. Equity series keep the New York session date, and Bitcoin keeps
-the UTC date, including weekends. Official trade, settlement, and availability
-times remain unset.
-
-The unique bar key is `(asset_source_id, interval, bar_date, ohlc_basis)`.
-Identical observations preserve content provenance and may advance
-`last_seen_at` and `last_seen_run_id`. A different observation that shares
-the retrieval time of the stored content or its latest sighting is rejected
-with `equal_timestamp_conflict`. The stored bar and its provenance are
-preserved. A run ID orders sightings of identical content and cannot resolve
-a content conflict. Older observations are stale. A later correction replaces
-the full observation, including optional values that become NULL. NULL volume
-remains distinct from zero, and adjusted close stays separate from close.
+Each batch persists atomically with its run counters. Identical content
+preserves the original run and can advance the last-seen run. Older
+observations count as stale. A different value with the same retrieval
+timestamp is rejected as an equal-time conflict. A newer correction
+replaces the current observation, including optional fields that became
+null. See the [daily contract](market-data-foundation.md#daily-ohlcv-and-provenance)
+for the financial and temporal invariants.
 
 ## Daily read queries
 
@@ -138,133 +108,83 @@ end-to-end latency measurements. The run and last-seen indexes support
 provenance lookups. The observed plans support keeping the existing
 indexes at the current dataset size.
 
-## Historical importer
+## Historical import
 
-Run the following in PowerShell from the repository root. Dry-run is the
-default. The initial dataset flag checks the reviewed half-open window, six
-per-symbol counts, unique daily dates and exact inventory of six rejections.
-Omit that flag for other backfills.
+Archive inputs are local. Use `python -m backend.market_data.backfill --help`
+for acquisition options. When the raw gzip files already exist, use
+`python -m backend.market_data.backfill --offline` to regenerate normalized
+exports from those archives. Offline mode leaves the raw files intact.
 
-```powershell
-python -m backend.market_data.historical_import --input-dir .\data\backfills\normalized\2019-11-08_2026-11-08 --archive-dir .\data\backfills --initial-dataset --dry-run
-```
-
-The importer reads version 1 gzip JSON exports and their referenced raw
-archives. The export stores the normalized values as decimal strings or JSON
-null, the original UTC retrieval time, source identity, batch window, and
-raw positions and labels. The SHA-256 is for the compressed raw archive.
-The importer checks it against the same bytes it reads, reruns the existing
-normalizer locally and compares every record and its provenance. The hash
-checks consistency between paired files. Authenticity depends on retaining
-the reviewed archives and exports. The dry-run reports bounds and counts per
-asset, retrieval metadata, raw hashes and each archived rejection.
-
-For a later write to an authorized, migrated local database, supply
-`MARKET_DATA_IMPORT_DSN` in the process environment and replace
-`--dry-run` with `--apply-local`. The DSN needs one literal `127.0.0.1` host,
-an explicit port, database and user. Use a verified local server and port.
-Exclude tunnels or forwarded ports to external servers. The CLI accepts
-only loopback for `--apply-local`.
-
-Validation completes for the whole input before any write. Each archived
-batch gets its own ingestion run and transaction. A failed batch rolls
-back its bars and earlier committed batches remain. After resolving the
-cause, replay the same inputs. Identical content reconciles as unchanged
-or stale according to the repository policy, and the new runs record the
-replay. Run summaries include insertions, unchanged observations,
-corrections, stale observations and rejections. An unexpected rejection
-stops the import after the repository records that batch's result. A hard
-kill or connection loss can leave a run marked `running`. Replaying uses
-new runs and preserves prior run records for inspection.
-
-Run diagnostics include the archive path and hash and the position, raw
-label, local date and code of each withheld observation. The repository
-keeps the current bar and run summaries. Retain the archives to reconstruct
-source metadata and superseded values.
-
-## First Supabase DEV load
-
-Run from the repository root in PowerShell with the project Python
-environment active. The DEV modes read `MARKETPULSE_DEV_PROJECT_REF` and
-`DATABASE_URL` from the local `.env`. Confirm the project in the DEV Dashboard
-before the window. The PostgreSQL hostname or shared pooler username must
-identify the pinned DEV project. The HTTPS project URL is separate. The
-configured Supabase CA must be available locally, and every connection
-uses `verify-full`.
+Validate the reviewed dataset from the repository root. The default import
+mode is dry-run. The initial-dataset flag also checks the reviewed
+half-open window, counts, and six rejected observations.
 
 ```powershell
-$devProject = 'swpithkjviavycrxpwed'
-$archiveArgs = @(
-    '--input-dir', '.\data\backfills\normalized\2019-11-08_2026-11-08',
-    '--archive-dir', '.\data\backfills',
-    '--initial-dataset'
-)
+python -m backend.market_data.historical_import --input-dir ./data/backfills/normalized/2019-11-08_2026-11-08 --archive-dir ./data/backfills --initial-dataset --dry-run
 ```
 
-Keep other writers and schema changes paused for the migration and load
-window. The preflight is a repeatable read-only snapshot. The loader commits
-individual batches on separate connections, so the snapshot cannot exclude
-outside writes after preflight. Stop on a nonzero exit code and review
-committed runs before retrying.
+The importer verifies each raw archive hash, reruns the normalizer, and
+compares the resulting values, provenance and rejections with the export.
+A matching hash checks file consistency. Authenticity depends on retaining
+the reviewed archive set. Omit `--initial-dataset` for other backfills.
+To write to a migrated, authorized local database, set
+`MARKET_DATA_IMPORT_DSN` to a verified loopback server at `127.0.0.1` with
+explicit port, database and user, and use `--apply-local`.
 
-1. After authorization for the incremental migration, run this command.
-   It requires the audited initial schema, its exact ledger entry, the
-   initial catalog and empty ingestion tables. The runner locks its ledger,
-   requires the incremental to be the sole pending version, checks the SQL
-   hashes, and records the incremental in the same transaction as its SQL.
-   The command then runs the read-only preflight again to verify both
-   versions, checksums and the updated catalog.
+Validation precedes writes. A persistence failure rolls back the current
+batch while earlier committed batches remain. Inspect run status and
+counts, resolve the failure, then replay the same validated inputs if
+authorized. Replays record new runs. Repeated identical content preserves
+bar uniqueness and original provenance. An interrupted run can remain
+marked `running` and needs review before retrying.
 
-   ```powershell
-   python -m backend.market_data.historical_import @archiveArgs --migrate-dev-incremental --confirm-dev-write $devProject
-   ```
+### Supabase DEV controls
 
-2. Run the read-only destination preflight and the final offline dry-run.
-   The preflight compares PostgreSQL 17 table definitions against the
-   audited DDL and checks existing bars and completed runs against the
-   archives. The dry-run validates the local inputs without reading the DSN.
+The read-only audit and importer DEV modes use the existing local
+configuration. Keep `MARKETPULSE_DEV_PROJECT_REF` and `DATABASE_URL` in the
+ignored `.env`. The client matches the configured project to the direct
+database hostname or the pooler username, verifies TLS with the local CA
+at `Certificate/prod-ca-2021.crt`, and rejects ambiguous routing options.
+The DEV project reference is an identifier. Database credentials and the
+local CA file stay outside the repository.
 
-   ```powershell
-   python -m backend.market_data.historical_import @archiveArgs --preflight-dev
-   python -m backend.market_data.historical_import @archiveArgs --dry-run
-   ```
+Use `--preflight-dev` to verify the pinned destination, schema, ledger,
+catalog and existing data without writes. Add `--require-complete` to
+require all expected bars. The separate `dev_audit` command above also
+checks the original load and replay counters and the provenance links.
+The original DEV migration and write modes require explicit authorization
+and `--confirm-dev-write` with the pinned project reference. Inspect the
+ledger and run status before any authorized write. The preflight snapshot
+does not lock out other writers after it ends.
 
-3. After explicit authorization for the historical load, run the following.
-   The write mode repeats preflight before opening any ingestion run and
-   checks the complete result after the final batch.
+## Local tests
 
-   ```powershell
-   python -m backend.market_data.historical_import @archiveArgs --apply-dev --confirm-dev-write $devProject
-   python -m backend.market_data.historical_import @archiveArgs --preflight-dev --require-complete
-   ```
+Install the pinned development requirements from the
+[README](../README.md#run-the-tests-locally). Without
+`MARKET_DATA_TEST_DSN`, tests needing PostgreSQL are skipped. For the full
+suite, use a disposable PostgreSQL 17 instance bound to loopback. These
+fixtures create schemas and may create a temporary database. For example,
+in PowerShell with Docker running:
 
-   Expect 1,761 GC=F, 1,760 CL=F, 1,758 each for ^GSPC, VT and VWO, and
-   2,557 BTC-USD bars. The run summaries account for the six source
-   rejections separately.
+```powershell
+docker run --rm -d --name marketpulse-test-pg -e POSTGRES_HOST_AUTH_METHOD=trust --publish 127.0.0.1::5432 postgres:17
+docker exec marketpulse-test-pg pg_isready -U postgres
+```
 
-4. After authorization to replay, run the same load again and repeat the
-   complete check. Expect zero inserts, corrections and stale observations,
-   11,352 unchanged observations, six archived rejections and the same bar
-   counts. The replay records new ingestion runs and updates last-seen run
-   provenance.
+Once PostgreSQL accepts connections, run:
 
-   ```powershell
-   python -m backend.market_data.historical_import @archiveArgs --apply-dev --confirm-dev-write $devProject
-   python -m backend.market_data.historical_import @archiveArgs --preflight-dev --require-complete
-   ```
+```powershell
+$marketPulseTestPort = (docker port marketpulse-test-pg 5432/tcp) -replace '^127\.0\.0\.1:', ''
+if ($marketPulseTestPort -notmatch '^\d+$') { throw 'Local PostgreSQL port unavailable' }
+$env:MARKET_DATA_TEST_DSN = "host=127.0.0.1 port=$marketPulseTestPort dbname=postgres user=postgres sslmode=disable"
+try {
+    python -m pytest -ra
+} finally {
+    Remove-Item Env:MARKET_DATA_TEST_DSN
+    docker stop marketpulse-test-pg
+}
+```
 
-5. After failure or interruption, inspect the current per-symbol counts,
-   status totals and reported run IDs before reusing the load command.
-   A matching subset of stored bars is valid for resume. Unexpected
-   overlaps or provenance discrepancies block the load.
-
-   ```powershell
-   python -m backend.market_data.historical_import @archiveArgs --preflight-dev
-   ```
-
-Tests requiring PostgreSQL use `MARKET_DATA_TEST_DSN`. They require a
-disposable test database, create uniquely named schemas there, and retain those
-schemas until that disposable database is removed. The DEV workflow test
-also requires permission to create and remove its own uniquely named
-database on that loopback server. Without that variable, PostgreSQL integration
-tests are skipped.
+Keep this trust-authenticated instance local and disposable. The test
+suite uses synthetic records and does not require access to Yahoo or
+Supabase. The Phase 2 close ran all 200 tests with PostgreSQL enabled.
