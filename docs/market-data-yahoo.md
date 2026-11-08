@@ -83,3 +83,20 @@ The raw chart response supplies an array per quote field, so flat and MultiIndex
 DataFrame layout tests are not applicable at this boundary. One-symbol requests
 keep the symbol identity attached to the mapping, and the adapter returns
 provider fields without constructing pandas objects.
+
+## Daily date-label evidence
+
+Only BTC-USD currently has an enabled date-label convention. In a bounded
+public cross-check for `[2023-02-15, 2023-02-18)`, Yahoo chart metadata reported
+UTC and the three raw chart labels were `00:00:00Z` on February 15, 16, and 17.
+Their closes matched to the published precision on Yahoo's own BTC-USD daily
+history for those dates. The chart also returned the exclusive February 18
+boundary row, which the normalizer rejects. This supports interpreting those
+BTC-USD chart timestamps as UTC date labels. It does not verify a daily cutoff,
+market-close time, session status, or conventions for any other symbol.
+
+The mapping identifier is `verified:yahoo_bitcoin_utc_date:v1`. The normalizer
+accepts it only for BTC-USD when the response timezone is UTC and each Unix
+label is at UTC midnight. Other instruments remain withheld unless their
+symbol-specific date-label rule is independently reviewed. The public
+cross-check used Yahoo's own [BTC-USD historical prices](https://es.finance.yahoo.com/quote/BTC-USD/history/?filter=history&frequency=1d&includeAdjustedClose=true&interval=1d&period1=1609372800&period2=1703980800).

@@ -25,3 +25,6 @@ dist/
 
 # Local Codex telemetry and generated reports
 /.local/codex-telemetry/
+
+# Supabase TLS certificates - local only
+/Certificate/
