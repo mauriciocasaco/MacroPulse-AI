@@ -38,7 +38,7 @@ Modelo inmutable, con tipos estándar y precios representados por `Decimal`.
 | Campo | Tipo Python | Semántica |
 | --- | --- | --- |
 | asset_source_id | int | Referencia al mapeo que identifica activo, fuente y símbolo |
-| bar_date | date | Etiqueta de la sesión según la convención verificada de la fuente |
+| bar_date | date | Fecha diaria atribuida por la fuente según la convención verificada. Para GC=F y CL=F es la fecha publicada por Yahoo |
 | interval | Literal["1d"] | Frecuencia diaria |
 | open, high, low | Decimal o None | Precios opcionales en la unidad del activo |
 | close | Decimal | Cierre obligatorio en la unidad del activo |
@@ -50,6 +50,10 @@ Modelo inmutable, con tipos estándar y precios representados por `Decimal`.
 | session_status | Literal["closed", "provisional", "unknown"] | Estado al recuperar la barra |
 | quality_status | Literal["complete", "partial"] | Cobertura de los cuatro valores OHLC |
 | source_convention | str | Zona IANA y regla de etiquetado diario, o identificador de una convención verificada |
+| exchange_trade_date | date o None | Fecha oficial de negociación, si se verifica por separado |
+| settlement_time | datetime o None | Instante de liquidación, si se verifica por separado |
+| availability_time | datetime o None | Instante conocido de disponibilidad del dato, independiente de su recuperación |
+| rolling_method | str o None | Metodología de roll cuando aplica. `unknown` indica que sigue sin verificarse |
 
 ### Invariantes
 
@@ -310,3 +314,18 @@ son especificaciones sin comportamiento ejecutable.
   aislamiento por tenant antes de incorporarlos al módulo. Los contratos de
   esta fase describen referencias de mercado compartidas.
 - La revisión independiente de esta especificación sigue pendiente.
+
+## Etapa 1B · Reproceso temporal
+
+La [verificación temporal de Yahoo](market-data-yahoo.md#etapa-1b--fecha-de-sesión-de-gspc-vt-y-vwo)
+habilita la normalización local de ^GSPC, VT y VWO en el rango auditado. Las
+reglas financieras y la persistencia vigente conservan su alcance. GC=F y
+CL=F siguen pendientes de verificar su fecha de negociación.
+
+## Etapa 1C · Etiqueta publicada de los futuros
+
+GC=F y CL=F usan la fecha diaria publicada por Yahoo como `bar_date`. La
+fecha oficial de negociación, liquidación y disponibilidad permanecen
+desconocidas, igual que la metodología de roll. El reproceso local conserva
+estas distinciones sin cambios al esquema PostgreSQL.
+[Evidencia de Yahoo](market-data-yahoo.md#etapa-1c--fecha-diaria-que-yahoo-publica-para-gcf-y-clf)

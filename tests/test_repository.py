@@ -348,7 +348,8 @@ def test_unverified_mappings_can_persist_withheld_rows_and_diagnostics(repositor
         ("emerging_markets_etf", "America/New_York"),
     )
     for asset_id, zone_name in symbols:
-        mapping = ASSET_SOURCES[asset_id]
+        # The current database seed uses the original, unverified mappings.
+        mapping = replace(ASSET_SOURCES[asset_id], source_convention="unknown")
         raw = RawBatch(
             asset_id=asset_id, mapping=mapping, provider="yahoo_finance", ticker=mapping.symbol,
             requested_range=WINDOW, interval="1d", retrieved_at=RETRIEVED_AT, adapter_version="1.0.0",

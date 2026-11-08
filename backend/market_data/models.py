@@ -49,11 +49,13 @@ class Asset:
 
 @dataclass(frozen=True)
 class PriceBar1d:
+    """A daily provider observation with exchange timing when independently known."""
+
     asset_source_id: int | None
     asset_id: str
     source_id: str
     symbol: str
-    bar_date: date
+    bar_date: date  # Daily date attributed by the source under source_convention.
     interval: Literal["1d"]
     open: Decimal | None
     high: Decimal | None
@@ -71,6 +73,10 @@ class PriceBar1d:
     adapter_version: str
     provider_version: str | None
     volume_unit: str | None
+    exchange_trade_date: date | None = None
+    settlement_time: datetime | None = None
+    availability_time: datetime | None = None
+    rolling_method: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.bar_date, date) or isinstance(self.bar_date, datetime):

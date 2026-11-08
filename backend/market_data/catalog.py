@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .models import Asset, AssetSource
+
+
+YAHOO_US_EQUITY_OPEN_DATE = "verified:yahoo_us_equity_open_date:v1"
+YAHOO_FUTURES_PUBLISHED_DATE = "verified:yahoo_futures_published_date:v1"
 
 
 ASSETS: dict[str, Asset] = {
@@ -16,11 +22,26 @@ ASSETS: dict[str, Asset] = {
 
 
 ASSET_SOURCES: dict[str, AssetSource] = {
-    "gold_future": AssetSource("gold_future", "future", "yahoo_finance", "GC=F", rolling_method="unknown"),
-    "wti_future": AssetSource("wti_future", "future", "yahoo_finance", "CL=F", rolling_method="unknown"),
-    "sp500_index": AssetSource("sp500_index", "index", "yahoo_finance", "^GSPC"),
-    "world_equity_etf": AssetSource("world_equity_etf", "etf", "yahoo_finance", "VT"),
-    "emerging_markets_etf": AssetSource("emerging_markets_etf", "etf", "yahoo_finance", "VWO"),
+    "gold_future": AssetSource(
+        "gold_future", "future", "yahoo_finance", "GC=F",
+        source_convention=YAHOO_FUTURES_PUBLISHED_DATE, rolling_method="unknown",
+    ),
+    "wti_future": AssetSource(
+        "wti_future", "future", "yahoo_finance", "CL=F",
+        source_convention=YAHOO_FUTURES_PUBLISHED_DATE, rolling_method="unknown",
+    ),
+    "sp500_index": AssetSource(
+        "sp500_index", "index", "yahoo_finance", "^GSPC",
+        source_convention=YAHOO_US_EQUITY_OPEN_DATE,
+    ),
+    "world_equity_etf": AssetSource(
+        "world_equity_etf", "etf", "yahoo_finance", "VT",
+        source_convention=YAHOO_US_EQUITY_OPEN_DATE,
+    ),
+    "emerging_markets_etf": AssetSource(
+        "emerging_markets_etf", "etf", "yahoo_finance", "VWO",
+        source_convention=YAHOO_US_EQUITY_OPEN_DATE,
+    ),
     "bitcoin_usd": AssetSource(
         "bitcoin_usd", "cryptocurrency_spot", "yahoo_finance", "BTC-USD",
         source_convention="verified:yahoo_bitcoin_utc_date:v1",
@@ -33,3 +54,25 @@ def get_asset_source(asset_id: str) -> AssetSource:
         return ASSET_SOURCES[asset_id]
     except KeyError as exc:
         raise ValueError(f"unknown asset id: {asset_id}") from exc
+
+
+def is_yahoo_us_equity_open_date(mapping: AssetSource) -> bool:
+    return (
+        mapping.source_convention == YAHOO_US_EQUITY_OPEN_DATE
+        and ASSET_SOURCES.get(mapping.asset_id) == mapping
+    )
+
+
+def is_yahoo_futures_published_date(mapping: AssetSource) -> bool:
+    return (
+        mapping.source_convention == YAHOO_FUTURES_PUBLISHED_DATE
+        and ASSET_SOURCES.get(mapping.asset_id) == mapping
+    )
+
+
+def matches_archived_mapping(archived: AssetSource, current: AssetSource) -> bool:
+    """Accept an exact match or the original mapping of a reviewed Yahoo series."""
+    return archived == current or (
+        (is_yahoo_us_equity_open_date(current) or is_yahoo_futures_published_date(current))
+        and archived == replace(current, source_convention="unknown")
+    )

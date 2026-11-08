@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from backend.market_data import ASSETS, ASSET_SOURCES, DateRange, RawBatch, RawRow, normalize
-from backend.market_data.normalizer import NormalizationStructureError
+from backend.market_data.normalizer import NormalizationStructureError, financial_rejection
 
 
 WINDOW = DateRange(date(2026, 10, 1), date(2026, 11, 1))
@@ -211,3 +211,157 @@ def test_session_status_stays_unknown_without_provider_evidence():
     result = normalized(asset_id="bitcoin_usd", zone_name="UTC")
     assert result.bars[0].session_status == "unknown"
     assert any("session status could not be determined" in warning for warning in result.warnings)
+
+
+def _reviewed_equity(asset_id, rows, window, *, archived=False, zone="America/New_York"):
+    batch, _ = fixture_batch(asset_id=asset_id, rows=rows)
+    mapping = ASSET_SOURCES[asset_id]
+    raw_mapping = replace(mapping, source_convention="unknown") if archived else mapping
+    batch = replace(
+        batch, mapping=raw_mapping, requested_range=window,
+        temporal_metadata={"index_timezone": zone, "provider_session_label_convention": "unverified"},
+    )
+    return batch, mapping
+
+
+@pytest.mark.parametrize("asset_id", ["sp500_index", "world_equity_etf", "emerging_markets_etf"])
+@pytest.mark.parametrize("archived", [False, True])
+def test_us_equity_open_labels_across_dst(asset_id, archived):
+    window = DateRange(date(2026, 3, 6), date(2026, 11, 3))
+    # Actual labels from both DST transitions, with synthetic prices.
+    epochs = [1772807400, 1773063000, 1793367000, 1793629800]
+    rows = [RawRow(epoch, FIELDS) for epoch in epochs]
+    batch, mapping = _reviewed_equity(asset_id, rows, window, archived=archived)
+    result = normalize(batch, ASSETS[asset_id], mapping, window)
+    assert [bar.bar_date for bar in result.bars] == [
+        date(2026, 3, 6), date(2026, 3, 9), date(2026, 10, 30), date(2026, 11, 2),
+    ]
+    assert all(bar.session_status == "unknown" for bar in result.bars)
+    assert all(bar.retrieved_at == batch.retrieved_at for bar in result.bars)
+    assert result.provenance["archived_source_convention"] == batch.mapping.source_convention
+    assert result.provenance["source_convention"] == mapping.source_convention
+    assert result.provenance["temporal_convention_status"] == "verified_for_us_equity_session_dates"
+    assert batch.temporal_metadata["provider_session_label_convention"] == "unverified"
+
+
+def _new_york_open(day):
+    return int(datetime(day.year, day.month, day.day, 9, 30, tzinfo=ZoneInfo("America/New_York")).timestamp())
+
+
+def test_equity_sessions_exclude_full_closures_and_weekends_but_keep_early_close():
+    days = [date(2025, 1, 9), date(2025, 7, 4), date(2025, 11, 28), date(2025, 11, 29)]
+    rows = [RawRow(_new_york_open(day), FIELDS) for day in days]
+    window = DateRange(days[0], date(2025, 11, 30))
+    batch, mapping = _reviewed_equity("world_equity_etf", rows, window)
+    result = normalize(batch, ASSETS[mapping.asset_id], mapping, window)
+    assert [bar.bar_date for bar in result.bars] == [days[2]]
+    assert [(item.position, item.code) for item in result.rejected] == [
+        (0, "non_session_date"), (1, "non_session_date"), (3, "non_session_date"),
+    ]
+
+
+def test_equity_rejects_invalid_shape_wrong_clock_or_exclusive_end():
+    first, end = date(2019, 11, 8), date(2019, 11, 11)
+    window = DateRange(first, end)
+    labels = [_new_york_open(first), first, _new_york_open(first) + 3600, _new_york_open(end)]
+    rows = [RawRow(label, FIELDS) for label in labels]
+    batch, mapping = _reviewed_equity("sp500_index", rows, window)
+    result = normalize(batch, ASSETS[mapping.asset_id], mapping, window)
+    assert [bar.bar_date for bar in result.bars] == [first]
+    assert [item.code for item in result.rejected] == [
+        "unverified_us_equity_label", "unverified_us_equity_label", "outside_requested_range",
+    ]
+
+
+def test_equity_calendar_does_not_claim_future_dates_and_checks_reported_zone():
+    window = DateRange(date(2026, 11, 6), date(2026, 11, 10))
+    rows = [RawRow(1793975400, FIELDS), RawRow(_new_york_open(date(2026, 11, 9)), FIELDS)]
+    batch, mapping = _reviewed_equity("emerging_markets_etf", rows, window)
+    asset = ASSETS[mapping.asset_id]
+    result = normalize(batch, asset, mapping, window)
+    assert [bar.bar_date for bar in result.bars] == [window.start]
+    assert [item.code for item in result.rejected] == ["outside_verified_calendar"]
+    wrong_zone = replace(batch, temporal_metadata={"index_timezone": "UTC"})
+    assert [item.code for item in normalize(wrong_zone, asset, mapping, window).rejected] == [
+        "temporal_convention_unverified", "temporal_convention_unverified",
+    ]
+
+
+@pytest.mark.parametrize("asset_id", ["gold_future", "wti_future"])
+def test_futures_overnight_labels_remain_unverified(asset_id):
+    asset = ASSETS[asset_id]
+    mapping = replace(ASSET_SOURCES[asset_id], source_convention="unknown")
+    # Sunday evening in Chicago can be part of a Monday session.
+    sunday_evening = int(datetime(2026, 3, 8, 17, tzinfo=ZoneInfo("America/Chicago")).timestamp())
+    prices = {"Open": -10, "High": 3, "Low": -40, "Close": -37.63, "Volume": 0}
+    rows = [RawRow(sunday_evening, prices), RawRow(sunday_evening, {"Adj Close": 10})]
+    batch, _ = fixture_batch(asset_id, rows, verified=False)
+    window = DateRange(date(2026, 3, 8), date(2026, 3, 10))
+    batch = replace(batch, requested_range=window)
+    result = normalize(batch, asset, mapping, window)
+    assert not result.bars
+    assert [item.code for item in result.rejected] == ["temporal_convention_unverified"] * 2
+    assert financial_rejection(rows[0].fields, asset) == (None if asset_id == "wti_future" else "non_positive_price")
+    assert financial_rejection(rows[1].fields, asset) == "missing_close"
+
+
+def _futures_batch(asset_id, rows, window, *, zone="America/New_York"):
+    batch, archived = fixture_batch(asset_id, rows, verified=False, zone_name=zone)
+    return replace(batch, requested_range=window), archived, ASSET_SOURCES[asset_id]
+
+
+@pytest.mark.parametrize("asset_id", ["gold_future", "wti_future"])
+def test_futures_yahoo_published_dates_keep_holidays_and_both_clock_shapes(asset_id):
+    # Archive epochs from an early close, a holiday, and ordinary dates around DST.
+    labels = [1575037800, 1751601600, 1772773200, 1773028800]
+    days = [date(2019, 11, 29), date(2025, 7, 4), date(2026, 3, 6), date(2026, 3, 9)]
+    synthetic_day = date(2026, 3, 10)
+    labels.append(_new_york_open(synthetic_day))
+    days.append(synthetic_day)
+    window = DateRange(days[0], date(2026, 3, 11))
+    batch, archived, mapping = _futures_batch(asset_id, [RawRow(label, FIELDS) for label in labels], window)
+    result = normalize(batch, ASSETS[asset_id], mapping, window)
+
+    assert not result.rejected
+    assert [bar.bar_date for bar in result.bars] == days
+    assert all(bar.rolling_method == "unknown" for bar in result.bars)
+    assert all(bar.exchange_trade_date is None and bar.settlement_time is None for bar in result.bars)
+    assert all(bar.availability_time is None and bar.retrieved_at == batch.retrieved_at for bar in result.bars)
+    assert result.provenance["temporal_convention_status"] == "verified_for_yahoo_futures_published_dates"
+    assert result.provenance["archived_source_convention"] == archived.source_convention == "unknown"
+    assert batch.temporal_metadata["provider_session_label_convention"] == "unverified"
+
+
+def test_futures_reject_unverified_shapes_and_respect_exclusive_end():
+    days = [date(2026, 3, 6), date(2026, 3, 7), date(2026, 3, 9)]
+    window = DateRange(days[0], days[-1])
+    labels = [1772773200, days[0], _new_york_open(days[0]) + 1, _new_york_open(days[1]), 1773028800]
+    asset = ASSETS["gold_future"]
+    rows = [RawRow(label, FIELDS) for label in labels]
+    batch, _, mapping = _futures_batch(asset.id, rows, window)
+    normalized = normalize(batch, asset, mapping, window)
+    assert [bar.bar_date for bar in normalized.bars] == [window.start]
+    assert [item.code for item in normalized.rejected] == [
+        "unverified_yahoo_futures_label", "unverified_yahoo_futures_label",
+        "unverified_yahoo_futures_label", "outside_requested_range",
+    ]
+    wrong_zone = replace(batch, temporal_metadata={"index_timezone": "America/Chicago"})
+    assert {item.code for item in normalize(wrong_zone, asset, mapping, window).rejected} == {
+        "temporal_convention_unverified",
+    }
+
+
+def test_futures_normalization_keeps_wti_negative_null_zero_and_missing_close():
+    window = DateRange(date(2020, 4, 20), date(2020, 4, 23))
+    fields = {"Open": -10, "High": 3, "Low": -40, "Close": -37.63, "Adj Close": -38}
+    rows = [
+        RawRow(1587355200, {**fields, "Volume": None}),
+        RawRow(_new_york_open(date(2020, 4, 21)), {**fields, "Volume": 0}),
+        RawRow(_new_york_open(date(2020, 4, 22)), {"Adj Close": 11}),
+    ]
+    batch, _, mapping = _futures_batch("wti_future", rows, window)
+    result = normalize(batch, ASSETS[mapping.asset_id], mapping, window)
+    assert [bar.close for bar in result.bars] == [Decimal("-37.63")] * 2
+    assert [bar.adjusted_close for bar in result.bars] == [Decimal("-38")] * 2
+    assert [bar.volume for bar in result.bars] == [None, Decimal(0)]
+    assert [(item.position, item.code) for item in result.rejected] == [(2, "missing_close")]
