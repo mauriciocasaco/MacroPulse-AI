@@ -36,6 +36,7 @@ def record(id_=1, *, source=EIA, **overrides):
     published = source.published_on.isoformat()
     return {
         "evidence_id": f"news-record:{id_}", "source_id": source.source_id, "source_name": "Fixture publisher",
+        "publisher": "Original publisher", "title": "Original report title",
         "original_url": source.url, "canonical_url": source.url, "evidence_kind": "excerpt",
         "published_at": published + "T09:00:00Z", "provider_observed_at": published + "T10:00:00Z",
         "retrieved_at": published + "T12:00:00Z", "assets": [{"asset_id": "wti_future", "relationship": "direct"}],
@@ -73,16 +74,22 @@ def test_grounded_coverage(analysis_api, evidence, coverage, overrides):
     assert body["prices"]["economic_unit"] == "USD/bbl"
     assert body["coverage"] == coverage
     assert [item["evidence_id"] for item in body["citations"]] == [item["evidence_id"] for item in evidence]
+    assert all(item["publisher"] == "Original publisher" and item["title"] == "Original report title"
+               for item in body["citations"])
     assert "restricted passage" not in response.text
     query = retrieve.call_args.args[0]
     assert query.required_theme == f"marketpulse:event:{request['event']}"
     assert query.window_basis == "publication_day" and query.limit == 5
     assert [item["citation_id"] for item in body["economic_mechanisms"]] == [item["evidence_id"] for item in evidence]
     if coverage == "sufficient":
+        assert body["economic_interpretation"].startswith("The cited records directly address")
         assert body["economic_mechanisms"][0]["summary"] == EIA.mechanism
     elif coverage == "partial":
+        assert body["economic_interpretation"].startswith("The cited records provide economic context")
         assert body["economic_mechanisms"][0]["summary"] == FED_FUNDING.mechanism
         assert body["citations"][0]["relevance"] == "contextual"
+    else:
+        assert body["economic_interpretation"].startswith("Available evidence is insufficient")
 
 
 def test_metadata_and_prompt_injection_never_reach_provider(analysis_api):
@@ -218,6 +225,7 @@ def test_gemini_synthetic_http_contract_and_output_budget(monkeypatch, finish):
             provider.generate(SYNTHETIC_SMOKE)
     outgoing = opener.open.call_args.args[0]
     payload = json.loads(outgoing.data)
+    assert "Use English" in payload["systemInstruction"]["parts"][0]["text"]
     assert outgoing.full_url.endswith("/models/gemini-3.6-flash:generateContent")
     assert "fixture-key" not in outgoing.full_url and "fixture-key" not in outgoing.data.decode()
     assert outgoing.get_header("X-goog-api-key") == "fixture-key"

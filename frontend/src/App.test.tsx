@@ -15,11 +15,11 @@ vi.mock('uplot', () => ({
 }));
 
 const gold: Asset = {
-  asset_source_id: 781, asset_id: 'gold_future', name: 'Oro futuro', symbol: 'GC=F', source_id: 'sample',
-  provider_name: 'Fuente sintética', economic_unit: 'USD/oz', calendar_code: 'CMES',
+  asset_source_id: 781, asset_id: 'gold_future', name: 'Gold futures', symbol: 'GC=F', source_id: 'sample',
+  provider_name: 'Synthetic source', economic_unit: 'USD/oz', calendar_code: 'CMES',
   first_date: '2020-01-02', last_date: '2026-10-31', bar_count: 2,
 };
-const wti: Asset = { ...gold, asset_source_id: 234, asset_id: 'wti_future', name: 'Petróleo WTI futuro', symbol: 'CL=F', economic_unit: 'USD/bbl' };
+const wti: Asset = { ...gold, asset_source_id: 234, asset_id: 'wti_future', name: 'WTI crude oil', symbol: 'CL=F', economic_unit: 'USD/bbl' };
 const bar: DailyBar = {
   bar_date: '2020-04-20', close: '-37.630000', adjusted_close: null,
   retrieved_at: '2026-11-09T14:20:00Z', availability_time: null, session_status: 'closed', quality_status: 'complete',
@@ -80,49 +80,49 @@ async function start(result = insufficient) {
     return json({ asset: url.includes('/234/') ? wti : gold, bars: [] });
   });
   render(<App />);
-  return screen.findByRole('combobox', { name: 'Activo financiero' });
+  return screen.findByRole('combobox', { name: 'Asset' });
 }
 
 describe('market workspace', () => {
   it('loads the real mappings and updates the window, coverage, and preset with the selected asset', async () => {
     const select = await start();
-    expect(screen.getByRole('heading', { name: 'Oro futuro' })).toBeDefined();
-    expect(await screen.findByText('No hay observaciones para este período.')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Gold futures' })).toBeDefined();
+    expect(await screen.findByText('No prices are available for this period.')).toBeDefined();
     fireEvent.change(select, { target: { value: '234' } });
-    fireEvent.click(screen.getByRole('button', { name: '1 mes' }));
+    fireEvent.click(screen.getByRole('button', { name: '1 month' }));
     await waitFor(() => expect(http.mock.calls.map(([url]) => url)).toContain('/api/assets/234/history?start=2026-09-30&end_exclusive=2026-11-01'));
-    expect(screen.getByRole('heading', { name: 'Petróleo WTI futuro' })).toBeDefined();
-    expect(screen.getByText(/USD\/bbl · CMES/)).toBeDefined();
-    expect(screen.getByPlaceholderText(/a CL=F\?/)).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'WTI crude oil' })).toBeDefined();
+    expect(screen.getByText(/USD\/bbl/)).toBeDefined();
+    expect(screen.getByPlaceholderText(/affect CL=F\?/)).toBeDefined();
   });
 
   it('handles catalog HTTP failures and retries into the empty catalog state', async () => {
     http.mockResolvedValueOnce(new Response('', { status: 503 })).mockImplementationOnce(() => json([]));
     render(<App />);
     expect((await screen.findByRole('alert')).textContent).toContain('HTTP 503');
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByText('FastAPI no devolvió activos disponibles.')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('No assets available.')).toBeDefined();
   });
 
   it('rejects a successful catalog response with an incompatible shape', async () => {
     http.mockImplementationOnce(() => json([null]));
     render(<App />);
-    expect((await screen.findByRole('alert')).textContent).toContain('no coincide con el contrato');
-    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeDefined();
+    expect((await screen.findByRole('alert')).textContent).toContain('unexpected response');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
   });
 
   it('rejects a successful history response with malformed bars', async () => {
     http.mockImplementation((url) => url === '/api/assets' ? json([gold]) : json({ asset: gold, bars: [{ ...bar, bar_date: 'yesterday' }] }));
     render(<App />);
-    expect((await screen.findByRole('alert')).textContent).toContain('no coincide con el contrato');
+    expect((await screen.findByRole('alert')).textContent).toContain('unexpected response');
     expect(screen.queryByRole('img')).toBeNull();
   });
 
-  it('displays exact negative Close and resizes the chart for a narrow container', async () => {
+  it('displays a one-decimal negative Close and resizes the chart for a narrow container', async () => {
     http.mockImplementation((url) => url === '/api/assets' ? json([wti]) : json({ asset: wti, bars: [bar] }));
     render(<App />);
-    expect(await screen.findByText('-37.630000')).toBeDefined();
-    expect(screen.getByRole('img', { name: 'Serie de Close diario de CL=F' })).toBeDefined();
+    expect(await screen.findByText('-37.6')).toBeDefined();
+    expect(screen.getByRole('img', { name: 'Daily Close for CL=F' })).toBeDefined();
     act(() => observeWidth(945));
     expect(plot.setSize).not.toHaveBeenCalled();
     flushResize();
@@ -133,9 +133,9 @@ describe('market workspace', () => {
     flushResize();
     expect(plot.setSize).toHaveBeenLastCalledWith({ width: 332, height: 264 });
     act(() => observeWidth(990));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Serie' }), { target: { value: 'adjusted_close' } });
-    expect(screen.getByText('No hay valores de Adj Close en este período.')).toBeDefined();
-    expect(screen.queryByText('-37.630000')).toBeNull();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Price series' }), { target: { value: 'adjusted_close' } });
+    expect(screen.getByText('No Adj Close prices are available for this period.')).toBeDefined();
+    expect(screen.queryByText('-37.6')).toBeNull();
     expect(plot.destroy).toHaveBeenCalledTimes(1);
     expect(resizeFrame).toBeUndefined();
   });
@@ -143,64 +143,88 @@ describe('market workspace', () => {
 
 describe('financial analysis', () => {
   it.each([
-    ['Pandemia de COVID-19', 'covid', '2020-02-01', '2020-07-01', 'la pandemia del COVID-19'],
-    ['Invasión rusa de Ucrania', 'ukraine', '2022-02-01', '2022-07-01', 'la invasión rusa de Ucrania'],
-    ['Auge de la IA generativa', 'genai', '2022-11-01', '2025-01-01', 'el auge de la IA generativa'],
+    ['COVID-19 pandemic', 'covid', '2020-02-01', '2020-07-01', 'the COVID-19 pandemic'],
+    ["Russia's invasion of Ukraine", 'ukraine', '2022-02-01', '2022-07-01', 'Russia’s invasion of Ukraine'],
+    ['Rise of generative AI', 'genai', '2022-11-01', '2025-01-01', 'the rise of generative AI'],
   ])('submits the preset and independent analysis window for %s', async (title, event, startDate, endDate, subject) => {
     await start();
-    fireEvent.click(screen.getByRole('button', { name: '3 años' }));
+    fireEvent.click(screen.getByRole('button', { name: '3 years' }));
     fireEvent.click(screen.getByRole('radio', { name: new RegExp(title) }));
-    fireEvent.click(screen.getByRole('button', { name: 'Analizar acontecimiento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
     const analysis = http.mock.calls.find(([url]) => url === '/api/analysis');
     expect(JSON.parse(String(analysis?.[1].body))).toEqual({
-      asset: gold.asset_id, event, start: startDate, end_exclusive: endDate, question: `¿Cómo afectó ${subject} a GC=F?`,
+      asset: gold.asset_id, event, start: startDate, end_exclusive: endDate, question: `How did ${subject} affect GC=F?`,
     });
-    const result = await screen.findByRole('article', { name: 'Resultado de la consulta' });
-    expect(within(result).getByText('Evidencia insuficiente')).toBeDefined();
-    expect(within(result).getByText('Proveedor simulado')).toBeDefined();
+    const result = await screen.findByRole('article', { name: 'Analysis result' });
+    expect(within(result).getByText('Insufficient evidence')).toBeDefined();
     expect(within(result).getByText(insufficient.economic_interpretation)).toBeDefined();
-    expect(within(result).getByText('La respuesta no incluye citas documentales.')).toBeDefined();
+    expect(within(result).getByText('No relevant documents found.')).toBeDefined();
+    expect(within(result).getByText('N/A')).toBeDefined();
+    expect(within(result).getAllByRole('heading').map((heading) => heading.textContent))
+      .toEqual(['Price Change', 'AI Analysis', 'RAG Documents']);
+  });
+
+  it.each([
+    ['8.249', '+8.2%', 'positive'],
+    ['-12.44', '-12.4%', 'negative'],
+    ['0', '0.0%', 'neutral'],
+    [null, 'N/A', 'neutral'],
+  ])('renders backend change %s and actual observation dates', async (percentage, label, tone) => {
+    const first = { date: '2020-04-17', close: '18.270000', retrieved_at: bar.retrieved_at };
+    const last = { date: '2020-04-20', close: percentage === null ? bar.close : '17.00000', retrieved_at: bar.retrieved_at };
+    await start({ ...insufficient, prices: {
+      ...insufficient.prices, observations: 2, first, last, close_change: '-1.270000',
+      close_change_pct: percentage, source_convention: 'verified:fixture', rolling_method: 'unknown',
+    } });
+    fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
+    const summary = await screen.findByRole('region', { name: 'Price Change' });
+    expect(within(summary).getByText(label).classList.contains(tone)).toBe(true);
+    expect(Array.from(summary.querySelectorAll('time'), (time) => time.textContent))
+      .toEqual(['Apr 17, 2020', 'Apr 20, 2020']);
+    expect(summary.textContent).not.toMatch(/verified:fixture|unknown|-1\.270000/);
   });
 
   it('sends a custom question, opens safe original links, and displays untrusted text inertly', async () => {
     const citation = {
-      evidence_id: 'news-record:1', source_id: 'sample', source_name: '<img src=x>',
+      evidence_id: 'news-record:1', source_id: 'sample', source_name: 'Fixture source', title: '<img src=x>', publisher: 'Fixture publisher',
       original_url: 'https://example.test/original?edition=1', published_at: null, published_on: '2020-03-20',
       provider_observed_at: null, retrieved_at: '2026-11-09T14:20:00Z', relevance: 'direct',
     } as const;
     await start({ ...insufficient, coverage: 'partial', citations: [citation,
-      { ...citation, evidence_id: 'news-record:2', source_name: 'Esquema inválido', original_url: 'javascript:alert(1)' },
-      { ...citation, evidence_id: 'news-record:3', source_name: 'URL con credenciales', original_url: 'https://user:pass@example.test/private' },
+      { ...citation, evidence_id: 'news-record:2', title: 'Invalid protocol', original_url: 'javascript:alert(1)', relevance: 'contextual' },
+      { ...citation, evidence_id: 'news-record:3', title: 'URL with credentials', original_url: 'https://user:pass@example.test/private' },
     ] });
-    fireEvent.change(screen.getByLabelText(/Pregunta personalizada/), { target: { value: '¿Hubo cambios en la demanda?' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Analizar acontecimiento' }));
+    fireEvent.change(screen.getByLabelText(/Custom question/), { target: { value: 'Did demand change?' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
     const link = await screen.findByRole('link', { name: /<img src=x>/ });
     expect(link.getAttribute('href')).toBe(citation.original_url);
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(screen.getByText(/Fixture publisher.*Contextual/)).toBeDefined();
+    expect(screen.getAllByText('Mar 20, 2020')).toHaveLength(3);
     expect(screen.queryByRole('img')).toBeNull();
-    expect(screen.queryByRole('link', { name: /Esquema inválido|URL con credenciales/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Invalid protocol|URL with credentials/ })).toBeNull();
     const analysis = http.mock.calls.find(([url]) => url === '/api/analysis');
-    expect(JSON.parse(String(analysis?.[1].body)).question).toBe('¿Hubo cambios en la demanda?');
+    expect(JSON.parse(String(analysis?.[1].body)).question).toBe('Did demand change?');
   });
 
   it('rejects a successful analysis response with an incompatible nested payload', async () => {
     await start();
     http.mockImplementationOnce(() => json({ ...insufficient, citations: [null] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Analizar acontecimiento' }));
-    expect((await screen.findByRole('alert')).textContent).toContain('no coincide con el contrato');
-    expect(screen.queryByRole('article', { name: 'Resultado de la consulta' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('unexpected response');
+    expect(screen.queryByRole('article', { name: 'Analysis result' })).toBeNull();
   });
 
   it('ignores a delayed response after changing assets', async () => {
     const select = await start();
     let resolve!: (response: Response) => void;
     http.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
-    fireEvent.click(screen.getByRole('button', { name: 'Analizar acontecimiento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
     const attempt = http.mock.lastCall?.[1].signal;
     fireEvent.change(select, { target: { value: '234' } });
     await act(async () => resolve(Response.json(insufficient)));
     expect(attempt?.aborted).toBe(true);
-    expect(screen.queryByRole('article', { name: 'Resultado de la consulta' })).toBeNull();
-    expect(screen.getByPlaceholderText(/a CL=F\?/)).toBeDefined();
+    expect(screen.queryByRole('article', { name: 'Analysis result' })).toBeNull();
+    expect(screen.getByPlaceholderText(/affect CL=F\?/)).toBeDefined();
   });
 });

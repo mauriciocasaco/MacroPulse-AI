@@ -5,9 +5,9 @@ import type { Asset, DailyBar } from './api';
 import { chartData, type PriceField } from './chart-data';
 import { DAY_SECONDS, dateToSeconds, formatDate, secondsToDate } from './dates';
 
-const priceAxis = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 4 });
-const axisDate = new Intl.DateTimeFormat('es-UY', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const axisMonth = new Intl.DateTimeFormat('es-UY', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+const priceAxis = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const axisDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const axisMonth = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' });
 const plotHeight = (width: number) => width < 600 ? 264 : 342;
 
 interface Props {
@@ -106,7 +106,7 @@ export function PriceChart({ asset, bars, field }: Props) {
   }, [dates, prices, label, lastObserved, isolated]);
 
   if (lastObserved === undefined) {
-    return <output className="chart-empty">No hay valores de {label} en este período.</output>;
+    return <output className="chart-empty">No {label} prices are available for this period.</output>;
   }
 
   const firstDate = dates[0];
@@ -134,27 +134,26 @@ export function PriceChart({ asset, bars, field }: Props) {
   return <>
     <div className="chart-reading" aria-live="off">
       <div className="reading-value">
-        <span className="reading-price">{price ?? '—'}</span>
+        <span className="reading-price">{price == null ? '—' : priceAxis.format(Number(price))}</span>
         <span className="muted">{asset.economic_unit}</span>
       </div>
       <div className="reading-meta">
         {selected !== undefined && <time dateTime={secondsToDate(selected)}>{formatDate(secondsToDate(selected))}</time>}
-        {price == null && <span>Sin observación de {label}</span>}
-        {reading?.session_status === 'provisional' && <span className="amber">Sesión provisional</span>}
-        {reading?.quality_status === 'partial' && <span className="amber">Datos parciales</span>}
-        {reading && <span>Recuperación <time dateTime={reading.retrieved_at}>{reading.retrieved_at}</time></span>}
+        {price == null && <span>No {label} price</span>}
+        {reading?.session_status === 'provisional' && <span className="amber">Provisional session</span>}
+        {reading?.quality_status === 'partial' && <span className="amber">Partial data</span>}
       </div>
     </div>
     {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- uPlot needs a container for its canvas. */}
-    <div className="plot" ref={container} role="img" aria-label={`Serie de ${label} diario de ${asset.symbol}`} />
+    <div className="plot" ref={container} role="img" aria-label={`Daily ${label} for ${asset.symbol}`} />
     <div className="chart-tools">
-      <p className="muted">Los huecos indican días sin observación. Arrastrá para ampliar.</p>
+      <p className="muted">Gaps indicate missing prices. Drag to zoom.</p>
       <div className="chart-actions">
-        <label htmlFor="inspect-date">Inspeccionar fecha</label>
+        <label htmlFor="inspect-date">Inspect date</label>
         <input id="inspect-date" type="date" min={secondsToDate(firstDate)} max={secondsToDate(lastDate)}
           value={pinned === undefined ? '' : secondsToDate(pinned)}
           onChange={(event) => event.target.value ? inspect(event.target.value) : reset()} />
-        <button type="button" className="secondary" onClick={reset}>Restablecer vista</button>
+        <button type="button" className="secondary" onClick={reset}>Reset view</button>
       </div>
     </div>
   </>;

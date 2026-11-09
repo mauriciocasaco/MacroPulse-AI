@@ -93,6 +93,8 @@ class Citation(BaseModel):
     evidence_id: str = Field(pattern=r"^news-record:[1-9][0-9]{0,18}$")
     source_id: str = Field(min_length=1, max_length=128)
     source_name: str = Field(min_length=1, max_length=256)
+    publisher: str | None = None
+    title: str | None = None
     original_url: str = Field(min_length=1, max_length=8192)
     published_at: AwareDatetime | None = None
     published_on: date | None = None
@@ -168,6 +170,8 @@ def _citation(
         citation = Citation(
             evidence_id=item.get("evidence_id"), source_id=item.get("source_id"),
             source_name=item.get("source_name"), original_url=item.get("original_url"),
+            publisher=item.get("publisher") or None,
+            title=item.get("title") or None,
             published_at=item.get("published_at"), published_on=item.get("published_on"),
             provider_observed_at=item.get("provider_observed_at"), retrieved_at=item.get("retrieved_at"),
             relevance=source.relevance,

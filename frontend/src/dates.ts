@@ -3,12 +3,12 @@ import type { DateWindow } from './api';
 export const DAY_SECONDS = 86_400;
 
 export const PERIODS = [
-  { id: '1m', label: '1 mes', months: 1 },
-  { id: '3m', label: '3 meses', months: 3 },
-  { id: '6m', label: '6 meses', months: 6 },
-  { id: '1y', label: '1 año', months: 12 },
-  { id: '3y', label: '3 años', months: 36 },
-  { id: 'max', label: 'Máximo', months: null },
+  { id: '1m', label: '1 month', months: 1 },
+  { id: '3m', label: '3 months', months: 3 },
+  { id: '6m', label: '6 months', months: 6 },
+  { id: '1y', label: '1 year', months: 12 },
+  { id: '3y', label: '3 years', months: 36 },
+  { id: 'max', label: 'Max', months: null },
 ] as const;
 
 export type PeriodId = typeof PERIODS[number]['id'];
@@ -16,7 +16,7 @@ export type PeriodId = typeof PERIODS[number]['id'];
 export const dateToSeconds = (date: string) => Date.parse(`${date}T00:00:00Z`) / 1000;
 export const secondsToDate = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10);
 
-const dayLabel = new Intl.DateTimeFormat('es-UY', {
+const dayLabel = new Intl.DateTimeFormat('en-US', {
   day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
 });
 

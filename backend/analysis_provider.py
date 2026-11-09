@@ -106,7 +106,7 @@ class GeminiProvider:
         payload = {
             "systemInstruction": {"parts": [{"text": (
                 "Classify coverage and cite IDs from the supplied synthetic fixture. "
-                "A direct source gives sufficient coverage. Return the requested JSON only."
+                "A direct source gives sufficient coverage. Use English and return the requested JSON only."
             )}]},
             "contents": [{"parts": [{"text": (
                 "Synthetic fixture. A fictional exchange notice, source ID synthetic:1, "

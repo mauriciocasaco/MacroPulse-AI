@@ -71,6 +71,8 @@ export interface Citation {
   evidence_id: string;
   source_id: string;
   source_name: string;
+  publisher?: string | null;
+  title?: string | null;
   original_url: string;
   published_at: string | null;
   published_on: string | null;
@@ -94,11 +96,11 @@ export interface AnalysisResponse extends DateWindow {
 }
 
 const errors: Record<number, string> = {
-  404: 'El recurso solicitado no está disponible.',
-  413: 'La consulta supera el tamaño admitido.',
-  422: 'FastAPI rechazó los parámetros de la consulta.',
-  502: 'El servicio local no pudo completar la solicitud.',
-  503: 'El servicio local o su fuente de datos no está disponible.',
+  404: 'The requested resource is unavailable.',
+  413: 'The request is too large.',
+  422: 'Check the request parameters and try again.',
+  502: 'The service could not complete the request.',
+  503: 'The service or its data source is unavailable.',
 };
 
 type JsonObject = Record<string, unknown>;
@@ -107,7 +109,8 @@ const textFields = (value: JsonObject, fields: string[]) => fields.every((field)
 const optionalText = (value: unknown) => value === null || typeof value === 'string';
 const date = (value: unknown) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(`${value}T00:00:00Z`));
-const decimal = (value: unknown) => typeof value === 'string' || typeof value === 'number';
+const decimal = (value: unknown) => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+  && Number.isFinite(Number(value));
 
 // Check the shape the UI consumes. FastAPI owns validation of the financial data.
 function isAsset(value: unknown): value is Asset {
@@ -141,6 +144,9 @@ function isAnalysis(value: unknown, query: AnalysisRequest): value is AnalysisRe
     && Array.isArray(citations) && citations.every((item) => object(item)
       && textFields(item, ['evidence_id', 'source_id', 'source_name', 'original_url', 'retrieved_at'])
       && (item.relevance === 'direct' || item.relevance === 'contextual')
+      && (item.publisher === undefined || optionalText(item.publisher))
+      && (item.title === undefined || optionalText(item.title))
+      && (item.published_on === null || date(item.published_on))
       && [item.published_at, item.published_on, item.provider_observed_at].every(optionalText))
     && Array.isArray(economic_mechanisms) && economic_mechanisms.every((item) => object(item) && textFields(item, ['citation_id', 'summary']))
     && Array.isArray(limitations) && limitations.every((item) => typeof item === 'string');
@@ -155,20 +161,20 @@ async function request<T>(path: string, signal: AbortSignal, matches: (value: un
       ...(body && { method: 'POST', body: JSON.stringify(body) }),
     });
   } catch {
-    throw new Error('No se pudo conectar con FastAPI. Revisá que el servicio local esté iniciado.');
+    throw new Error('Could not connect. Check that the local service is running.');
   }
 
   if (!response.ok) {
-    throw new Error(`${errors[response.status] ?? 'FastAPI no pudo responder.'} (HTTP ${response.status})`);
+    throw new Error(`${errors[response.status] ?? 'The service could not respond.'} (HTTP ${response.status})`);
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
   } catch {
-    throw new Error('La respuesta de FastAPI no contiene JSON válido.');
+    throw new Error('The service returned invalid data.');
   }
-  if (!matches(payload)) throw new Error('La respuesta JSON no coincide con el contrato de FastAPI.');
+  if (!matches(payload)) throw new Error('The service returned an unexpected response.');
   return payload;
 }
 

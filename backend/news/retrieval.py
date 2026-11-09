@@ -120,6 +120,7 @@ def _evidence(row: dict, model_id: str | None, revision: str | None) -> dict:
         "source_id": row["source_id"],
         "source_name": row["source_name"],
         "publisher": row["publisher"],
+        "title": row["title"],
         "external_id": row["external_id"],
         "provenance_ref": row["provenance_ref"],
         "reported_publication_raw": row["reported_publication_raw"],
@@ -159,7 +160,7 @@ _SEARCH = sql.SQL("""
                %s::integer AS dimensions, %s::double precision AS min_cosine, %s::text AS required_theme
     ), candidates AS MATERIALIZED (
         SELECT r.id AS record_id, r.article_id, r.external_id, r.source_id, r.source_url,
-               a.canonical_url, coalesce(r.reported_publisher, a.publisher) AS publisher, s.name AS source_name,
+               a.canonical_url, a.title, coalesce(r.reported_publisher, a.publisher) AS publisher, s.name AS source_name,
                r.provenance_ref, r.themes, r.entities, r.reported_publication_raw,
                r.event_at, r.event_on, r.reported_published_at AS published_at,
                r.reported_published_on AS published_on, r.provider_observed_at, r.retrieved_at,
