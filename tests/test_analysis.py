@@ -218,7 +218,7 @@ def test_gemini_synthetic_http_contract_and_output_budget(monkeypatch, finish):
             provider.generate(SYNTHETIC_SMOKE)
     outgoing = opener.open.call_args.args[0]
     payload = json.loads(outgoing.data)
-    assert outgoing.full_url.endswith("/models/gemini-3.5-flash:generateContent")
+    assert outgoing.full_url.endswith("/models/gemini-3.6-flash:generateContent")
     assert "fixture-key" not in outgoing.full_url and "fixture-key" not in outgoing.data.decode()
     assert outgoing.get_header("X-goog-api-key") == "fixture-key"
     assert payload["generationConfig"]["maxOutputTokens"] == 128

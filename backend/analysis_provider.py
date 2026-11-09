@@ -15,7 +15,7 @@ Relevance = Literal["direct", "contextual"]
 Coverage = Literal["sufficient", "partial", "insufficient"]
 MAX_CITATIONS = 3
 MAX_RESPONSE_BYTES = 16_384
-GEMINI_MODEL = "gemini-3.5-flash"
+GEMINI_MODEL = "gemini-3.6-flash"
 
 
 @dataclass(frozen=True)

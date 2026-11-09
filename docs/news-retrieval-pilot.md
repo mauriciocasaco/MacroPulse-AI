@@ -214,10 +214,15 @@ coverage. With no eligible sources the response reports insufficient
 evidence. [Historical corpus and review commands](news-historical-corpus.md)
 
 The API uses the deterministic simulated provider. The Gemini adapter
-accepts only its internal synthetic fixture and requires verification of
-the configured project's free tier before construction. The published
-model name and free Standard offering are documented by Google. The
-project tier was unverified in this execution, so the adapter was
-exercised using mocked HTTPS responses. The corpus pilot prohibits
-external LLM processing. [Gemini 3.5 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash) ·
+requests `gemini-3.6-flash`, accepts only its internal synthetic fixture
+and requires verification of the configured project's free tier before
+construction. It reads `GEMINI_API_KEY` from the environment.
+
+With the project's free tier confirmed by the operator, the earlier
+synthetic smoke test received HTTP 200 with `modelVersion` set to
+`gemini-3.6-flash`. The structured response passed Pydantic validation
+and cited `synthetic:1`. The regression test verifies the explicit
+3.6 Flash request path with mocked HTTPS. The corpus pilot prohibits
+external LLM processing, so evaluation with real news remains pending.
+[Gemini 3.6 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.6-flash) ·
 [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing/)
