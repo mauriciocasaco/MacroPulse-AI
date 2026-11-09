@@ -1,19 +1,28 @@
 """Read-only HTTP API for the verified daily market data catalog."""
 
+from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
+from functools import lru_cache
 import os
+from pathlib import Path as FilePath
 import re
 from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 import psycopg
 from psycopg.conninfo import make_conninfo
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
+from .analysis import AnalysisRequest, AnalysisResponse, AnalysisUnavailable, analyze
+from .analysis_provider import InterpretationProvider, ProviderError, SimulatedProvider
 from .market_data.models import DateRange
 from .market_data.repository import MAX_LATEST_DAILY, AvailableAsset, PostgresPriceRepository
+from .news.embeddings import E5Small
+from .news.retrieval import Search, search
 
 
 def _iso_date(value: object) -> object:
@@ -156,14 +165,15 @@ def _read_only_connection(dsn: str) -> psycopg.Connection:
     return connection
 
 
-def get_repository() -> PostgresPriceRepository:
+def _market_dsn() -> str:
     dsn = os.environ.get("MARKET_API_DSN")
     if not dsn:
         raise HTTPException(status_code=503, detail="Market data unavailable")
-    return PostgresPriceRepository(
-        make_conninfo(dsn, sslmode="verify-full", gssencmode="disable", connect_timeout=5),
-        connect=_read_only_connection,
-    )
+    return make_conninfo(dsn, sslmode="verify-full", gssencmode="disable", connect_timeout=5)
+
+
+def get_repository() -> PostgresPriceRepository:
+    return PostgresPriceRepository(_market_dsn(), connect=_read_only_connection)
 
 
 Repository = Annotated[PostgresPriceRepository, Depends(get_repository)]
@@ -220,3 +230,90 @@ def compare(query: Annotated[ComparisonQuery, Query()], repository: Repository):
     second = _asset(catalog, query.second)
     points = repository.compare_daily(query.first, query.second, query.window())
     return {"first": first, "second": second, "points": points}
+
+
+class _BoundedAnalysisRoute(APIRoute):
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def bounded(request: Request):
+            received = 0
+
+            async def receive():
+                nonlocal received
+                message = await request.receive()
+                received += len(message.get("body", b""))
+                if received > 8192:
+                    raise HTTPException(status_code=413, detail="Analysis request too large")
+                return message
+
+            try:
+                return await handler(Request(request.scope, receive))
+            except RequestValidationError:
+                raise HTTPException(status_code=422, detail="Invalid analysis request") from None
+
+        return bounded
+
+
+def _analysis_connection(dsn: str) -> psycopg.Connection:
+    connection = _read_only_connection(dsn)
+    try:
+        connection.execute("SET LOCAL statement_timeout = '5s'")
+        connection.execute("SET LOCAL lock_timeout = '2s'")
+    except psycopg.Error:
+        connection.close()
+        raise
+    return connection
+
+
+def get_analysis_repository() -> PostgresPriceRepository:
+    return PostgresPriceRepository(_market_dsn(), connect=_analysis_connection)
+
+
+@lru_cache(maxsize=1)
+def _local_embedding(cache: str) -> E5Small:
+    return E5Small(FilePath(cache))
+
+
+def get_analysis_retriever() -> Callable[[Search], dict]:
+    dsn = _market_dsn()
+
+    def retrieve(request: Search) -> dict:
+        cache = os.environ.get("MARKET_ANALYSIS_EMBEDDING_CACHE")
+        try:
+            model = _local_embedding(cache) if cache else None
+            with _analysis_connection(dsn) as connection:
+                return search(connection, request, model)
+        except (ImportError, RuntimeError, ValueError, OSError):
+            raise HTTPException(status_code=503, detail="Analysis evidence unavailable") from None
+
+    return retrieve
+
+
+def get_analysis_provider() -> InterpretationProvider:
+    return SimulatedProvider()
+
+
+_analysis_router = APIRouter(route_class=_BoundedAnalysisRoute)
+
+
+@_analysis_router.post("/analysis", response_model=AnalysisResponse, responses={
+    413: {"model": ErrorResponse}, 422: {"model": ErrorResponse},
+    502: {"model": ErrorResponse}, **_UNAVAILABLE,
+})
+def financial_analysis(
+    request: AnalysisRequest,
+    repository: Annotated[PostgresPriceRepository, Depends(get_analysis_repository)],
+    retrieve: Annotated[Callable[[Search], dict], Depends(get_analysis_retriever)],
+    provider: Annotated[InterpretationProvider, Depends(get_analysis_provider)],
+) -> AnalysisResponse:
+    """Analyze historical closes and source references with the local simulated provider."""
+    try:
+        return analyze(request, repository, retrieve, provider)
+    except AnalysisUnavailable:
+        raise HTTPException(status_code=503, detail="Market data unavailable") from None
+    except ProviderError:
+        raise HTTPException(status_code=502, detail="Analysis provider unavailable") from None
+
+
+app.include_router(_analysis_router)

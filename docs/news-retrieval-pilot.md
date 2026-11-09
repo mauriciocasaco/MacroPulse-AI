@@ -175,8 +175,49 @@ and filtering logic.
    becomes a concrete requirement. Build an offline evaluation before
    choosing a model or deploying.
 
-The minimum next step for article-based evaluation is a small labeled
-corpus of releases or articles with verified publication timestamps and
-permission for storage, embedding and any planned display. Record rights
-per document and include both relevant and irrelevant evidence for each
-question.
+The historical corpus has a small set of labeled institutional sources
+and negative controls. A strict historical replay needs evidence of
+publication time, observation and availability at the requested cutoff.
+
+### Local analysis endpoint
+
+`POST /analysis` resolves a ticker or asset ID, reads unadjusted daily
+closes and considers the five highest-ranked candidates for the event.
+It cites up to three reviewed institutional sources. Each economic
+mechanism links to a citation ID. Metadata-only records, negative
+controls and candidates without a reviewed source judgment stay out
+of the evidence coverage.
+The API uses the same `MARKET_API_DSN` and TLS verification as the market
+endpoints. Set `MARKET_ANALYSIS_EMBEDDING_CACHE` to a prepared local E5
+cache for hybrid retrieval. Without that variable the API uses lexical
+retrieval. Start the existing local app with `python -m uvicorn backend.api:app`.
+
+```powershell
+$analysis = @{
+    asset = 'CL=F'
+    event = 'covid'
+    start = '2020-02-01'
+    end_exclusive = '2020-07-01'
+    question = '¿Cómo afectó la pandemia del COVID-19 al precio del WTI?'
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/analysis -ContentType 'application/json; charset=utf-8' -Body $analysis
+```
+
+For a strict replay, add `as_of_exclusive = '2020-07-01'` before
+converting the request to JSON. The cutoff is UTC midnight and requires
+historical availability in the system. Day-only news and later-acquired
+price bars are excluded from that replay. Retrospective queries return
+observed closes and separate the interpretation from their calculation.
+The result is descriptive. Coverage is sufficient when a cited source
+directly addresses the event and asset. Contextual sources yield partial
+coverage. With no eligible sources the response reports insufficient
+evidence. [Historical corpus and review commands](news-historical-corpus.md)
+
+The API uses the deterministic simulated provider. The Gemini adapter
+accepts only its internal synthetic fixture and requires verification of
+the configured project's free tier before construction. The published
+model name and free Standard offering are documented by Google. The
+project tier was unverified in this execution, so the adapter was
+exercised using mocked HTTPS responses. The corpus pilot prohibits
+external LLM processing. [Gemini 3.5 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash) ·
+[Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing/)

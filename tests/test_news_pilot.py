@@ -1,17 +1,25 @@
+from collections import Counter
+from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from hashlib import sha256
 import json
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 import psycopg
 import pytest
 
 from backend.market_data.migrations import apply_migrations
+from backend.news import dev_corpus
 from backend.news.assets import associate
+from backend.news.dev_corpus import load_reviewed, persist
 from backend.news.embeddings import ModelSpec, embed_record, metadata_text, vector_literal
 from backend.news.evaluation import Judgment, evaluate
 from backend.news.gdelt import canonicalize_url, read_batch
+from backend.news.historical_corpus import SOURCES, stable_id
 from backend.news.ingest import local_dsn, main, write_batch
 from backend.news.retrieval import Search, search
 
@@ -70,6 +78,19 @@ def test_parse_real_schema_shape_and_dry_run(tmp_path, monkeypatch, capsys):
                                     "--retrieved-at", RETRIEVED.isoformat()])
     main()
     assert json.loads(capsys.readouterr().out)["normalized"] == 1
+
+
+def test_bounded_gkg_discovery_keeps_provider_identity(tmp_path):
+    path = archive(
+        tmp_path,
+        gkg_row(1, "https://news.example.test/gold"),
+        gkg_row(2, "https://news.example.test/wti"),
+        gkg_row(3, "https://news.example.test/wti-storage"),
+    )
+    batch = read_batch(path, [], RETRIEVED, discover=lambda record: "wti" in record.canonical_url, limit=1)
+    assert batch.processed == 2
+    assert batch.selection == (f"{STAMP}-2",)
+    assert batch.records[0].external_id == f"{STAMP}-2"
 
 
 @pytest.mark.parametrize("value", [
@@ -338,6 +359,24 @@ def test_point_in_time_provenance_and_date_precision(db):
     assert search(db, request)["status"] == "insufficient_evidence"
 
 
+def test_publication_day_scope_preserves_precision_and_exclusive_cutoff(db):
+    add_fixture(db, "oil-date-only", "wti_future", retrieved=OBSERVED,
+                linked=OBSERVED, synthetic=False, published=None)
+    db.execute("UPDATE news.article_records SET reported_published_on = %s WHERE external_id = %s",
+               (OBSERVED.date(), "oil-date-only"))
+    start = OBSERVED.replace(hour=0)
+    end = start + timedelta(days=1)
+    request = Search("oil", ("CL=F",), start, end, ("fixture",), window_basis="publication_day")
+    evidence, = search(db, request)["evidence"]
+    assert evidence["publication_precision"] == "day"
+    assert evidence["published_at"] is None
+    assert search(db, replace(request, window_basis="published"))["status"] == "insufficient_evidence"
+    assert search(db, replace(request, start=end, end=end + timedelta(days=1)))["status"] == "insufficient_evidence"
+    assert search(db, replace(request, as_of=end))["status"] == "insufficient_evidence"
+    with pytest.raises(ValueError, match="UTC day boundaries"):
+        search(db, replace(request, start=OBSERVED))
+
+
 def test_synthetic_retrieval_evaluation(db):
     start = OBSERVED - timedelta(days=1)
     end = OBSERVED + timedelta(days=1)
@@ -370,3 +409,101 @@ def test_synthetic_retrieval_evaluation(db):
         "k": 1, "positive_cases": 6, "no_evidence_cases": 2, "false_positive_cases": 0,
         "hit_at_k": 1.0, "recall_at_k": 1.0, "precision_at_k": 1.0, "mrr_at_k": 1.0,
     }
+
+def test_historical_import_atomic_replay_and_event_filter(db):
+    spec = ModelSpec("fixture", "1", 3)
+    item = {
+        "id": "fixture", "source": "eia", "source_name": "Synthetic EIA",
+        "url": "https://example.test/wti", "title": "Synthetic WTI", "text": "WTI crude storage",
+        "day": "2020-04-20", "retrieved_at": "2026-11-09T12:00:00+00:00", "event": "covid",
+        "publication_evidence": "Synthetic publication", "sha256": "a" * 64,
+        "rights": {"basis": "https://example.test/terms"},
+    }
+    vector = vector_literal((1, 0, 0), spec)
+    records = [(item, [(item["text"], vector)], [("CL=F", "direct", "WTI")])]
+    with pytest.raises(RuntimeError, match="interrupt"):
+        with db.transaction():
+            persist(db, records, spec, write=True)
+            raise RuntimeError("interrupt")
+    assert not persist(db, records, spec, write=False)
+    with db.transaction():
+        first = persist(db, records, spec, write=True)
+    assert first == {"documents": 1, "passages": 1, "asset_links": 1, "embeddings": 1}
+    assert persist(db, records, spec, write=False) == first
+    with db.transaction():
+        assert persist(db, records, spec, write=True) == first
+    assert db.execute("SELECT count(*) FROM news.article_records").fetchone() == (1,)
+    wrong = [({**item, "title": "Conflicting title"}, records[0][1], records[0][2])]
+    with pytest.raises(ValueError, match="conflicting row"):
+        with db.transaction():
+            persist(db, wrong, spec, write=True)
+    assert persist(db, records, spec, write=False) == first
+
+    request = Search("WTI storage", ("CL=F",), datetime(2020, 4, 1, tzinfo=UTC),
+                     datetime(2020, 5, 1, tzinfo=UTC), window_basis="publication_day",
+                     required_theme="marketpulse:event:covid")
+    assert len(search(db, request)["evidence"]) == 1
+    assert not search(db, replace(request, required_theme="marketpulse:event:ukraine"))["evidence"]
+    assert not search(db, replace(request, as_of=datetime(2020, 5, 1, tzinfo=UTC)))["evidence"]
+
+
+def test_dev_corpus_requires_reviewed_manifest_and_verified_body(tmp_path):
+    url = "https://www.eia.gov/todayinenergy/detail.php?id=1"
+    text = "Synthetic WTI evidence."
+    item = {
+        "url": url, "event": "covid", "id": stable_id(url), "type": "analysis",
+        "source": "eia", "source_name": SOURCES["eia"][0], "extractor_version": 2,
+        "day": "2020-04-20", "retrieved_at": "2026-11-09T12:00:00+00:00",
+        "publication_precision": "day", "publication_evidence": "April 20, 2020",
+        "rights": {
+            "basis": SOURCES["eia"][1], "embedding": True, "storage": "institutional prose only",
+            "redistribution": "attribute agency; excluded assets and third-party material",
+            "external_llm": "prohibited by pilot scope",
+        },
+        "sha256": sha256(text.encode()).hexdigest(),
+    }
+    manifest = tmp_path / "manifest.json"
+    body = tmp_path / f'{item["id"]}.json'
+
+    def write_manifest():
+        raw = json.dumps({"documents": [item], "metadata_only": []}).encode()
+        manifest.write_bytes(raw)
+        return sha256(raw).hexdigest()
+
+    expected = write_manifest()
+    body.write_text(json.dumps({**item, "text": text}), encoding="utf-8")
+    assert load_reviewed(tmp_path, expected)[0] == [{**item, "text": text}]
+    with pytest.raises(ValueError, match="reviewed rights"):
+        load_reviewed(tmp_path, "0" * 64)
+    body.write_text(json.dumps({**item, "text": "Different fixture"}), encoding="utf-8")
+    with pytest.raises(ValueError, match="hash or provenance"):
+        load_reviewed(tmp_path, expected)
+    item["rights"]["redistribution"] = "local only"
+    rows, counts = load_reviewed(tmp_path, write_manifest())
+    assert not rows and counts["excluded_rights"] == 1
+
+
+def test_dev_verify_reports_incomplete_package_as_failure(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["dev_corpus", "--verify-dev", "--reviewed-manifest-sha256", "fixture",
+                                     "--model-cache", "fixture"])
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(set_num_threads=lambda _: None))
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
+    monkeypatch.setattr(dev_corpus, "E5Small", lambda _: SimpleNamespace(spec=None))
+    monkeypatch.setattr(dev_corpus, "load_reviewed", lambda *_: ([], Counter(eligible_texts=1)))
+    monkeypatch.setattr(dev_corpus, "configured_dev_dsn", lambda: "synthetic")
+    monkeypatch.setattr(dev_corpus, "preflight_dev_news", lambda _: SimpleNamespace(pending=()))
+    # An incomplete verification is read-only and returns machine-readable missing counts.
+    monkeypatch.setattr(dev_corpus, "connect_dev", lambda _: nullcontext(SimpleNamespace(execute=lambda _: None)))
+    monkeypatch.setattr(dev_corpus, "_start_read_only_preflight", lambda _: None)
+    monkeypatch.setattr(dev_corpus, "persist", lambda *_, **__: Counter())
+    with pytest.raises(SystemExit) as exit_info:
+        dev_corpus.main()
+    assert exit_info.value.code == 1
+    assert '"missing": {"documents": 1}' in capsys.readouterr().err
+
+
+def test_gkg_drops_internal_curator_labels(tmp_path):
+    path = archive(tmp_path, gkg_row(1, "https://example.test/wti",
+                                    themes="ECON_OIL;MarketPulse:event:covid"))
+    batch = read_batch(path, [f"{STAMP}-1"], RETRIEVED)
+    assert batch.records[0].themes == ("ECON_OIL",)

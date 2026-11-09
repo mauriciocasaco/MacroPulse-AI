@@ -20,6 +20,142 @@ from backend.market_data.models import DateRange, RawBatch, RawRow
 from backend.market_data.repository import PostgresPriceRepository
 
 
+@pytest.fixture
+def news_migration_db(disposable_database, monkeypatch):
+    with disposable_database("MARKETPULSE_NEWS_LOCAL_DSN") as dsn:
+        apply_migrations(dsn)
+        with psycopg.connect(dsn) as connection:
+            connection.execute("CREATE SCHEMA extensions")
+            connection.execute("CREATE EXTENSION vector WITH SCHEMA extensions")
+        monkeypatch.setattr(dev_import, "connect_dev", psycopg.connect)
+        yield dsn
+
+
+def test_guarded_news_batch_preserves_price_import_and_ledger(news_migration_db, tmp_path):
+    dsn = news_migration_db
+    path, _ = _archive(tmp_path, "bitcoin_usd")
+    exports = prepare_import(path.parent, tmp_path)
+    list(persist_import(exports, PostgresPriceRepository(dsn), write=True))
+    prices_before = dev_import.preflight_dev(dsn, exports, require_complete=True)
+    assert prices_before.versions == (dev_import.INITIAL_VERSION, dev_import.INCREMENTAL_VERSION)
+    assert prices_before.bars_by_symbol == {"BTC-USD": 1}
+    news_before = dev_import.preflight_dev_news(dsn)
+    assert news_before.pending == migrations.NEWS_VERSIONS
+    assert not apply_migrations(dsn).applied_versions
+
+    def snapshot():
+        with psycopg.connect(dsn) as connection:
+            return {
+                name: connection.execute(psycopg.sql.SQL(
+                    "SELECT to_jsonb(t) FROM market_data.{} t ORDER BY to_jsonb(t)"
+                ).format(psycopg.sql.Identifier(name))).fetchall()
+                for name in dev_import._SCHEMA_SIGNATURES
+            }
+
+    before = snapshot()
+    with psycopg.connect(dsn) as connection:
+        assert connection.execute("SELECT to_regnamespace('news')").fetchone() == (None,)
+        original = connection.execute("SELECT * FROM market_data.schema_migrations ORDER BY version").fetchall()
+    assert dev_import.migrate_dev_news(dsn, confirm_project=dev_import.DEV_PROJECT_REF) == migrations.NEWS_VERSIONS
+    assert snapshot() == before
+
+    prices_after = dev_import.preflight_dev(dsn, exports, require_complete=True)
+    assert prices_after.versions == prices_before.versions + migrations.NEWS_VERSIONS
+    assert prices_after.bars_by_symbol == prices_before.bars_by_symbol
+    assert prices_after.runs_by_status == prices_before.runs_by_status
+    assert dev_import.preflight_dev_news(dsn).pending == ()
+    with psycopg.connect(dsn) as connection:
+        ledger = connection.execute("SELECT * FROM market_data.schema_migrations ORDER BY version").fetchall()
+        assert ledger[:2] == original
+        assert {version: checksum for version, checksum, _ in ledger} == migrations._APPROVED_CHECKSUMS
+        assert connection.execute(
+            "SELECT extensions.vector_norm('[1,0]'::extensions.vector)"
+        ).fetchone() == (1.0,)
+    assert not apply_migrations(dsn).applied_versions
+    with pytest.raises(dev_import.DevImportError, match="requires all three versions to be pending"):
+        dev_import.migrate_dev_news(dsn, confirm_project=dev_import.DEV_PROJECT_REF)
+    with pytest.raises(RuntimeError, match="unexpected pending migrations"):
+        apply_migrations(dsn, expected_pending=migrations.NEWS_VERSIONS)
+
+
+@pytest.mark.parametrize(("change", "message"), [
+    ("INSERT INTO market_data.schema_migrations VALUES ('202611080005', repeat('0', 64))", "unknown migration"),
+    ("UPDATE market_data.schema_migrations SET checksum_sha256 = repeat('0', 64) "
+     "WHERE version = '202611080004'", "checksum changed"),
+    ("DELETE FROM market_data.schema_migrations WHERE version = '202611070001'", "ordered prefix"),
+    ("DELETE FROM market_data.schema_migrations WHERE version = '202611080003'", "ordered prefix"),
+])
+def test_guarded_news_rejects_corrupt_ledger(news_migration_db, change, message):
+    dsn = news_migration_db
+    apply_migrations(dsn, expected_pending=migrations.NEWS_VERSIONS)
+    with psycopg.connect(dsn) as connection:
+        connection.execute(change)
+    with pytest.raises(RuntimeError, match=message):
+        apply_migrations(dsn)
+    with pytest.raises(dev_import.DevImportError, match="required migration versions or checksums"):
+        dev_import.preflight_dev_news(dsn)
+
+
+def test_guarded_news_rolls_back_after_004_starts(news_migration_db):
+    dsn = news_migration_db
+    with psycopg.connect(dsn) as connection:
+        connection.execute("""
+            CREATE FUNCTION public.reject_vector_ddl() RETURNS event_trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                IF to_regclass('news.ingestion_batches') IS NOT NULL THEN
+                    RAISE EXCEPTION 'failure in 004 after 003';
+                END IF;
+            END
+            $$;
+            CREATE EVENT TRIGGER reject_vector_ddl ON ddl_command_start
+            WHEN TAG IN ('CREATE EXTENSION') EXECUTE FUNCTION public.reject_vector_ddl();
+        """)
+    with pytest.raises(psycopg.errors.RaiseException, match="failure in 004 after 003"):
+        apply_migrations(dsn, expected_pending=migrations.NEWS_VERSIONS)
+    assert dev_import.preflight_dev_news(dsn).pending == migrations.NEWS_VERSIONS
+    with psycopg.connect(dsn) as connection:
+        assert connection.execute("SELECT to_regnamespace('news')").fetchone() == (None,)
+        assert connection.execute("SELECT count(*) FROM market_data.schema_migrations").fetchone() == (2,)
+
+
+def test_guarded_news_requires_vector_in_extensions(news_migration_db):
+    dsn = news_migration_db
+    with psycopg.connect(dsn) as connection:
+        connection.execute("ALTER EXTENSION vector SET SCHEMA public")
+    with pytest.raises(dev_import.DevImportError, match="pgvector already installed in extensions"):
+        dev_import.preflight_dev_news(dsn)
+    with pytest.raises(RuntimeError, match="pgvector already installed in extensions"):
+        apply_migrations(dsn, expected_pending=migrations.NEWS_VERSIONS)
+    with psycopg.connect(dsn) as connection:
+        assert connection.execute("SELECT to_regnamespace('news')").fetchone() == (None,)
+
+
+def test_price_preflight_accepts_valid_prefix_but_news_requires_whole_batch(news_migration_db, tmp_path):
+    dsn = news_migration_db
+    version = migrations.NEWS_VERSIONS[0]
+    source, checksum = migrations._migration_sources()[version]
+    with psycopg.connect(dsn) as connection:
+        connection.execute(source)
+        connection.execute(
+            "INSERT INTO market_data.schema_migrations (version, checksum_sha256) VALUES (%s, %s)",
+            (version, checksum),
+        )
+    path, _ = _archive(tmp_path, "bitcoin_usd")
+    exports = prepare_import(path.parent, tmp_path)
+    assert dev_import.preflight_dev(dsn, exports).versions[-1] == version
+    with pytest.raises(dev_import.DevImportError, match="partial batch"):
+        dev_import.preflight_dev_news(dsn)
+    with pytest.raises(RuntimeError, match="unexpected pending migrations"):
+        apply_migrations(dsn, expected_pending=migrations.NEWS_VERSIONS)
+
+
+def test_guarded_news_requires_project_confirmation(monkeypatch):
+    monkeypatch.setattr(dev_import, "configured_dev_dsn", lambda: pytest.fail("opened configuration"))
+    with pytest.raises(SystemExit) as error:
+        dev_import.main(["--apply-news"])
+    assert error.value.code == 2
+
+
 DAY = timedelta(days=1)
 START = date(2020, 4, 20)
 WINDOW = DateRange(START, START + 2 * DAY)

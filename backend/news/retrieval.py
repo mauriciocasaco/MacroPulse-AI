@@ -23,6 +23,7 @@ _WINDOWS = {
     "published": "reported_published_at",
     "event": "event_at",
 }
+_DAY_WINDOW = sql.SQL("coalesce(r.reported_published_at, r.reported_published_on::timestamp AT TIME ZONE 'UTC')")
 
 
 @dataclass(frozen=True)
@@ -32,12 +33,13 @@ class Search:
     start: datetime
     end: datetime
     sources: tuple[str, ...] = ()
-    window_basis: Literal["observed", "published", "event"] = "observed"
+    window_basis: Literal["observed", "published", "publication_day", "event"] = "observed"
     as_of: datetime | None = None
     as_of_mode: Literal["system", "archive"] = "system"
     limit: int = 5
     include_synthetic: bool = False
     min_cosine_similarity: float = 0.75
+    required_theme: str | None = None
 
 
 def search(connection: psycopg.Connection, request: Search, model: EmbeddingModel | None = None) -> dict:
@@ -45,7 +47,7 @@ def search(connection: psycopg.Connection, request: Search, model: EmbeddingMode
     question = request.question.strip()
     if not question or len(question) > 4096 or not 1 <= request.limit <= 100:
         raise ValueError("question or result limit is invalid")
-    if request.window_basis not in _WINDOWS or request.as_of_mode not in ("system", "archive"):
+    if request.window_basis not in (*_WINDOWS, "publication_day") or request.as_of_mode not in ("system", "archive"):
         raise ValueError("invalid temporal policy")
     if isinstance(request.min_cosine_similarity, bool) or not 0 < request.min_cosine_similarity <= 1:
         raise ValueError("minimum cosine similarity must be in (0, 1]")
@@ -55,6 +57,10 @@ def search(connection: psycopg.Connection, request: Search, model: EmbeddingMode
     start, end = utc(request.start), utc(request.end)
     if start >= end:
         raise ValueError("invalid retrieval window")
+    day_window = request.window_basis == "publication_day"
+    if day_window and any(bound.time().isoformat() != "00:00:00" for bound in (start, end)):
+        raise ValueError("publication_day requires UTC day boundaries")
+    window = _DAY_WINDOW if day_window else sql.SQL("r.{}").format(sql.Identifier(_WINDOWS[request.window_basis]))
     as_of = utc(request.as_of) if request.as_of is not None else None
     retrospective = as_of is not None and request.as_of_mode == "archive"
     terms = sorted(set(normalize_terms(question).split()) - _STOP_WORDS)
@@ -68,16 +74,19 @@ def search(connection: psycopg.Connection, request: Search, model: EmbeddingMode
         model_id, revision, dimensions = spec.model_id, spec.revision, spec.dimensions
 
     with connection.cursor(row_factory=dict_row) as cursor:
-        rows = cursor.execute(_SEARCH.format(window=sql.Identifier(_WINDOWS[request.window_basis])), (
+        rows = cursor.execute(_SEARCH.format(window=window), (
             assets, list(request.sources), start, end, as_of, retrospective, request.include_synthetic,
-            terms, vector, model_id, revision, dimensions, request.min_cosine_similarity, request.limit,
+            terms, vector, model_id, revision, dimensions, request.min_cosine_similarity,
+            request.required_theme, request.limit,
         )).fetchall()
     evidence = [_evidence(row, model_id, revision) for row in rows]
     limitations = [
         "Coverage is limited to ingested and linked provider records.",
         "Asset relationships are metadata or corpus associations and do not establish causation.",
     ]
-    if request.window_basis != "observed":
+    if day_window:
+        limitations.append("Publication-day windows include date-only records without assigning a publication time.")
+    elif request.window_basis != "observed":
         limitations.append("Records with unknown or date-only timestamps are excluded from exact time windows.")
     if as_of is not None:
         limitations.append("Records without both precise reported publication and provider observation before the cutoff are excluded.")
@@ -147,7 +156,7 @@ _SEARCH = sql.SQL("""
                %s::timestamptz AS end_at, %s::timestamptz AS as_of, %s::boolean AS retrospective,
                %s::boolean AS include_synthetic, %s::text[] AS terms,
                %s::extensions.vector AS query_vector, %s::text AS model_id, %s::text AS revision,
-               %s::integer AS dimensions, %s::double precision AS min_cosine
+               %s::integer AS dimensions, %s::double precision AS min_cosine, %s::text AS required_theme
     ), candidates AS MATERIALIZED (
         SELECT r.id AS record_id, r.article_id, r.external_id, r.source_id, r.source_url,
                a.canonical_url, coalesce(r.reported_publisher, a.publisher) AS publisher, s.name AS source_name,
@@ -162,14 +171,16 @@ _SEARCH = sql.SQL("""
                links.association_score, p.terms, p.min_cosine,
                regexp_split_to_array(lower(concat_ws(' ',
                    regexp_replace(split_part(r.source_url, '?', 1), '^https?://[^/]+', '', 'i'),
-                   array_to_string(r.themes, ' '),
+                   (SELECT string_agg(theme, ' ') FROM unnest(r.themes) AS theme
+                    WHERE theme NOT LIKE 'marketpulse:event:%%' AND theme NOT LIKE 'marketpulse:direct:%%'),
                    array_to_string(r.entities, ' '), links.aliases,
                    CASE WHEN r.public_display_allowed AND NOT p.retrospective THEN r.content END
                )), '[^[:alnum:]]+') AS document_terms
         FROM params p
         JOIN news.article_records r
-          ON r.{window} >= p.start_at AND r.{window} < p.end_at
+          ON {window} >= p.start_at AND {window} < p.end_at
          AND (cardinality(p.sources) = 0 OR r.source_id = ANY(p.sources))
+         AND (p.required_theme IS NULL OR r.themes @> ARRAY[p.required_theme])
          AND (p.include_synthetic OR NOT r.is_synthetic)
         JOIN news.articles a ON a.id = r.article_id
         JOIN news.sources s ON s.id = r.source_id

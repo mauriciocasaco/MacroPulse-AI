@@ -17,6 +17,19 @@ _MARKET_DATA_MIGRATIONS = (
     "202611070001_market_data.sql",
     "202611080001_yahoo_daily_conventions.sql",
 )
+_NEWS_MIGRATIONS = (
+    "202611080002_news.sql",
+    "202611080003_news_ingestion.sql",
+    "202611080004_news_embeddings.sql",
+)
+NEWS_VERSIONS = tuple(name.split("_", 1)[0] for name in _NEWS_MIGRATIONS)
+_APPROVED_CHECKSUMS = {
+    "202611070001": "de4a187debce6a195a88177ac255d2d2fe1e22b3647620bbd152d0687d29f43d",
+    "202611080001": "a02db81979269c5c5663c4faaf3ad9c71862a2e2e703d5c2b5ed55c49054f394",
+    "202611080002": "aa819c3556077439be0bb10b6e7a2607da8363306ed2cb331d306572a4f252c6",
+    "202611080003": "d91f461c60b63a5e29afc9b120ab836e40247d57b75b65a2e5a14f22e4183f43",
+    "202611080004": "11ce64cfe9514889272742f23f9795492cb64bc22612330e8a0efc3836a3e0dc",
+}
 
 
 @dataclass(frozen=True)
@@ -29,16 +42,66 @@ class MigrationResult:
     mapping_count: int
 
 
+def _migration_sources() -> dict[str, tuple[str, str]]:
+    sources = {}
+    for name in (*_MARKET_DATA_MIGRATIONS, *_NEWS_MIGRATIONS):
+        version = name.split("_", 1)[0]
+        source = (_MIGRATIONS / name).read_text(encoding="utf-8")
+        checksum = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        if checksum != _APPROVED_CHECKSUMS.get(version):
+            raise RuntimeError(f"migration checksum does not match the approved SQL: {version}")
+        sources[version] = (source, checksum)
+    return sources
+
+
+def _validate_ledger(connection, ledger, sources) -> tuple[str, ...]:
+    rows = connection.execute(
+        sql.SQL("SELECT version, checksum_sha256 FROM {} ORDER BY version").format(ledger)
+    ).fetchall()
+    for version, checksum in rows:
+        if version not in sources:
+            raise RuntimeError(f"unknown migration version: {version}")
+        if checksum != sources[version][1]:
+            raise RuntimeError(f"migration checksum changed after application: {version}")
+    recorded = tuple(version for version, _ in rows)
+    if recorded != tuple(sources)[:len(recorded)]:
+        raise RuntimeError("migration ledger is not an ordered prefix of the registry")
+    return recorded
+
+
+def news_vector_version(connection: psycopg.Connection) -> str:
+    version = connection.execute("""
+        SELECT e.extversion
+        FROM pg_catalog.pg_extension e
+        JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+        WHERE e.extname = 'vector' AND n.nspname = 'extensions'
+          AND pg_catalog.to_regtype('extensions.vector') IS NOT NULL
+          AND pg_catalog.to_regprocedure('extensions.vector_dims(extensions.vector)') IS NOT NULL
+          AND pg_catalog.to_regprocedure('extensions.vector_norm(extensions.vector)') IS NOT NULL
+          AND pg_catalog.to_regoperator('extensions.<=>(extensions.vector,extensions.vector)') IS NOT NULL
+    """).fetchone()
+    if version is None:
+        raise RuntimeError("news requires compatible pgvector already installed in extensions")
+    return version[0]
+
+
 def apply_migrations(
     dsn: str, *, schema: str = "market_data", expected_pending: tuple[str, ...] | None = None,
     expected_checksums: Mapping[str, str] | None = None,
     connect: Callable[[str], psycopg.Connection] | None = None,
 ) -> MigrationResult:
-    """Apply checked-in migrations atomically, optionally requiring an exact pending set."""
+    """Apply market migrations by default. News requires its exact pending batch."""
     _validate_schema(schema)
-    paths = tuple(_MIGRATIONS / name for name in _MARKET_DATA_MIGRATIONS)
-    if not paths:
-        raise RuntimeError("no Market Data migrations were found")
+    apply_news = expected_pending == NEWS_VERSIONS
+    if apply_news and schema != "market_data":
+        raise ValueError("news migrations require the market_data schema")
+    sources = _migration_sources()
+    market_versions = tuple(name.split("_", 1)[0] for name in _MARKET_DATA_MIGRATIONS)
+    versions = tuple(sources) if apply_news else market_versions
+    if expected_checksums is not None:
+        for version in versions:
+            if sources[version][1] != expected_checksums.get(version):
+                raise RuntimeError(f"migration checksum does not match the approved SQL: {version}")
 
     applied: list[str] = []
     with (connect or psycopg.connect)(dsn) as connection:
@@ -50,40 +113,31 @@ def apply_migrations(
                     "CREATE TABLE IF NOT EXISTS {} (version text PRIMARY KEY, checksum_sha256 text NOT NULL, "
                     "applied_at timestamptz NOT NULL DEFAULT clock_timestamp())"
                 ).format(ledger))
-            else:
-                connection.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(ledger))
-                recorded = tuple(row[0] for row in connection.execute(
-                    sql.SQL("SELECT version FROM {} ORDER BY version").format(ledger)
-                ).fetchall())
-                versions = tuple(path.name.split("_", 1)[0] for path in paths)
-                current = tuple(version for version in versions if version not in expected_pending)
-                pending = tuple(version for version in versions if version not in current)
-                if recorded != current or pending != expected_pending:
-                    raise RuntimeError("unexpected pending Market Data migrations")
-            for path in paths:
-                version = path.name.split("_", 1)[0]
-                source = path.read_text(encoding="utf-8")
-                checksum = hashlib.sha256(source.encode("utf-8")).hexdigest()
-                if expected_checksums is not None and expected_checksums.get(version) != checksum:
-                    raise RuntimeError(f"migration checksum does not match the approved SQL: {version}")
-                previous = connection.execute(
-                    sql.SQL("SELECT checksum_sha256 FROM {}.schema_migrations WHERE version = %s")
-                    .format(sql.Identifier(schema)),
-                    (version,),
-                ).fetchone()
-                if previous is not None:
-                    if previous[0] != checksum:
-                        raise RuntimeError(f"migration checksum changed after application: {version}")
-                    continue
-                statement = sql.SQL(source.replace("market_data", schema))
-                connection.execute(statement)
+            if apply_news:
+                connection.execute("SET LOCAL search_path = pg_catalog")
+                connection.execute("SET LOCAL lock_timeout = '3s'")
+                connection.execute("SET LOCAL statement_timeout = '30s'")
+            connection.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(ledger))
+            recorded = _validate_ledger(connection, ledger, sources)
+            pending = tuple(version for version in versions if version not in recorded)
+            if expected_pending is not None and (
+                pending != expected_pending or recorded != versions[:len(versions) - len(pending)]
+            ):
+                raise RuntimeError("unexpected pending migrations")
+            if apply_news:
+                news_vector_version(connection)
+                if connection.execute("SELECT pg_catalog.to_regnamespace('news') IS NOT NULL").fetchone()[0]:
+                    raise RuntimeError("news schema already exists")
+            for version in pending:
+                source, checksum = sources[version]
+                connection.execute(source if schema == "market_data" else source.replace("market_data", schema))
                 connection.execute(
                     sql.SQL("INSERT INTO {}.schema_migrations (version, checksum_sha256) VALUES (%s, %s)")
                     .format(sql.Identifier(schema)),
                     (version, checksum),
                 )
                 applied.append(version)
-        return inspect_schema(connection, schema=schema, applied_versions=tuple(applied))
+            return inspect_schema(connection, schema=schema, applied_versions=tuple(applied))
 
 
 def inspect_schema(connection: psycopg.Connection, *, schema: str = "market_data", applied_versions: tuple[str, ...] = ()) -> MigrationResult:

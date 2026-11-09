@@ -157,13 +157,43 @@ and `--confirm-dev-write` with the pinned project reference. Inspect the
 ledger and run status before any authorized write. The preflight snapshot
 does not lock out other writers after it ends.
 
+### Supabase DEV news migrations
+
+Run the news preflight independently of the price importer.
+
+```powershell
+python -m backend.market_data.dev_import --preflight-news
+```
+
+The preflight checks the DEV route and TLS, reads the shared migration
+ledger in a read-only snapshot, and checks pgvector in `extensions`. A
+pending result lists 002, 003 and 004. A ready result requires all three
+checksums and the news tables. The price importer accepts an ordered,
+checksum-verified news prefix after the two market migrations.
+
+After separate authorization to write to DEV, run the explicit batch from
+the reviewed checkout and rerun the read-only preflight.
+
+```powershell
+python -m backend.market_data.dev_import --apply-news --confirm-dev-write swpithkjviavycrxpwed
+python -m backend.market_data.dev_import --preflight-news
+```
+
+The writer locks the existing ledger, rechecks the exact pending set,
+and applies 002 through 004 with their ledger entries in one transaction.
+The batch expects pgvector to be installed already. It sets a 3-second
+lock timeout and a 30-second statement timeout. The foreign keys can
+conflict with concurrent writes to `market_data.assets`. If the command
+fails or the connection drops, rerun the read-only preflight to determine
+whether the batch committed before any retry.
+
 ## Local tests
 
 Install the pinned development requirements from the
 [README](../README.md#run-the-tests-locally). From the repository root in
 PowerShell 7.4 or newer with Docker running, copy the whole block below.
-It starts disposable PostgreSQL 17 on loopback, configures a temporary
-TLS certificate and runs the full suite with both test DSNs set.
+It starts disposable PostgreSQL 17 with pgvector on loopback, configures a
+temporary TLS certificate and runs the full suite with the three test DSNs set.
 
 ```powershell
 & {
@@ -174,9 +204,10 @@ TLS certificate and runs the full suite with both test DSNs set.
     $marketPulseTestCa = Join-Path ([System.IO.Path]::GetTempPath()) "$marketPulseTestContainer.crt"
     $marketPulsePreviousDataDsn = $env:MARKET_DATA_TEST_DSN
     $marketPulsePreviousApiDsn = $env:MARKET_API_TEST_DSN
+    $marketPulsePreviousNewsDsn = $env:MARKETPULSE_NEWS_LOCAL_DSN
     $marketPulseStarted = $false
     try {
-        docker run --rm -d --name $marketPulseTestContainer -e POSTGRES_HOST_AUTH_METHOD=trust --publish 127.0.0.1::5432 postgres:17
+        docker run --rm -d --name $marketPulseTestContainer -e POSTGRES_HOST_AUTH_METHOD=trust --publish 127.0.0.1::5432 pgvector/pgvector:0.8.2-pg17
         $marketPulseStarted = $true
         docker exec $marketPulseTestContainer sh -ec 'for attempt in $(seq 1 30); do if pg_isready -h 127.0.0.1 -U postgres; then exit 0; fi; sleep 1; done; exit 1'
 
@@ -195,11 +226,13 @@ TLS certificate and runs the full suite with both test DSNs set.
         $marketPulseTestBaseDsn = "host=127.0.0.1 port=$marketPulseTestPort dbname=postgres user=postgres"
         $env:MARKET_DATA_TEST_DSN = "$marketPulseTestBaseDsn sslmode=disable"
         $env:MARKET_API_TEST_DSN = "$marketPulseTestBaseDsn sslmode=verify-full sslrootcert='$marketPulseCaDsn'"
+        $env:MARKETPULSE_NEWS_LOCAL_DSN = $env:MARKET_DATA_TEST_DSN
         .\.venv\Scripts\python.exe -m pytest -ra
     } finally {
         $marketPulseExitCode = $LASTEXITCODE
         $env:MARKET_DATA_TEST_DSN = $marketPulsePreviousDataDsn
         $env:MARKET_API_TEST_DSN = $marketPulsePreviousApiDsn
+        $env:MARKETPULSE_NEWS_LOCAL_DSN = $marketPulsePreviousNewsDsn
         try {
             if (Test-Path -LiteralPath $marketPulseTestCa) { Remove-Item -LiteralPath $marketPulseTestCa }
         } finally {
@@ -211,6 +244,7 @@ TLS certificate and runs the full suite with both test DSNs set.
 ```
 
 The fixtures use synthetic data and create schemas and temporary databases.
-Market data and news integration tests require `MARKET_DATA_TEST_DSN`. The
-FastAPI TLS tests require `MARKET_API_TEST_DSN`. The workflow restores prior
+Market data integration tests require `MARKET_DATA_TEST_DSN`. The FastAPI TLS
+tests require `MARKET_API_TEST_DSN`. The news migration and vector integration
+tests require `MARKETPULSE_NEWS_LOCAL_DSN`. The workflow restores prior
 environment values and removes the disposable instance and certificate.

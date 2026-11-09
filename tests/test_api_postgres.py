@@ -1,14 +1,17 @@
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 import psycopg
 from psycopg.conninfo import make_conninfo
 import pytest
 
-from backend import api
+from backend import analysis, api
 from backend.market_data import ASSETS, ASSET_SOURCES, DateRange, RawBatch, RawRow, normalize
 from backend.market_data.migrations import apply_migrations
 from backend.market_data.repository import PostgresPriceRepository
+from backend.news.embeddings import ModelSpec, embed_record
+from backend.news.research_judgments import ReviewedSource
 
 
 WINDOW = DateRange(date(2020, 4, 20), date(2020, 4, 26))
@@ -92,3 +95,66 @@ def test_api_connection_blocks_writes_and_requires_verified_tls(database, monkey
         response = client.get("/assets")
         assert response.status_code == 503
         assert response.json() == {"detail": "Market data unavailable"}
+
+
+def test_analysis_reads_scoped_hybrid_evidence_and_prices_over_tls(database, monkeypatch):
+    class FixtureModel:
+        spec = ModelSpec("fixture", "v1", 2)
+
+        def embed(self, text, *, query):
+            return (1, 0)
+
+    model = FixtureModel()
+    reviewed = ReviewedSource("eia", "https://example.test/scoped", date(2020, 4, 20), "direct",
+                              "Fixture: constrained storage affects settlement prices.")
+    monkeypatch.setattr(analysis, "reviewed_sources", lambda _event, _symbol: (reviewed,))
+    repository = PostgresPriceRepository(database)
+    _seed(repository, "wti_future", close=-37.63, adjusted_close=None, hour=13,
+          zone="America/New_York", days=(20, 21))
+    migration_dir = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
+    with psycopg.connect(database) as connection:
+        for migration in sorted(migration_dir.glob("*_news*.sql")):
+            connection.execute(migration.read_text(encoding="utf-8"))
+        connection.execute("INSERT INTO news.sources VALUES ('eia', 'Fixture archive', NULL)")
+        for path, themes in [("scoped", ["marketpulse:event:covid"]), ("out-of-scope", ["marketpulse:event:ukraine"]),
+                             ("unjudged", ["marketpulse:event:covid", "marketpulse:direct:covid:wti_future"])]:
+            url = f"https://example.test/{path}"
+            article_id = connection.execute("""
+                INSERT INTO news.articles (canonical_url, publisher) VALUES (%s, 'Fixture publisher') RETURNING id
+            """, (url,)).fetchone()[0]
+            record_id = connection.execute("""
+                INSERT INTO news.article_records (
+                    article_id, source_id, source_url, retrieved_at, reported_published_on, themes,
+                    provenance_ref, content_kind, content, storage_permission, rights_basis,
+                    embedding_allowed, public_display_allowed
+                ) VALUES (%s, 'eia', %s, %s, '2020-04-20', %s, %s, 'excerpt',
+                    'fixture-only text', 'excerpt', 'fixture rights', TRUE, TRUE) RETURNING id
+            """, (article_id, url, RETRIEVED_AT, themes, f"fixture:{path}")).fetchone()[0]
+            connection.execute("""
+                INSERT INTO news.record_assets (record_id, asset_id, relationship, confidence, evidence, method_version)
+                VALUES (%s, 'wti_future', 'direct', 'high', 'fixture', 'v1')
+            """, (record_id,))
+            assert embed_record(connection, record_id, model) == "created"
+    monkeypatch.setenv("MARKET_API_DSN", database)
+    monkeypatch.setenv("MARKET_ANALYSIS_EMBEDDING_CACHE", "synthetic-cache")
+    monkeypatch.setattr(api, "_local_embedding", lambda _: model)
+    with api._analysis_connection(database) as connection:
+        assert connection.execute("SHOW transaction_read_only").fetchone() == ("on",)
+        assert connection.execute("SHOW statement_timeout").fetchone() == ("5s",)
+        assert connection.execute("SHOW lock_timeout").fetchone() == ("2s",)
+    request = {"asset": "CL=F", "event": "covid", "start": "2020-04-20", "end_exclusive": "2020-04-26",
+               "question": "How did the pandemic affect oil prices?"}
+    with TestClient(api.app) as client:
+        response = client.post("/analysis", json=request)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["coverage"] == "sufficient"
+        assert [citation["original_url"] for citation in result["citations"]] == ["https://example.test/scoped"]
+        assert result["economic_mechanisms"] == [{"citation_id": result["citations"][0]["evidence_id"],
+                                                  "summary": reviewed.mechanism}]
+        assert result["prices"]["minimum_close"]["close"] == "-37.63"
+        assert result["prices"]["close_change_pct"] is None
+        assert "fixture-only text" not in response.text
+        historical = client.post("/analysis", json={**request, "as_of_exclusive": "2020-04-23"}).json()
+        assert historical["coverage"] == "insufficient"
+        assert historical["prices"]["observations"] == 0

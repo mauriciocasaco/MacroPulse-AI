@@ -1,5 +1,6 @@
 """Bounded GKG 2.1 archive adapter. GDELT fields are untrusted metadata."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from hashlib import sha256
@@ -120,7 +121,7 @@ def _labels(value: str) -> tuple[str, ...]:
         if not label or len(label) > 120 or any(ord(c) < 32 for c in label):
             continue
         key = label.casefold()
-        if key not in seen:
+        if not key.startswith("marketpulse:") and key not in seen:
             result.append(label)
             seen.add(key)
         if len(result) == 128:
@@ -155,7 +156,10 @@ def parse_row(fields: list[str], *, archive_ref: str, retrieved_at: datetime) ->
     )
 
 
-def read_batch(path: Path, record_ids: list[str], retrieved_at: datetime) -> Batch:
+def read_batch(
+    path: Path, record_ids: list[str], retrieved_at: datetime, *,
+    discover: Callable[[Record], bool] | None = None, limit: int = 1000,
+) -> Batch:
     retrieved_at = utc(retrieved_at)
     match = _ARCHIVE.fullmatch(path.name)
     if match is None:
@@ -163,7 +167,9 @@ def read_batch(path: Path, record_ids: list[str], retrieved_at: datetime) -> Bat
     stamp = match[1]
     _utc_timestamp(stamp)
     selection = tuple(sorted(set(record_ids)))
-    if not 1 <= len(selection) <= 1000 or any(
+    if not 1 <= limit <= 1000 or (discover is None and not 1 <= len(selection) <= 1000) or (
+        discover is not None and selection
+    ) or any(
         not _RECORD_ID.fullmatch(record_id) or not record_id.startswith(stamp + "-") for record_id in selection
     ):
         raise ValueError("select 1–1000 record IDs from this archive")
@@ -189,7 +195,7 @@ def read_batch(path: Path, record_ids: list[str], retrieved_at: datetime) -> Bat
                 if len(raw) > _MAX_ROW or expanded > _MAX_EXPANDED:
                     raise ValueError("expanded GKG data exceeds limit")
                 first, _, _ = raw.partition(b"\t")
-                if first not in ids:
+                if discover is None and first not in ids:
                     continue
                 seen.add(first)
                 processed += 1
@@ -200,6 +206,10 @@ def read_batch(path: Path, record_ids: list[str], retrieved_at: datetime) -> Bat
                     reason = "invalid UTF-8" if isinstance(exc, UnicodeError) else str(exc)
                     rejected[reason] = rejected.get(reason, 0) + 1
                     continue
+                if discover is not None and (
+                    not record.external_id.startswith(stamp + "-") or not discover(record)
+                ):
+                    continue
                 previous = records.get(record.external_id)
                 if previous:
                     if previous != record:
@@ -207,8 +217,12 @@ def read_batch(path: Path, record_ids: list[str], retrieved_at: datetime) -> Bat
                     duplicates += 1
                 else:
                     records[record.external_id] = record
+                    if discover is not None and len(records) == limit:
+                        break
     if missing := ids - seen:
         rejected["selected record missing"] = len(missing)
+    if discover is not None:
+        selection = tuple(sorted(records))
     return Batch(archive_ref, sha256(archive_bytes).hexdigest(), selection, processed, tuple(records.values()), rejected, duplicates)
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from argparse import ArgumentParser
 from collections import Counter
 from dataclasses import dataclass
 from hashlib import sha256
@@ -9,15 +10,20 @@ import json
 import os
 from pathlib import Path
 import re
+import sys
 from typing import TYPE_CHECKING
 
 import psycopg
+from psycopg import sql
 from dotenv import dotenv_values
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from .catalog import ASSETS, ASSET_SOURCES
 from .connection import secure_supabase_dsn
-from .migrations import _MARKET_DATA_MIGRATIONS, _MIGRATIONS, apply_migrations
+from .migrations import (
+    NEWS_VERSIONS, _APPROVED_CHECKSUMS, _migration_sources, _validate_ledger,
+    apply_migrations, news_vector_version,
+)
 from .repository import _bar_content
 
 if TYPE_CHECKING:
@@ -27,9 +33,9 @@ if TYPE_CHECKING:
 DEV_PROJECT_REF = "swpithkjviavycrxpwed"
 INITIAL_VERSION = "202611070001"
 INCREMENTAL_VERSION = "202611080001"
-_APPROVED_CHECKSUMS = {
-    INITIAL_VERSION: "de4a187debce6a195a88177ac255d2d2fe1e22b3647620bbd152d0687d29f43d",
-    INCREMENTAL_VERSION: "a02db81979269c5c5663c4faaf3ad9c71862a2e2e703d5c2b5ed55c49054f394",
+_NEWS_TABLES = {
+    "sources", "articles", "article_records", "article_assets", "record_assets", "ingestion_batches",
+    "embedding_models", "record_embeddings",
 }
 
 # PostgreSQL 17 catalog signatures from the audited initial SQL. The incremental
@@ -53,6 +59,13 @@ class DevPreflight:
     bars_by_symbol: dict[str, int]
     runs_by_status: dict[str, int]
     unresolved_runs: tuple[tuple[int, str, str, str | None], ...]
+
+
+@dataclass(frozen=True)
+class DevNewsPreflight:
+    versions: tuple[str, ...]
+    pending: tuple[str, ...]
+    vector_version: str
 
 
 def _endpoint_matches(host: str, port: str, user: str) -> bool:
@@ -176,16 +189,12 @@ def _check_ledger(connection: psycopg.Connection, *, pending_incremental: bool) 
     ).fetchone()
     if relation != ("r", False):
         raise DevImportError("migration ledger is missing or incompatible")
-    actual = connection.execute(
-        "SELECT version, checksum_sha256 FROM market_data.schema_migrations ORDER BY version"
-    ).fetchall()
-    paths = tuple(_MIGRATIONS / name for name in _MARKET_DATA_MIGRATIONS)
-    versions = (INITIAL_VERSION,) if pending_incremental else (INITIAL_VERSION, INCREMENTAL_VERSION)
-    local = {
-        path.name.split("_", 1)[0]: sha256(path.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
-        for path in paths
-    }
-    if local != _APPROVED_CHECKSUMS or actual != [(version, _APPROVED_CHECKSUMS[version]) for version in versions]:
+    try:
+        versions = _validate_ledger(connection, sql.Identifier("market_data", "schema_migrations"), _migration_sources())
+    except RuntimeError as error:
+        raise DevImportError("required migration versions or checksums do not match") from error
+    valid = versions == (INITIAL_VERSION,) if pending_incremental else versions[:2] == (INITIAL_VERSION, INCREMENTAL_VERSION)
+    if not valid:
         raise DevImportError("required migration versions or checksums do not match")
     return versions
 
@@ -279,14 +288,7 @@ def preflight_dev(
         raise DevImportError("DEV preflight requires verified archives")
     try:
         with connect_dev(dsn) as connection:
-            connection.read_only = True
-            connection.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
-            read_only, version = connection.execute(
-                "SELECT pg_catalog.current_setting('transaction_read_only'), "
-                "pg_catalog.current_setting('server_version_num')::integer"
-            ).fetchone()
-            if read_only != "on" or version // 10000 != 17:
-                raise DevImportError("preflight requires a read-only PostgreSQL 17 transaction")
+            _start_read_only_preflight(connection)
             _check_schema(connection)
             versions = _check_ledger(connection, pending_incremental=pending_incremental)
             _check_catalog(connection, pending_incremental=pending_incremental)
@@ -298,6 +300,64 @@ def preflight_dev(
         raise DevImportError(f"DEV preflight failed ({type(error).__name__})") from None
 
 
+def _start_read_only_preflight(connection: psycopg.Connection) -> None:
+    connection.read_only = True
+    connection.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
+    state = connection.execute(
+        "SELECT pg_catalog.current_setting('transaction_read_only'), "
+        "pg_catalog.current_setting('transaction_isolation'), "
+        "pg_catalog.current_setting('server_version_num')::integer"
+    ).fetchone()
+    if state[:2] != ("on", "repeatable read") or state[2] // 10000 != 17:
+        raise DevImportError("preflight requires a repeatable read-only PostgreSQL 17 transaction")
+
+
+def preflight_dev_news(dsn: str) -> DevNewsPreflight:
+    """Check readiness for the news batch or the completed news schema."""
+    try:
+        with connect_dev(dsn) as connection:
+            _start_read_only_preflight(connection)
+            _check_schema(connection)
+            versions = _check_ledger(connection, pending_incremental=False)
+            _check_catalog(connection, pending_incremental=False)
+            vector_version = news_vector_version(connection)
+            pending = tuple(version for version in NEWS_VERSIONS if version not in versions)
+            if pending == NEWS_VERSIONS:
+                if connection.execute("SELECT pg_catalog.to_regnamespace('news') IS NOT NULL").fetchone()[0]:
+                    raise DevImportError("unregistered news schema already exists")
+            elif pending:
+                raise DevImportError("news ledger contains a partial batch")
+            else:
+                tables = connection.execute("""
+                    SELECT relname FROM pg_catalog.pg_class
+                    WHERE relnamespace = pg_catalog.to_regnamespace('news') AND relkind = 'r'
+                """).fetchall()
+                if not _NEWS_TABLES.issubset(name for name, in tables):
+                    raise DevImportError("registered news schema is missing required tables")
+            return DevNewsPreflight(versions, pending, vector_version)
+    except DevImportError:
+        raise
+    except (psycopg.Error, OSError, ValueError, RuntimeError) as error:
+        detail = str(error) if type(error) is RuntimeError else type(error).__name__
+        raise DevImportError(f"DEV news preflight failed ({detail})") from None
+
+
+def migrate_dev_news(dsn: str, *, confirm_project: str) -> tuple[str, ...]:
+    if confirm_project != DEV_PROJECT_REF:
+        raise DevImportError("DEV news writes require confirmation of the authorized project")
+    if preflight_dev_news(dsn).pending != NEWS_VERSIONS:
+        raise DevImportError("DEV news migration requires all three versions to be pending")
+    try:
+        result = apply_migrations(
+            dsn, expected_pending=NEWS_VERSIONS, expected_checksums=_APPROVED_CHECKSUMS, connect=connect_dev,
+        )
+        return result.applied_versions
+    except (psycopg.Error, OSError, ValueError, RuntimeError) as error:
+        state = getattr(error, "sqlstate", None)
+        detail = f"{type(error).__name__}, SQLSTATE {state}" if state else type(error).__name__
+        raise DevImportError(f"DEV news migration failed ({detail})") from None
+
+
 def migrate_dev_incremental(dsn: str, exports: tuple[PreparedExport, ...]) -> None:
     preflight_dev(dsn, exports, pending_incremental=True)
     try:
@@ -307,3 +367,32 @@ def migrate_dev_incremental(dsn: str, exports: tuple[PreparedExport, ...]) -> No
         )
     except (psycopg.Error, OSError, ValueError, RuntimeError) as error:
         raise DevImportError(f"DEV incremental migration failed ({type(error).__name__})") from None
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = ArgumentParser(description="Inspect or apply the guarded Supabase DEV news migrations.")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--preflight-news", action="store_true")
+    mode.add_argument("--apply-news", action="store_true")
+    parser.add_argument("--confirm-dev-write", metavar="PROJECT_REF")
+    args = parser.parse_args(argv)
+    if args.apply_news and args.confirm_dev_write != DEV_PROJECT_REF:
+        parser.error("DEV news writes require --confirm-dev-write with the authorized project reference")
+    if args.preflight_news and args.confirm_dev_write is not None:
+        parser.error("--confirm-dev-write requires --apply-news")
+    try:
+        dsn = configured_dev_dsn()
+        if args.apply_news:
+            print("DEV NEWS APPLIED " + ", ".join(migrate_dev_news(dsn, confirm_project=args.confirm_dev_write)))
+        else:
+            result = preflight_dev_news(dsn)
+            state = "pending " + ", ".join(result.pending) if result.pending else "ready"
+            print(f"DEV NEWS PREFLIGHT PASS  pgvector {result.vector_version} in extensions  {state}")
+    except DevImportError as error:
+        print(f"ERROR  {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

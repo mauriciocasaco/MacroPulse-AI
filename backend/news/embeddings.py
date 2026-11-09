@@ -46,6 +46,10 @@ class E5Small:
         if self._model.get_sentence_embedding_dimension() != self.spec.dimensions:
             raise ValueError("cached model dimensions do not match the specification")
 
+    @property
+    def tokenizer(self):
+        return self._model.tokenizer
+
     def embed(self, text: str, *, query: bool) -> Sequence[float]:
         prefix = "query: " if query else "passage: "
         return self._model.encode(
