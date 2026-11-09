@@ -1,13 +1,16 @@
 from datetime import date, datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 import psycopg
+from psycopg import sql
 from psycopg.conninfo import make_conninfo
 import pytest
 
 from backend import analysis, api
 from backend.market_data import ASSETS, ASSET_SOURCES, DateRange, RawBatch, RawRow, normalize
+from backend.market_data import api_config
 from backend.market_data.migrations import apply_migrations
 from backend.market_data.repository import PostgresPriceRepository
 from backend.news.embeddings import ModelSpec, embed_record
@@ -95,6 +98,74 @@ def test_api_connection_blocks_writes_and_requires_verified_tls(database, monkey
         response = client.get("/assets")
         assert response.status_code == 503
         assert response.json() == {"detail": "Market data unavailable"}
+
+
+def test_dev_role_guard_checks_effective_acl_on_each_disposable_connection(database, monkeypatch):
+    name = "fixture_market_reader_" + uuid4().hex[:16]
+    role = sql.Identifier(name)
+    reader_dsn = make_conninfo(database, user=name)
+    # Bypass only the Supabase destination pin. This fixture already requires verified loopback TLS.
+    monkeypatch.setattr(api_config, "connect_dev", api._read_only_connection)
+    migration_dir = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
+    with psycopg.connect(database, autocommit=True) as admin:
+        for migration in sorted(migration_dir.glob("*_news*.sql")):
+            admin.execute(migration.read_text(encoding="utf-8"))
+        admin.execute(sql.SQL("CREATE ROLE {} LOGIN NOINHERIT").format(role))
+        try:
+            admin.execute("""
+                CREATE FUNCTION public.fixture_event_trigger() RETURNS event_trigger
+                LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN RETURN; END $$
+            """)
+            admin.execute(sql.SQL("ALTER ROLE {} SET search_path = nonexistent, public").format(role))
+            admin.execute(sql.SQL("GRANT USAGE ON SCHEMA market_data, news, extensions TO {}").format(role))
+            admin.execute(sql.SQL("""
+                GRANT SELECT ON market_data.assets, market_data.asset_sources, market_data.data_sources,
+                    market_data.ingestion_runs, market_data.price_bars, news.sources, news.articles,
+                    news.article_records, news.record_assets TO {}
+            """).format(role))
+            with pytest.raises(api_config.MarketApiConfigError, match="dev_credential_missing_select"):
+                api_config.connect_read_only_dev(reader_dsn)
+            admin.execute(sql.SQL("GRANT SELECT ON news.record_embeddings TO {}").format(role))
+
+            with api_config.connect_read_only_dev(reader_dsn) as guarded:
+                assert guarded.pgconn.ssl_in_use
+                assert guarded.execute("SHOW transaction_read_only").fetchone() == ("on",)
+                assert guarded.execute("SHOW search_path").fetchone() == ("pg_catalog",)
+            repo = PostgresPriceRepository(reader_dsn, connect=api_config.connect_read_only_dev)
+            assert len(repo.list_available_assets()) == 6
+
+            admin.execute("CREATE TABLE public.fixture_other_schema (payload text)")
+            grants = (
+                ("GRANT UPDATE ON market_data.price_bars TO {}", "REVOKE UPDATE ON market_data.price_bars FROM {}"),
+                ("GRANT UPDATE (payload) ON public.fixture_other_schema TO {}",
+                 "REVOKE UPDATE (payload) ON public.fixture_other_schema FROM {}"),
+                ("GRANT SELECT (payload) ON public.fixture_other_schema TO {} WITH GRANT OPTION",
+                 "REVOKE SELECT (payload) ON public.fixture_other_schema FROM {}"),
+                ("GRANT USAGE ON SEQUENCE market_data.asset_sources_id_seq TO {}",
+                 "REVOKE USAGE ON SEQUENCE market_data.asset_sources_id_seq FROM {}"),
+                ("GRANT CREATE ON SCHEMA market_data TO {}", "REVOKE CREATE ON SCHEMA market_data FROM {}"),
+                ("GRANT pg_read_all_data TO {} WITH INHERIT FALSE, SET TRUE", "REVOKE pg_read_all_data FROM {}"),
+                ("ALTER ROLE {} CREATEROLE", "ALTER ROLE {} NOCREATEROLE"),
+            )
+            for grant, revoke in grants:
+                admin.execute(sql.SQL(grant).format(role))
+                try:
+                    with pytest.raises(api_config.MarketApiConfigError, match="dev_credential_not_read_only"):
+                        repo.list_available_assets()
+                finally:
+                    admin.execute(sql.SQL(revoke).format(role))
+
+            admin.execute("""
+                CREATE FUNCTION public.fixture_definer() RETURNS integer
+                LANGUAGE sql STABLE SECURITY DEFINER AS $$ SELECT 1 $$
+            """)
+            with pytest.raises(api_config.MarketApiConfigError, match="dev_credential_not_read_only"):
+                repo.list_available_assets()
+            admin.execute("DROP FUNCTION public.fixture_definer()")
+            assert len(repo.list_available_assets()) == 6
+        finally:
+            admin.execute(sql.SQL("DROP OWNED BY {}").format(role))
+            admin.execute(sql.SQL("DROP ROLE {}").format(role))
 
 
 def test_analysis_reads_scoped_hybrid_evidence_and_prices_over_tls(database, monkeypatch):

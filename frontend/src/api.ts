@@ -1,0 +1,188 @@
+export interface Asset {
+  asset_source_id: number;
+  asset_id: string;
+  name: string;
+  source_id: string;
+  provider_name: string;
+  symbol: string;
+  economic_unit: string;
+  calendar_code: string;
+  first_date: string | null;
+  last_date: string | null;
+  bar_count: number;
+}
+
+// FastAPI serializes Decimal as a string. A numeric value can still be plotted.
+export type Decimal = string | number;
+
+export interface DailyBar {
+  bar_date: string;
+  close: Decimal;
+  adjusted_close: Decimal | null;
+  retrieved_at: string;
+  availability_time: string | null;
+  session_status: 'closed' | 'provisional' | 'unknown';
+  quality_status: 'complete' | 'partial';
+  source_convention: string;
+  rolling_method: string | null;
+}
+
+export interface HistoryResponse {
+  asset: Asset;
+  bars: DailyBar[];
+}
+
+export interface DateWindow {
+  start: string;
+  end_exclusive: string;
+}
+
+export type Event = 'covid' | 'ukraine' | 'genai';
+
+export interface AnalysisRequest extends DateWindow {
+  asset: string;
+  event: Event;
+  question: string;
+}
+
+interface ObservedClose {
+  date: string;
+  close: Decimal;
+  retrieved_at: string;
+}
+
+interface PriceSummary {
+  source_id: string;
+  asset_source_id: number;
+  economic_unit: string;
+  price_basis: 'provider_unadjusted';
+  source_convention: string;
+  rolling_method: string | null;
+  observations: number;
+  first: ObservedClose | null;
+  last: ObservedClose | null;
+  minimum_close: ObservedClose | null;
+  maximum_close: ObservedClose | null;
+  close_change: Decimal | null;
+  close_change_pct: Decimal | null;
+}
+
+export interface Citation {
+  evidence_id: string;
+  source_id: string;
+  source_name: string;
+  original_url: string;
+  published_at: string | null;
+  published_on: string | null;
+  provider_observed_at: string | null;
+  retrieved_at: string;
+  relevance: 'direct' | 'contextual';
+}
+
+export interface AnalysisResponse extends DateWindow {
+  asset: string;
+  asset_id: string;
+  event: Event;
+  as_of_exclusive: string | null;
+  prices: PriceSummary;
+  coverage: 'sufficient' | 'partial' | 'insufficient';
+  citations: Citation[];
+  economic_mechanisms: { citation_id: string; summary: string }[];
+  economic_interpretation: string;
+  limitations: string[];
+  provider: 'simulated';
+}
+
+const errors: Record<number, string> = {
+  404: 'El recurso solicitado no está disponible.',
+  413: 'La consulta supera el tamaño admitido.',
+  422: 'FastAPI rechazó los parámetros de la consulta.',
+  502: 'El servicio local no pudo completar la solicitud.',
+  503: 'El servicio local o su fuente de datos no está disponible.',
+};
+
+type JsonObject = Record<string, unknown>;
+const object = (value: unknown): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value);
+const textFields = (value: JsonObject, fields: string[]) => fields.every((field) => typeof value[field] === 'string');
+const optionalText = (value: unknown) => value === null || typeof value === 'string';
+const date = (value: unknown) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+  && Number.isFinite(Date.parse(`${value}T00:00:00Z`));
+const decimal = (value: unknown) => typeof value === 'string' || typeof value === 'number';
+
+// Check the shape the UI consumes. FastAPI owns validation of the financial data.
+function isAsset(value: unknown): value is Asset {
+  return object(value) && typeof value.asset_source_id === 'number'
+    && Number.isSafeInteger(value.asset_source_id) && value.asset_source_id > 0
+    && textFields(value, ['asset_id', 'name', 'source_id', 'provider_name', 'symbol', 'economic_unit', 'calendar_code'])
+    && (value.first_date === null || date(value.first_date)) && (value.last_date === null || date(value.last_date));
+}
+
+function isBar(value: unknown): value is DailyBar {
+  return object(value) && date(value.bar_date) && decimal(value.close)
+    && (value.adjusted_close === null || decimal(value.adjusted_close))
+    && textFields(value, ['retrieved_at', 'source_convention']) && optionalText(value.rolling_method);
+}
+
+function isAnalysis(value: unknown, query: AnalysisRequest): value is AnalysisResponse {
+  if (!object(value) || !object(value.prices)) return false;
+  const { prices, citations, economic_mechanisms, limitations } = value;
+  return value.asset_id === query.asset && value.event === query.event
+    && value.start === query.start && value.end_exclusive === query.end_exclusive
+    && (value.as_of_exclusive === null || date(value.as_of_exclusive))
+    && textFields(value, ['asset', 'economic_interpretation']) && value.provider === 'simulated'
+    && (value.coverage === 'sufficient' || value.coverage === 'partial' || value.coverage === 'insufficient')
+    && typeof prices.observations === 'number' && textFields(prices, ['source_id', 'economic_unit', 'source_convention'])
+    && optionalText(prices.rolling_method)
+    && ['first', 'last', 'minimum_close', 'maximum_close'].every((key) => {
+      const item = prices[key];
+      return item === null || (object(item) && date(item.date) && decimal(item.close) && typeof item.retrieved_at === 'string');
+    })
+    && [prices.close_change, prices.close_change_pct].every((value) => value === null || decimal(value))
+    && Array.isArray(citations) && citations.every((item) => object(item)
+      && textFields(item, ['evidence_id', 'source_id', 'source_name', 'original_url', 'retrieved_at'])
+      && (item.relevance === 'direct' || item.relevance === 'contextual')
+      && [item.published_at, item.published_on, item.provider_observed_at].every(optionalText))
+    && Array.isArray(economic_mechanisms) && economic_mechanisms.every((item) => object(item) && textFields(item, ['citation_id', 'summary']))
+    && Array.isArray(limitations) && limitations.every((item) => typeof item === 'string');
+}
+
+async function request<T>(path: string, signal: AbortSignal, matches: (value: unknown) => value is T, body?: AnalysisRequest): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`/api${path}`, {
+      signal,
+      headers: { Accept: 'application/json', ...(body && { 'Content-Type': 'application/json' }) },
+      ...(body && { method: 'POST', body: JSON.stringify(body) }),
+    });
+  } catch {
+    throw new Error('No se pudo conectar con FastAPI. Revisá que el servicio local esté iniciado.');
+  }
+
+  if (!response.ok) {
+    throw new Error(`${errors[response.status] ?? 'FastAPI no pudo responder.'} (HTTP ${response.status})`);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error('La respuesta de FastAPI no contiene JSON válido.');
+  }
+  if (!matches(payload)) throw new Error('La respuesta JSON no coincide con el contrato de FastAPI.');
+  return payload;
+}
+
+export function getAssets(signal: AbortSignal): Promise<Asset[]> {
+  return request('/assets', signal, (value): value is Asset[] => Array.isArray(value) && value.every(isAsset));
+}
+
+export function getHistory(id: number, window: DateWindow, signal: AbortSignal): Promise<HistoryResponse> {
+  const params = new URLSearchParams({ start: window.start, end_exclusive: window.end_exclusive });
+  return request(`/assets/${id}/history?${params}`, signal, (value): value is HistoryResponse =>
+    object(value) && isAsset(value.asset) && value.asset.asset_source_id === id
+    && Array.isArray(value.bars) && value.bars.every(isBar));
+}
+
+export function getAnalysis(query: AnalysisRequest, signal: AbortSignal): Promise<AnalysisResponse> {
+  return request('/analysis', signal, (value): value is AnalysisResponse => isAnalysis(value, query), query);
+}

@@ -102,7 +102,7 @@ def test_repository_config_forces_tls_verification(monkeypatch):
     factory = create_autospec(PostgresPriceRepository)
     monkeypatch.setattr(api, "PostgresPriceRepository", factory)
     monkeypatch.setenv("MARKET_API_DSN", "host=127.0.0.1 sslmode=disable gssencmode=prefer sslrootcert=fixture.crt")
-    api.get_repository()
+    api.get_repository(api._market_config())
     args, kwargs = factory.call_args
     assert conninfo_to_dict(args[0]) == {
         "host": "127.0.0.1", "sslmode": "verify-full", "gssencmode": "disable", "sslrootcert": "fixture.crt",

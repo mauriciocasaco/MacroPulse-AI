@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
 from functools import lru_cache
+import logging
 import os
 from pathlib import Path as FilePath
 import re
@@ -14,15 +15,20 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 import psycopg
-from psycopg.conninfo import make_conninfo
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 from .analysis import AnalysisRequest, AnalysisResponse, AnalysisUnavailable, analyze
 from .analysis_provider import InterpretationProvider, ProviderError, SimulatedProvider
+from .market_data.api_config import (
+    MarketApiConfig, MarketApiConfigError, connect_read_only_dev, is_dev_target, resolve_market_api,
+)
 from .market_data.models import DateRange
 from .market_data.repository import MAX_LATEST_DAILY, AvailableAsset, PostgresPriceRepository
 from .news.embeddings import E5Small
 from .news.retrieval import Search, search
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _iso_date(value: object) -> object:
@@ -161,19 +167,23 @@ def _read_only_connection(dsn: str) -> psycopg.Connection:
     if not connection.pgconn.ssl_in_use:
         connection.close()
         raise psycopg.OperationalError("Market API requires PostgreSQL TLS")
+    if is_dev_target(connection.info.host, connection.info.user):
+        connection.close()
+        raise MarketApiConfigError("explicit_dev_route_requires_pinning")
     connection.read_only = True
     return connection
 
 
-def _market_dsn() -> str:
-    dsn = os.environ.get("MARKET_API_DSN")
-    if not dsn:
-        raise HTTPException(status_code=503, detail="Market data unavailable")
-    return make_conninfo(dsn, sslmode="verify-full", gssencmode="disable", connect_timeout=5)
+def _market_config(request: Request = None) -> MarketApiConfig:
+    return resolve_market_api(request.scope if request is not None else None)
 
 
-def get_repository() -> PostgresPriceRepository:
-    return PostgresPriceRepository(_market_dsn(), connect=_read_only_connection)
+MarketConfig = Annotated[MarketApiConfig, Depends(_market_config)]
+
+
+def get_repository(config: MarketConfig) -> PostgresPriceRepository:
+    connect = connect_read_only_dev if config.dev else _read_only_connection
+    return PostgresPriceRepository(config.dsn, connect=connect)
 
 
 Repository = Annotated[PostgresPriceRepository, Depends(get_repository)]
@@ -193,6 +203,12 @@ _ASSET_ERRORS = {404: {"model": ErrorResponse, "description": "Asset mapping not
 
 @app.exception_handler(psycopg.Error)
 async def _database_error(_request: Request, _error: psycopg.Error) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": "Market data unavailable"})
+
+
+@app.exception_handler(MarketApiConfigError)
+async def _configuration_error(_request: Request, error: MarketApiConfigError) -> JSONResponse:
+    _LOGGER.warning("Market API configuration rejected (%s)", error)
     return JSONResponse(status_code=503, content={"detail": "Market data unavailable"})
 
 
@@ -266,8 +282,9 @@ def _analysis_connection(dsn: str) -> psycopg.Connection:
     return connection
 
 
-def get_analysis_repository() -> PostgresPriceRepository:
-    return PostgresPriceRepository(_market_dsn(), connect=_analysis_connection)
+def get_analysis_repository(config: MarketConfig) -> PostgresPriceRepository:
+    connect = connect_read_only_dev if config.dev else _analysis_connection
+    return PostgresPriceRepository(config.dsn, connect=connect)
 
 
 @lru_cache(maxsize=1)
@@ -275,15 +292,17 @@ def _local_embedding(cache: str) -> E5Small:
     return E5Small(FilePath(cache))
 
 
-def get_analysis_retriever() -> Callable[[Search], dict]:
-    dsn = _market_dsn()
+def get_analysis_retriever(config: MarketConfig) -> Callable[[Search], dict]:
+    connect = connect_read_only_dev if config.dev else _analysis_connection
 
     def retrieve(request: Search) -> dict:
         cache = os.environ.get("MARKET_ANALYSIS_EMBEDDING_CACHE")
         try:
             model = _local_embedding(cache) if cache else None
-            with _analysis_connection(dsn) as connection:
+            with connect(config.dsn) as connection:
                 return search(connection, request, model)
+        except MarketApiConfigError:
+            raise
         except (ImportError, RuntimeError, ValueError, OSError):
             raise HTTPException(status_code=503, detail="Analysis evidence unavailable") from None
 
