@@ -7,6 +7,7 @@ import { App } from './App';
 const plot = vi.hoisted(() => ({ create: vi.fn(), setSize: vi.fn(), destroy: vi.fn() }));
 vi.mock('uplot', () => ({
   default: class {
+    over = document.createElement('div');
     setSize = plot.setSize;
     destroy = plot.destroy;
     setScale() {}
@@ -118,10 +119,12 @@ describe('market workspace', () => {
     expect(screen.queryByRole('img')).toBeNull();
   });
 
-  it('displays a one-decimal negative Close and resizes the chart for a narrow container', async () => {
-    http.mockImplementation((url) => url === '/api/assets' ? json([wti]) : json({ asset: wti, bars: [bar] }));
+  it('preserves the negative Close precision and resizes the chart for a narrow container', async () => {
+    http.mockImplementation((url) => url === '/api/assets' ? json([wti])
+      : json({ asset: wti, bars: [{ ...bar, quality_status: 'partial' }] }));
     render(<App />);
-    expect(await screen.findByText('-37.6')).toBeDefined();
+    expect(await screen.findByText('-37.630000')).toBeDefined();
+    expect(screen.getByText('Partial data')).toBeDefined();
     expect(screen.getByRole('img', { name: 'Daily Close for CL=F' })).toBeDefined();
     act(() => observeWidth(945));
     expect(plot.setSize).not.toHaveBeenCalled();
@@ -135,7 +138,7 @@ describe('market workspace', () => {
     act(() => observeWidth(990));
     fireEvent.change(screen.getByRole('combobox', { name: 'Price series' }), { target: { value: 'adjusted_close' } });
     expect(screen.getByText('No Adj Close prices are available for this period.')).toBeDefined();
-    expect(screen.queryByText('-37.6')).toBeNull();
+    expect(screen.queryByText('-37.630000')).toBeNull();
     expect(plot.destroy).toHaveBeenCalledTimes(1);
     expect(resizeFrame).toBeUndefined();
   });

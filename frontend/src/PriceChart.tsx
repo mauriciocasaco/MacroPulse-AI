@@ -6,6 +6,7 @@ import { chartData, type PriceField } from './chart-data';
 import { DAY_SECONDS, dateToSeconds, formatDate, secondsToDate } from './dates';
 
 const priceAxis = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const priceReading = new Intl.NumberFormat('en-US', { maximumFractionDigits: 20 });
 const axisDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const axisMonth = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' });
 const plotHeight = (width: number) => width < 600 ? 264 : 342;
@@ -81,6 +82,25 @@ export function PriceChart({ asset, bars, field }: Props) {
     }, [dates, prices], element);
     chart.current = plot;
 
+    function inspectTouch(event: PointerEvent) {
+      if (event.pointerType !== 'touch' || !event.isPrimary) return;
+      if (event.type === 'pointerdown') event.preventDefault();
+      const bounds = plot.over.getBoundingClientRect();
+      const left = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
+      const top = Math.max(0, Math.min(bounds.height, event.clientY - bounds.top));
+      plot.setCursor({ left, top });
+      if (event.type === 'pointerup' && plot.cursor.idx != null) setPinned(dates[plot.cursor.idx]);
+    }
+
+    function cancelTouch(event: PointerEvent) {
+      if (event.pointerType === 'touch' && event.isPrimary) plot.setCursor({ left: -10, top: -10 });
+    }
+
+    plot.over.addEventListener('pointerdown', inspectTouch);
+    plot.over.addEventListener('pointermove', inspectTouch);
+    plot.over.addEventListener('pointerup', inspectTouch);
+    plot.over.addEventListener('pointercancel', cancelTouch);
+
     let renderedWidth = width;
     let resizeFrame: number | undefined;
     const observer = new ResizeObserver(([entry]) => {
@@ -98,6 +118,10 @@ export function PriceChart({ asset, bars, field }: Props) {
     observer.observe(element);
 
     return () => {
+      plot.over.removeEventListener('pointerdown', inspectTouch);
+      plot.over.removeEventListener('pointermove', inspectTouch);
+      plot.over.removeEventListener('pointerup', inspectTouch);
+      plot.over.removeEventListener('pointercancel', cancelTouch);
       observer.disconnect();
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       chart.current = null;
@@ -128,13 +152,14 @@ export function PriceChart({ asset, bars, field }: Props) {
   function reset() {
     setHover(undefined);
     setPinned(undefined);
+    chart.current?.setCursor({ left: -10, top: -10 });
     chart.current?.setData([dates, prices]);
   }
 
   return <>
     <div className="chart-reading" aria-live="off">
       <div className="reading-value">
-        <span className="reading-price">{price == null ? '—' : priceAxis.format(Number(price))}</span>
+        <span className="reading-price">{price == null ? '—' : typeof price === 'string' ? price : priceReading.format(price)}</span>
         <span className="muted">{asset.economic_unit}</span>
       </div>
       <div className="reading-meta">
@@ -147,7 +172,7 @@ export function PriceChart({ asset, bars, field }: Props) {
     {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- uPlot needs a container for its canvas. */}
     <div className="plot" ref={container} role="img" aria-label={`Daily ${label} for ${asset.symbol}`} />
     <div className="chart-tools">
-      <p className="muted">Gaps indicate missing prices. Drag to zoom.</p>
+      <p className="muted">Gaps indicate missing prices. <span className="mouse-chart-help">Drag to zoom.</span><span className="touch-chart-help">Tap or slide to inspect prices.</span></p>
       <div className="chart-actions">
         <label htmlFor="inspect-date">Inspect date</label>
         <input id="inspect-date" type="date" min={secondsToDate(firstDate)} max={secondsToDate(lastDate)}

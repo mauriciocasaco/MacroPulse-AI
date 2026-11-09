@@ -40,6 +40,43 @@ Start-Process 'http://127.0.0.1:5173'
 
 Vite usa el puerto fijo `5173` en loopback. Si el puerto `8000` ya está ocupado, iniciá FastAPI con `--port 8001` y ejecutá `$env:MARKETPULSE_API_PORT = '8001'` en la terminal B antes de iniciar Vite. Para detener ambos procesos, presioná **Ctrl+C** en cada terminal. Si usaste un puerto alternativo, podés limpiar esa variable con `Remove-Item Env:MARKETPULSE_API_PORT`.
 
+## iPhone testing on a private LAN
+
+Connect the iPhone to the Wi-Fi on the same subnet as the PC. The PC can use
+Ethernet. Use a trusted private network and close the LAN listener when done.
+
+Start FastAPI from the repository root using the existing read-only DEV configuration.
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn backend.api:app --host 127.0.0.1 --port 8001
+```
+
+Start the LAN listener from a second terminal at the repository root. Use the
+active private interface that leads to the iPhone. Change `Ethernet` to the
+actual adapter name if needed.
+
+```powershell
+$env:MARKETPULSE_LAN_IP = (Get-NetIPConfiguration -InterfaceAlias 'Ethernet').IPv4Address.IPAddress
+$env:MARKETPULSE_API_PORT = '8001'
+Set-Location frontend
+Write-Host "http://$($env:MARKETPULSE_LAN_IP):5173/"
+npm.cmd run dev
+```
+
+For simultaneous desktop access, keep the regular loopback Vite instance
+running in its own terminal with `MARKETPULSE_API_PORT=8001` and without
+`MARKETPULSE_LAN_IP`. Both listeners use port 5173 on distinct addresses.
+Run `Invoke-RestMethod http://127.0.0.1:8001/health` and check `/api/assets` on
+the Vite URL to distinguish FastAPI liveness from catalog connectivity. Stop
+each listener you started with **Ctrl+C** in its terminal.
+
+The LAN listener accepts requests for its configured IP from its own subnet.
+It serves the development frontend and proxies only catalog, history, and
+simulated analysis. FastAPI's diagnostic routes stay on loopback. Use Safari
+to check portrait and landscape layout, tap and slide on the chart, and
+scroll vertically across it. Check WTI on **Max** using **Inspect date** for
+April 20, 2020, then test a preset, a custom question, and a document link.
+
 ## Contrato y decisiones
 
 - React 19.3.1 con TypeScript 6.0.3 estricto y Vite 8.3.7. El estado de catálogo, gráfico y análisis vive en React. Las solicitudes se cancelan al desmontar o cambiar su ámbito.
