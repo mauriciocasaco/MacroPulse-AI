@@ -74,13 +74,14 @@ The LAN listener accepts requests for its configured IP from its own subnet.
 It serves the development frontend and proxies only catalog, history, and
 simulated analysis. FastAPI's diagnostic routes stay on loopback. Use Safari
 to check portrait and landscape layout, tap and slide on the chart, and
-scroll vertically across it. Check WTI on **Max** using **Inspect date** for
-April 20, 2020, then test a preset, a custom question, and a document link.
+scroll vertically across it. Check **Crude Oil** on **Max** using **Inspect date**
+for April 20, 2020. The reading should be **-37.6 USD/bbl**. Then test a preset,
+a custom question, and a document link.
 
 ## Contrato y decisiones
 
 - React 19.3.1 con TypeScript 6.0.3 estricto y Vite 8.3.7. El estado de catálogo, gráfico y análisis vive en React. Las solicitudes se cancelan al desmontar o cambiar su ámbito.
-- uPlot 1.6.32 usa canvas y un eje de tiempo UTC. Las fechas intermedias sin observación ocupan espacio con `null` y dejan un hueco. El valor exacto se muestra desde el `Decimal` original de FastAPI. `Number` se usa para dibujar. El frontend presenta únicamente las variaciones de precio que devuelve el análisis. [Versiones de uPlot](https://github.com/leeoniya/uPlot/releases)
+- uPlot 1.6.32 usa canvas y un eje por observación. Cada posición corresponde a una fecha real en UTC y a un precio válido. El gráfico conecta las observaciones consecutivas y el selector de fecha distingue las sesiones ausentes de los registros sin precio para la serie elegida. Se conserva el `Decimal` de FastAPI, se usa `Number` para dibujar y se muestra un decimal en la interfaz. El frontend presenta las variaciones de precio que devuelve el análisis. [Versiones de uPlot](https://github.com/leeoniya/uPlot/releases)
 - Los `GET /assets` y `GET /assets/{asset_source_id}/history` usan los identificadores devueltos por el catálogo. La vista inicial usa Oro si está disponible, con un año de Close. Las ventanas terminan en el día posterior a `last_date`, exclusivo. Su inicio resta meses calendario con ajuste al último día del mes y se recorta a la cobertura del activo. Máximo usa toda la cobertura.
 - `POST /analysis` recibe el `asset_id` lógico, un acontecimiento admitido, su ventana histórica y una pregunta de hasta 1024 caracteres y 48 términos. Una pregunta personalizada usa el mismo acontecimiento y ventana. El análisis es retrospectivo y el formulario usa el alcance predeterminado del backend para `as_of_exclusive`. La API informa el proveedor simulado y distingue cobertura directa, parcial e insuficiente.
 - El navegador usa rutas `/api` del mismo origen. Vite expone un proxy local acotado a catálogo, histórico y análisis. Las credenciales y la conexión a DEV se configuran en FastAPI. El build produce archivos estáticos y su integración requiere mantener esas rutas del mismo origen.
@@ -98,7 +99,7 @@ npm.cmd run build
 npm.cmd audit
 ```
 
-1. Confirmá que se cargan los seis activos del catálogo DEV. Probá Oro y Bitcoin, y verificá que cambian unidad, fechas y pregunta predefinida.
-2. Elegí Petróleo WTI, **Máximo** y **20/04/2020** en **Inspeccionar fecha**. Comprobá el cierre negativo. Seleccioná **19/04/2020** para revisar un día sin observación y probá el selector de **Adj Close**.
+1. Confirmá que se cargan los seis activos del catálogo DEV. Probá **Gold** y **Bitcoin**, y verificá que cambian color, unidad, fechas y pregunta predefinida.
+2. Elegí **Crude Oil**, **Max** y **20/04/2020** en **Inspect date**. Comprobá el cierre de **-37.6 USD/bbl**. Seleccioná **19/04/2020** para revisar un día sin observación y probá el selector de **Adj Close**.
 3. Ejecutá una consulta predefinida y una personalizada. Revisá el período de análisis, el indicador de proveedor, la cobertura y los enlaces originales cuando haya citas.
-4. Probá en una ventana angosta y navegá con teclado. Para comprobar el estado de error, detené FastAPI, cambiá de período, reiniciá FastAPI y usá **Reintentar**.
+4. Probá en una ventana angosta y navegá con teclado. Para comprobar el estado de error, detené FastAPI, cambiá de período, reiniciá FastAPI y usá **Retry**.

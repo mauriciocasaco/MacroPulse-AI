@@ -4,6 +4,7 @@ import { getAssets, getHistory, type Asset, type HistoryResponse } from './api';
 import { type PriceField } from './chart-data';
 import { formatDate, formatWindow, historyWindow, PERIODS, type PeriodId } from './dates';
 import { PriceChart } from './PriceChart';
+import { assetPresentation } from './presentation';
 
 type Load<T> = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: T };
 
@@ -47,13 +48,14 @@ function Workspace({ assets }: { assets: Asset[] }) {
   const [period, setPeriod] = useState<PeriodId>('1y');
   const [field, setField] = useState<PriceField>('close');
   const asset = assets.find(({ asset_source_id }) => asset_source_id === id)!;
+  const { name } = assetPresentation(asset);
   const { first_date: first, last_date: last } = asset;
 
   return <>
     <section className="overview" aria-label="Asset and coverage">
       <div>
         <p className="eyebrow">Market explorer</p>
-        <div className="instrument"><h1>{asset.name}</h1><span className="ticker">{asset.symbol}</span></div>
+        <h1>{name}</h1>
         <p className="coverage muted">{asset.economic_unit}{first && last && <>
           {' · '}Coverage <time dateTime={first}>{formatDate(first)}</time> — <time dateTime={last}>{formatDate(last)}</time>
         </>}</p>
@@ -61,7 +63,7 @@ function Workspace({ assets }: { assets: Asset[] }) {
       <div className="asset-select">
         <label htmlFor="asset">Asset</label>
         <select id="asset" value={id} onChange={(e) => { setId(Number(e.target.value)); setField('close'); }}>
-          {assets.map((item) => <option key={item.asset_source_id} value={item.asset_source_id}>{item.name} · {item.symbol}</option>)}
+          {assets.map((item) => <option key={item.asset_source_id} value={item.asset_source_id}>{assetPresentation(item).name}</option>)}
         </select>
       </div>
     </section>
@@ -95,7 +97,7 @@ function Workspace({ assets }: { assets: Asset[] }) {
         <div>
           <p className="eyebrow">Research</p>
           <h2 id="analysis-title">Financial Analysis</h2>
-          <p className="muted">Explore how an event relates to {asset.symbol}.</p>
+          <p className="muted">Explore how an event relates to {name}.</p>
         </div>
         <span className="badge">Simulated provider</span>
       </div>

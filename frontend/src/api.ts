@@ -17,7 +17,7 @@ export type Decimal = string | number;
 
 export interface DailyBar {
   bar_date: string;
-  close: Decimal;
+  close: Decimal | null;
   adjusted_close: Decimal | null;
   retrieved_at: string;
   availability_time: string | null;
@@ -109,7 +109,8 @@ const textFields = (value: JsonObject, fields: string[]) => fields.every((field)
 const optionalText = (value: unknown) => value === null || typeof value === 'string';
 const date = (value: unknown) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(`${value}T00:00:00Z`));
-const decimal = (value: unknown) => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+const decimal = (value: unknown): value is Decimal => (typeof value === 'number'
+  || (typeof value === 'string' && /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())))
   && Number.isFinite(Number(value));
 
 // Check the shape the UI consumes. FastAPI owns validation of the financial data.
@@ -120,9 +121,10 @@ function isAsset(value: unknown): value is Asset {
     && (value.first_date === null || date(value.first_date)) && (value.last_date === null || date(value.last_date));
 }
 
-function isBar(value: unknown): value is DailyBar {
-  return object(value) && date(value.bar_date) && decimal(value.close)
-    && (value.adjusted_close === null || decimal(value.adjusted_close))
+type RawBar = Omit<DailyBar, 'close' | 'adjusted_close'> & { close?: unknown; adjusted_close?: unknown };
+
+function isDatedBar(value: unknown): value is RawBar {
+  return object(value) && date(value.bar_date)
     && textFields(value, ['retrieved_at', 'source_convention']) && optionalText(value.rolling_method);
 }
 
@@ -182,11 +184,18 @@ export function getAssets(signal: AbortSignal): Promise<Asset[]> {
   return request('/assets', signal, (value): value is Asset[] => Array.isArray(value) && value.every(isAsset));
 }
 
-export function getHistory(id: number, window: DateWindow, signal: AbortSignal): Promise<HistoryResponse> {
+export async function getHistory(id: number, window: DateWindow, signal: AbortSignal): Promise<HistoryResponse> {
   const params = new URLSearchParams({ start: window.start, end_exclusive: window.end_exclusive });
-  return request(`/assets/${id}/history?${params}`, signal, (value): value is HistoryResponse =>
+  const { asset, bars } = await request(`/assets/${id}/history?${params}`, signal,
+    (value): value is { asset: Asset; bars: RawBar[] } =>
     object(value) && isAsset(value.asset) && value.asset.asset_source_id === id
-    && Array.isArray(value.bars) && value.bars.every(isBar));
+    && Array.isArray(value.bars) && value.bars.every(isDatedBar));
+  // A dated bar can be missing one price field. Keep its date and other fields intact.
+  return { asset, bars: bars.map((bar) => ({
+    ...bar,
+    close: decimal(bar.close) ? bar.close : null,
+    adjusted_close: decimal(bar.adjusted_close) ? bar.adjusted_close : null,
+  })) };
 }
 
 export function getAnalysis(query: AnalysisRequest, signal: AbortSignal): Promise<AnalysisResponse> {

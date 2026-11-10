@@ -3,11 +3,11 @@ import type { DateWindow } from './api';
 export const DAY_SECONDS = 86_400;
 
 export const PERIODS = [
-  { id: '1m', label: '1 month', months: 1 },
-  { id: '3m', label: '3 months', months: 3 },
-  { id: '6m', label: '6 months', months: 6 },
-  { id: '1y', label: '1 year', months: 12 },
-  { id: '3y', label: '3 years', months: 36 },
+  { id: '1m', label: '1M', months: 1 },
+  { id: '3m', label: '3M', months: 3 },
+  { id: '6m', label: '6M', months: 6 },
+  { id: '1y', label: '1Y', months: 12 },
+  { id: '3y', label: '3Y', months: 36 },
   { id: 'max', label: 'Max', months: null },
 ] as const;
 

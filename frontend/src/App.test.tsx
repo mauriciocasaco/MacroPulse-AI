@@ -1,17 +1,24 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type uPlot from 'uplot';
 import type { AnalysisRequest, AnalysisResponse, Asset, DailyBar } from './api';
 import { App } from './App';
 
-const plot = vi.hoisted(() => ({ create: vi.fn(), setSize: vi.fn(), destroy: vi.fn() }));
+const plot = vi.hoisted(() => ({
+  create: vi.fn<(options: uPlot.Options, data: uPlot.AlignedData, element: HTMLElement) => void>(),
+  setSize: vi.fn(), setScale: vi.fn(), setData: vi.fn(), setCursor: vi.fn(), destroy: vi.fn(),
+}));
 vi.mock('uplot', () => ({
   default: class {
     over = document.createElement('div');
     setSize = plot.setSize;
+    setScale = plot.setScale;
+    setData = plot.setData;
+    setCursor = plot.setCursor;
     destroy = plot.destroy;
-    setScale() {}
-    constructor(...args: unknown[]) { plot.create(...args); }
+    valToPos(value: number) { return value; }
+    constructor(options: uPlot.Options, data: uPlot.AlignedData, element: HTMLElement) { plot.create(options, data, element); }
   },
 }));
 
@@ -22,7 +29,7 @@ const gold: Asset = {
 };
 const wti: Asset = { ...gold, asset_source_id: 234, asset_id: 'wti_future', name: 'WTI crude oil', symbol: 'CL=F', economic_unit: 'USD/bbl' };
 const bar: DailyBar = {
-  bar_date: '2020-04-20', close: '-37.630000', adjusted_close: null,
+  bar_date: '2020-04-20', close: '-37.630001068115234', adjusted_close: null,
   retrieved_at: '2026-11-09T14:20:00Z', availability_time: null, session_status: 'closed', quality_status: 'complete',
   source_convention: 'fixture', rolling_method: 'fixture roll',
 };
@@ -50,9 +57,9 @@ function flushResize() {
 
 beforeEach(() => {
   http.mockReset();
-  plot.create.mockClear();
-  plot.setSize.mockClear();
-  plot.destroy.mockClear();
+  for (const mock of Object.values(plot)) mock.mockClear();
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockReturnValue({ width: 262.75 } as DOMRect);
   vi.stubGlobal('fetch', http);
   resizeFrame = undefined;
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { resizeFrame = callback; return 1; });
@@ -69,6 +76,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 async function start(result = insufficient) {
@@ -87,14 +95,14 @@ async function start(result = insufficient) {
 describe('market workspace', () => {
   it('loads the real mappings and updates the window, coverage, and preset with the selected asset', async () => {
     const select = await start();
-    expect(screen.getByRole('heading', { name: 'Gold futures' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Gold' })).toBeDefined();
     expect(await screen.findByText('No prices are available for this period.')).toBeDefined();
     fireEvent.change(select, { target: { value: '234' } });
-    fireEvent.click(screen.getByRole('button', { name: '1 month' }));
+    fireEvent.click(screen.getByRole('button', { name: '1M' }));
     await waitFor(() => expect(http.mock.calls.map(([url]) => url)).toContain('/api/assets/234/history?start=2026-09-30&end_exclusive=2026-11-01'));
-    expect(screen.getByRole('heading', { name: 'WTI crude oil' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Crude Oil' })).toBeDefined();
     expect(screen.getByText(/USD\/bbl/)).toBeDefined();
-    expect(screen.getByPlaceholderText(/affect CL=F\?/)).toBeDefined();
+    expect(screen.getByPlaceholderText(/affect Crude Oil\?/)).toBeDefined();
   });
 
   it('handles catalog HTTP failures and retries into the empty catalog state', async () => {
@@ -119,13 +127,15 @@ describe('market workspace', () => {
     expect(screen.queryByRole('img')).toBeNull();
   });
 
-  it('preserves the negative Close precision and resizes the chart for a narrow container', async () => {
+  it('plots the original negative Close, formats its reading, and resizes the same chart instance', async () => {
     http.mockImplementation((url) => url === '/api/assets' ? json([wti])
       : json({ asset: wti, bars: [{ ...bar, quality_status: 'partial' }] }));
     render(<App />);
-    expect(await screen.findByText('-37.630000')).toBeDefined();
+    expect(await screen.findByText('-37.6')).toBeDefined();
     expect(screen.getByText('Partial data')).toBeDefined();
-    expect(screen.getByRole('img', { name: 'Daily Close for CL=F' })).toBeDefined();
+    expect(screen.getByRole('img', { name: 'Daily Close for Crude Oil' })).toBeDefined();
+    expect(plot.create.mock.calls[0][0]).toMatchObject({ width: 262, height: 264 });
+    expect(plot.create.mock.calls[0][1]).toEqual([[0], [-37.630001068115234]]);
     act(() => observeWidth(945));
     expect(plot.setSize).not.toHaveBeenCalled();
     flushResize();
@@ -135,12 +145,71 @@ describe('market workspace', () => {
     act(() => observeWidth(332));
     flushResize();
     expect(plot.setSize).toHaveBeenLastCalledWith({ width: 332, height: 264 });
+    expect(plot.create).toHaveBeenCalledTimes(1);
     act(() => observeWidth(990));
     fireEvent.change(screen.getByRole('combobox', { name: 'Price series' }), { target: { value: 'adjusted_close' } });
     expect(screen.getByText('No Adj Close prices are available for this period.')).toBeDefined();
-    expect(screen.queryByText('-37.630000')).toBeNull();
+    expect(screen.queryByText('-37.6')).toBeNull();
     expect(plot.destroy).toHaveBeenCalledTimes(1);
     expect(resizeFrame).toBeUndefined();
+  });
+
+  it('inspects exact observations and distinguishes missing sessions from null, malformed, and omitted prices', async () => {
+    http.mockImplementation((url) => url === '/api/assets' ? json([wti]) : json({ asset: wti, bars: [
+      { ...bar, bar_date: '2020-04-16', close: null },
+      { ...bar, bar_date: '2020-04-17', close: '18.270000' },
+      bar,
+      { ...bar, bar_date: '2020-04-21', close: null },
+      { ...bar, bar_date: '2020-04-22', close: '0x0', adjusted_close: '11.123' },
+      { ...bar, bar_date: '2020-04-23', close: undefined },
+      { ...bar, bar_date: '2020-04-24', close: '12.3456' },
+      { ...bar, bar_date: '2020-04-25', close: [] },
+    ] }));
+    render(<App />);
+    const input = await screen.findByLabelText('Inspect date');
+    expect(input.getAttribute('min')).toBe('2020-04-16');
+    expect(input.getAttribute('max')).toBe('2020-04-25');
+    expect(screen.getByText('12.3')).toBeDefined();
+    fireEvent.change(input, { target: { value: '2020-04-20' } });
+    expect(screen.getByText('-37.6')).toBeDefined();
+    expect(screen.getByText('Apr 20, 2020')).toBeDefined();
+    expect(plot.setScale).toHaveBeenCalledWith('x', { min: 0, max: 2 });
+    flushResize();
+    expect(plot.setCursor).toHaveBeenLastCalledWith({ left: 1, top: -37.630001068115234 });
+    fireEvent.change(input, { target: { value: '2020-04-19' } });
+    expect(screen.getByText('No observation is available for this date.')).toBeDefined();
+    expect(screen.queryByText('-37.6')).toBeNull();
+    for (const date of ['2020-04-16', '2020-04-21', '2020-04-22', '2020-04-23', '2020-04-25']) {
+      fireEvent.change(input, { target: { value: date } });
+      expect(screen.getByText('No Close price is available for this date.')).toBeDefined();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Reset view' }));
+    expect(screen.getByText('12.3')).toBeDefined();
+    expect(plot.setData).toHaveBeenCalledWith([[0, 1, 2], [18.27, -37.630001068115234, 12.3456]]);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Price series' }), { target: { value: 'adjusted_close' } });
+    expect(screen.getByText('11.1')).toBeDefined();
+    expect(screen.getByText('Apr 22, 2020')).toBeDefined();
+  });
+
+  it.each([
+    ['GC=F', 'Gold', '#D4AF37'], ['CL=F', 'Crude Oil', '#F5F5F5'], ['BTC-USD', 'Bitcoin', '#F7931A'],
+    ['VWO', 'Emerging ETF', '#A78BFA'], ['^GSPC', 'S&P 500', '#7DD3FC'], ['VT', 'Global ETF', '#34D399'],
+  ])('shows the friendly name and actual series color for %s across periods', async (symbol, name, color) => {
+    const asset = { ...wti, symbol };
+    http.mockImplementation((url) => url === '/api/assets' ? json([gold, asset])
+      : json({ asset: url.includes('/234/') ? asset : gold, bars: [bar] }));
+    render(<App />);
+    const select = await screen.findByRole('combobox', { name: 'Asset' });
+    fireEvent.change(select, { target: { value: String(asset.asset_source_id) } });
+    expect(screen.getByRole('heading', { name })).toBeDefined();
+    expect(screen.getByPlaceholderText(`How did the COVID-19 pandemic affect ${name}?`)).toBeDefined();
+    for (const period of ['1M', '3M', '6M', '1Y', '3Y', 'Max']) {
+      fireEvent.click(screen.getByRole('button', { name: period }));
+      expect(await screen.findByRole('img', { name: `Daily Close for ${name}` })).toBeDefined();
+      expect(screen.getByRole('button', { name: period }).getAttribute('aria-pressed')).toBe('true');
+      expect(plot.create.mock.lastCall?.[0].series[1]).toMatchObject({ label: name, stroke: color });
+      expect(document.body.textContent).not.toContain(symbol);
+    }
   });
 });
 
@@ -151,7 +220,7 @@ describe('financial analysis', () => {
     ['Rise of generative AI', 'genai', '2022-11-01', '2025-01-01', 'the rise of generative AI'],
   ])('submits the preset and independent analysis window for %s', async (title, event, startDate, endDate, subject) => {
     await start();
-    fireEvent.click(screen.getByRole('button', { name: '3 years' }));
+    fireEvent.click(screen.getByRole('button', { name: '3Y' }));
     fireEvent.click(screen.getByRole('radio', { name: new RegExp(title) }));
     fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
     const analysis = http.mock.calls.find(([url]) => url === '/api/analysis');
@@ -174,7 +243,7 @@ describe('financial analysis', () => {
     [null, 'N/A', 'neutral'],
   ])('renders backend change %s and actual observation dates', async (percentage, label, tone) => {
     const first = { date: '2020-04-17', close: '18.270000', retrieved_at: bar.retrieved_at };
-    const last = { date: '2020-04-20', close: percentage === null ? bar.close : '17.00000', retrieved_at: bar.retrieved_at };
+    const last = { date: '2020-04-20', close: percentage === null ? '-37.630001068115234' : '17.00000', retrieved_at: bar.retrieved_at };
     await start({ ...insufficient, prices: {
       ...insufficient.prices, observations: 2, first, last, close_change: '-1.270000',
       close_change_pct: percentage, source_convention: 'verified:fixture', rolling_method: 'unknown',
@@ -193,9 +262,14 @@ describe('financial analysis', () => {
       original_url: 'https://example.test/original?edition=1', published_at: null, published_on: '2020-03-20',
       provider_observed_at: null, retrieved_at: '2026-11-09T14:20:00Z', relevance: 'direct',
     } as const;
-    await start({ ...insufficient, coverage: 'partial', citations: [citation,
+    await start({ ...insufficient, coverage: 'partial', economic_interpretation: 'Reviewed evidence relates to GC=F.',
+      economic_mechanisms: [{
+        citation_id: citation.evidence_id,
+        summary: 'CL=F, ^GSPC and VT had different exposure. In 2022, front-month WTI rose above $100. Another series reached $1,234.567, then fell.',
+      }], citations: [citation,
       { ...citation, evidence_id: 'news-record:2', title: 'Invalid protocol', original_url: 'javascript:alert(1)', relevance: 'contextual' },
       { ...citation, evidence_id: 'news-record:3', title: 'URL with credentials', original_url: 'https://user:pass@example.test/private' },
+      { ...citation, evidence_id: 'news-record:4', title: 'Original article covering GC=F and $100 oil' },
     ] });
     fireEvent.change(screen.getByLabelText(/Custom question/), { target: { value: 'Did demand change?' } });
     fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
@@ -203,7 +277,10 @@ describe('financial analysis', () => {
     expect(link.getAttribute('href')).toBe(citation.original_url);
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(screen.getByText(/Fixture publisher.*Contextual/)).toBeDefined();
-    expect(screen.getAllByText('Mar 20, 2020')).toHaveLength(3);
+    expect(screen.getAllByText('Mar 20, 2020')).toHaveLength(4);
+    expect(screen.getByText('Reviewed evidence relates to Gold.')).toBeDefined();
+    expect(screen.getByText('Crude Oil, S&P 500 and Global ETF had different exposure. In 2022, front-month WTI rose above $100.0. Another series reached $1,234.6, then fell.')).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Original article covering GC=F and $100 oil' })).toBeDefined();
     expect(screen.queryByRole('img')).toBeNull();
     expect(screen.queryByRole('link', { name: /Invalid protocol|URL with credentials/ })).toBeNull();
     const analysis = http.mock.calls.find(([url]) => url === '/api/analysis');
@@ -228,6 +305,6 @@ describe('financial analysis', () => {
     await act(async () => resolve(Response.json(insufficient)));
     expect(attempt?.aborted).toBe(true);
     expect(screen.queryByRole('article', { name: 'Analysis result' })).toBeNull();
-    expect(screen.getByPlaceholderText(/affect CL=F\?/)).toBeDefined();
+    expect(screen.getByPlaceholderText(/affect Crude Oil\?/)).toBeDefined();
   });
 });

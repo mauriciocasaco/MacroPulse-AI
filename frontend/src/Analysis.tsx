@@ -1,16 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { getAnalysis, type AnalysisResponse, type Asset, type Citation, type DateWindow, type Event } from './api';
 import { formatDate, formatWindow } from './dates';
+import { assetPresentation, formatAnalysisText, formatPercentage } from './presentation';
 
 const EVENTS = [
   { id: 'covid', title: 'COVID-19 pandemic', subject: 'the COVID-19 pandemic', start: '2020-02-01', end_exclusive: '2020-07-01' },
   { id: 'ukraine', title: "Russia's invasion of Ukraine", subject: 'Russia’s invasion of Ukraine', start: '2022-02-01', end_exclusive: '2022-07-01' },
   { id: 'genai', title: 'Rise of generative AI', subject: 'the rise of generative AI', start: '2022-11-01', end_exclusive: '2025-01-01' },
 ] as const satisfies readonly (DateWindow & { id: Event; title: string; subject: string })[];
-
-const percent = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'exceptZero',
-});
 
 function sourceUrl(raw: string): string | undefined {
   try {
@@ -50,7 +47,7 @@ function Result({ result }: { result: AnalysisResponse }) {
   return <article className="analysis-result" aria-label="Analysis result">
     <section className="price-change" aria-labelledby="price-change-title">
       <h3 id="price-change-title">Price Change</h3>
-      <p className={`change-value ${tone}`}>{available ? `${percent.format(change)}%` : 'N/A'}</p>
+      <p className={`change-value ${tone}`}>{available ? formatPercentage(change) : 'N/A'}</p>
       {first && last && <p className="muted">
         <time dateTime={first.date}>{formatDate(first.date)}</time>
         {' – '}
@@ -60,12 +57,12 @@ function Result({ result }: { result: AnalysisResponse }) {
     <section className="result-section" aria-labelledby="ai-analysis-title">
       <h3 id="ai-analysis-title">AI Analysis</h3>
       {result.coverage === 'insufficient' && <p className="evidence-status">Insufficient evidence</p>}
-      <p>{result.economic_interpretation}</p>
+      <p>{formatAnalysisText(result.economic_interpretation)}</p>
       {result.economic_mechanisms.length > 0 && <ul className="result-list">
         {result.economic_mechanisms.map((mechanism) => {
           const index = result.citations.findIndex((item) => item.evidence_id === mechanism.citation_id);
           return <li key={mechanism.citation_id}>
-            {mechanism.summary}{index >= 0 && <> <a href={`#document-${index + 1}`}>Document {index + 1}</a></>}
+            {formatAnalysisText(mechanism.summary)}{index >= 0 && <> <a href={`#document-${index + 1}`}>Document {index + 1}</a></>}
           </li>;
         })}
       </ul>}
@@ -86,7 +83,7 @@ export function Analysis({ asset }: { asset: Asset }) {
   const [query, setQuery] = useState<QueryState>({ kind: 'idle' });
   const controller = useRef<AbortController>(null);
   const selected = EVENTS.find(({ id }) => id === event)!;
-  const preset = `How did ${selected.subject} affect ${asset.symbol}?`;
+  const preset = (name: string) => `How did ${selected.subject} affect ${name}?`;
 
   useEffect(() => () => controller.current?.abort(), []);
 
@@ -97,7 +94,8 @@ export function Analysis({ asset }: { asset: Asset }) {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const text = question.trim() || preset;
+    // Keep the preset's original retrieval terms while presenting a readable name.
+    const text = question.trim() || preset(asset.symbol);
     const words = text.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
     if (words < 1 || words > 48) {
       setQuery({ kind: 'error', message: 'Enter a question with 1 to 48 terms.' });
@@ -135,7 +133,7 @@ export function Analysis({ asset }: { asset: Asset }) {
       <div className="question">
         <label htmlFor="question">Custom question <span className="muted">· optional</span></label>
         <textarea id="question" value={question} maxLength={1024}
-          rows={2} placeholder={preset} onChange={(e) => { setQuestion(e.target.value); clearResult(); }} />
+          rows={2} placeholder={preset(assetPresentation(asset).name)} onChange={(e) => { setQuestion(e.target.value); clearResult(); }} />
       </div>
       <div className="analysis-actions">
         <p className="muted">Analysis period <strong>{formatWindow(selected)}</strong></p>

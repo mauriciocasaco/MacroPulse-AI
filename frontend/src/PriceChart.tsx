@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { Asset, DailyBar } from './api';
-import { chartData, type PriceField } from './chart-data';
-import { DAY_SECONDS, dateToSeconds, formatDate, secondsToDate } from './dates';
+import { chartData, priceDomain, sessionDomain, sessionLabels, sessionTicks, type PriceField } from './chart-data';
+import { formatDate } from './dates';
+import { assetPresentation, formatPrice } from './presentation';
 
-const priceAxis = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const priceReading = new Intl.NumberFormat('en-US', { maximumFractionDigits: 20 });
-const axisDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const axisMonth = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+const axisFont = '11px system-ui, sans-serif';
+const axisStyle = {
+  font: axisFont, stroke: '#B1B4BB', gap: 5,
+  grid: { stroke: '#292B30' }, ticks: { stroke: '#494B51', size: 5 },
+};
 const plotHeight = (width: number) => width < 600 ? 264 : 342;
 
 interface Props {
@@ -20,165 +22,189 @@ interface Props {
 export function PriceChart({ asset, bars, field }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<uPlot | null>(null);
+  const inspectFrame = useRef<number | undefined>(undefined);
   const [hover, setHover] = useState<number>();
-  const [pinned, setPinned] = useState<number>();
-  const { dates, prices, byDate, lastObserved, isolated } = useMemo(() => chartData(bars, field), [bars, field]);
-  const selected = hover ?? pinned ?? lastObserved;
-  const reading = selected === undefined ? undefined : byDate.get(selected);
+  const [inspectedDate, setInspectedDate] = useState('');
+  const { indices, dates, prices, observations, indexByDate, firstDate, lastDate } = useMemo(() => chartData(bars, field), [bars, field]);
+  const inspectedIndex = indexByDate.get(inspectedDate);
+  const activeIndex = hover ?? (inspectedDate ? inspectedIndex : observations.length - 1);
+  const reading = activeIndex == null ? undefined : observations[activeIndex];
   const price = reading?.[field];
   const label = field === 'close' ? 'Close' : 'Adj Close';
+  const { name, color } = assetPresentation(asset);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = container.current;
-    if (!element || lastObserved === undefined) return;
+    if (!element || prices.length === 0) return;
 
-    const width = Math.max(1, element.clientWidth);
-    const plot = new uPlot({
-      width,
-      height: plotHeight(width),
-      legend: { show: false },
-      tzDate: (timestamp) => uPlot.tzDate(new Date(timestamp * 1000), 'UTC'),
-      cursor: { drag: { x: true, y: false } },
-      scales: {
-        x: { range: (_self, min, max) => min != null && min === max
-          ? [min - DAY_SECONDS / 2, min + DAY_SECONDS / 2]
-          : [min, max] },
-      },
-      series: [{}, {
-        label,
-        stroke: '#65e2bd',
-        width: 1.75,
-        spanGaps: false,
-        points: { filter: (self, _index, show) => {
-          if (show) return null;
-          const [first, last] = self.series[0].idxs!;
-          return isolated.filter((index) => index >= first && index <= last);
-        } },
-      }],
-      axes: [
-        {
-          stroke: '#9eafbc',
-          grid: { stroke: '#202d39' },
-          ticks: { stroke: '#354553' },
-          values: (self, splits) => {
-            const { min, max } = self.scales.x;
-            const formatter = (max ?? 0) - (min ?? 0) > 150 * DAY_SECONDS ? axisMonth : axisDate;
-            return splits.map((date) => formatter.format(date * 1000));
-          },
-        },
-        {
-          side: 1,
-          size: 68,
-          stroke: '#9eafbc',
-          grid: { stroke: '#202d39' },
-          ticks: { stroke: '#354553' },
-          values: (_self, values) => values.map((value) => priceAxis.format(value)),
-        },
-      ],
-      hooks: { setCursor: [(self) => {
-        const index = self.cursor.idx;
-        setHover(index == null || (self.cursor.left ?? -1) < 0 ? undefined : dates[index]);
-      }] },
-    }, [dates, prices], element);
-    chart.current = plot;
+    let renderedWidth = 0;
+    let resizeFrame: number | undefined;
 
     function inspectTouch(event: PointerEvent) {
-      if (event.pointerType !== 'touch' || !event.isPrimary) return;
+      const plot = chart.current;
+      if (!plot || event.pointerType !== 'touch' || !event.isPrimary) return;
       if (event.type === 'pointerdown') event.preventDefault();
       const bounds = plot.over.getBoundingClientRect();
       const left = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
       const top = Math.max(0, Math.min(bounds.height, event.clientY - bounds.top));
       plot.setCursor({ left, top });
-      if (event.type === 'pointerup' && plot.cursor.idx != null) setPinned(dates[plot.cursor.idx]);
+      if (event.type === 'pointerup' && plot.cursor.idx != null) {
+        setInspectedDate(observations[plot.cursor.idx].bar_date);
+      }
     }
 
     function cancelTouch(event: PointerEvent) {
-      if (event.pointerType === 'touch' && event.isPrimary) plot.setCursor({ left: -10, top: -10 });
+      if (event.pointerType === 'touch' && event.isPrimary) chart.current?.setCursor({ left: -10, top: -10 });
     }
 
-    plot.over.addEventListener('pointerdown', inspectTouch);
-    plot.over.addEventListener('pointermove', inspectTouch);
-    plot.over.addEventListener('pointerup', inspectTouch);
-    plot.over.addEventListener('pointercancel', cancelTouch);
+    function render(width: number) {
+      if (width <= 0 || width === renderedWidth) return;
+      renderedWidth = width;
+      const height = plotHeight(width);
+      if (chart.current) {
+        chart.current.setSize({ width, height });
+        return;
+      }
 
-    let renderedWidth = width;
-    let resizeFrame: number | undefined;
+      const plot = new uPlot({
+        width, height,
+        legend: { show: false },
+        padding: [9, 0, 0, 38],
+        cursor: {
+          drag: { x: true, y: false },
+          points: { size: 8, width: 1, stroke: '#111214', fill: color },
+          move: (self, left, top) => {
+            if (left < 0 || top < 0 || self.scales.x.min == null) return [left, top];
+            const index = self.posToIdx(left);
+            return [self.valToPos(indices[index], 'x'), self.valToPos(prices[index], 'y')];
+          },
+        },
+        scales: {
+          x: { time: false, range: (_self, min, max) => sessionDomain(min, max) },
+          y: { range: (_self, min, max) => priceDomain(min, max) },
+        },
+        series: [{}, {
+          label: name,
+          stroke: color,
+          width: 2,
+          points: { show: prices.length === 1 ? true : undefined, size: 6 },
+        }],
+        axes: [
+          {
+            ...axisStyle, size: 30, space: 40,
+            splits: (self, _index, min, max) => sessionTicks(min, max, self.bbox.width / uPlot.pxRatio, dates.length - 1),
+            values: (_self, ticks) => sessionLabels(ticks, dates),
+          },
+          {
+            ...axisStyle, side: 1, space: 35,
+            size: (self, values) => {
+              self.ctx.save();
+              self.ctx.font = axisFont;
+              const widest = Math.max(0, ...(values ?? []).map((value) => self.ctx.measureText(value).width));
+              self.ctx.restore();
+              return Math.max(44, widest + 15);
+            },
+            values: (_self, ticks) => {
+              let previous = '';
+              return ticks.map((tick) => {
+                const value = formatPrice(tick);
+                if (value === previous) return '';
+                previous = value;
+                return value;
+              });
+            },
+          },
+        ],
+        hooks: { setCursor: [(self) => {
+          const { idx, left } = self.cursor;
+          setHover(idx == null || (left ?? -1) < 0 ? undefined : idx);
+        }] },
+      }, [indices, prices], element!);
+      chart.current = plot;
+      plot.over.addEventListener('pointerdown', inspectTouch);
+      plot.over.addEventListener('pointermove', inspectTouch);
+      plot.over.addEventListener('pointerup', inspectTouch);
+      plot.over.addEventListener('pointercancel', cancelTouch);
+    }
+
+    // Observe the host, whose width is independent of the canvas. uPlot manages the backing DPR.
+    render(Math.floor(element.getBoundingClientRect().width));
     const observer = new ResizeObserver(([entry]) => {
-      const resizedWidth = Math.max(1, Math.floor(entry.contentRect.width));
+      const width = Math.floor(entry.contentRect.width);
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       resizeFrame = undefined;
-      if (resizedWidth === renderedWidth) return;
-
+      if (width <= 0 || width === renderedWidth) return;
       resizeFrame = requestAnimationFrame(() => {
         resizeFrame = undefined;
-        renderedWidth = resizedWidth;
-        plot.setSize({ width: renderedWidth, height: plotHeight(renderedWidth) });
+        render(width);
       });
     });
     observer.observe(element);
 
     return () => {
+      observer.disconnect();
+      if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+      if (inspectFrame.current !== undefined) cancelAnimationFrame(inspectFrame.current);
+      const plot = chart.current;
+      if (!plot) return;
       plot.over.removeEventListener('pointerdown', inspectTouch);
       plot.over.removeEventListener('pointermove', inspectTouch);
       plot.over.removeEventListener('pointerup', inspectTouch);
       plot.over.removeEventListener('pointercancel', cancelTouch);
-      observer.disconnect();
-      if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       chart.current = null;
       plot.destroy();
     };
-  }, [dates, prices, label, lastObserved, isolated]);
+  }, [color, dates, indices, name, observations, prices]);
 
-  if (lastObserved === undefined) {
+  if (observations.length === 0) {
     return <output className="chart-empty">No {label} prices are available for this period.</output>;
   }
 
-  const firstDate = dates[0];
-  const lastDate = dates[dates.length - 1];
-
   function inspect(date: string) {
-    const seconds = dateToSeconds(date);
-    if (!Number.isFinite(seconds) || seconds < firstDate || seconds > lastDate) return;
+    setInspectedDate(date);
     setHover(undefined);
-    setPinned(seconds);
-    if (firstDate < lastDate) {
-      chart.current?.setScale('x', {
-        min: Math.max(firstDate, seconds - 15 * DAY_SECONDS),
-        max: Math.min(lastDate, seconds + 15 * DAY_SECONDS),
-      });
+    if (inspectFrame.current !== undefined) cancelAnimationFrame(inspectFrame.current);
+    inspectFrame.current = undefined;
+    const plot = chart.current;
+    if (!plot) return;
+    plot.setCursor({ left: -10, top: -10 });
+    const index = indexByDate.get(date);
+    if (index == null) {
+      if (!date) plot.setData([indices, prices]);
+      return;
     }
-  }
-
-  function reset() {
-    setHover(undefined);
-    setPinned(undefined);
-    chart.current?.setCursor({ left: -10, top: -10 });
-    chart.current?.setData([dates, prices]);
+    plot.setScale('x', { min: Math.max(0, index - 15), max: Math.min(indices.length - 1, index + 15) });
+    inspectFrame.current = requestAnimationFrame(() => {
+      inspectFrame.current = undefined;
+      plot.setCursor({ left: plot.valToPos(index, 'x'), top: plot.valToPos(prices[index], 'y') });
+    });
   }
 
   return <>
     <div className="chart-reading" aria-live="off">
       <div className="reading-value">
-        <span className="reading-price">{price == null ? '—' : typeof price === 'string' ? price : priceReading.format(price)}</span>
+        <span className="reading-price">{price == null ? '—' : formatPrice(price)}</span>
         <span className="muted">{asset.economic_unit}</span>
       </div>
       <div className="reading-meta">
-        {selected !== undefined && <time dateTime={secondsToDate(selected)}>{formatDate(secondsToDate(selected))}</time>}
-        {price == null && <span>No {label} price</span>}
+        {reading && <time dateTime={reading.bar_date}>{formatDate(reading.bar_date)}</time>}
         {reading?.session_status === 'provisional' && <span className="amber">Provisional session</span>}
         {reading?.quality_status === 'partial' && <span className="amber">Partial data</span>}
+        {!reading && <output>
+          {inspectedIndex === null ? `No ${label} price is available for this date.` : 'No observation is available for this date.'}
+        </output>}
       </div>
     </div>
     {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- uPlot needs a container for its canvas. */}
-    <div className="plot" ref={container} role="img" aria-label={`Daily ${label} for ${asset.symbol}`} />
+    <div className="plot" ref={container} role="img" aria-label={`Daily ${label} for ${name}`}
+      style={{ '--series-color': color } as CSSProperties} />
     <div className="chart-tools">
-      <p className="muted">Gaps indicate missing prices. <span className="mouse-chart-help">Drag to zoom.</span><span className="touch-chart-help">Tap or slide to inspect prices.</span></p>
+      <p className="muted"><span className="mouse-chart-help">Drag to zoom.</span><span className="touch-chart-help">Tap or slide to inspect prices.</span></p>
       <div className="chart-actions">
         <label htmlFor="inspect-date">Inspect date</label>
-        <input id="inspect-date" type="date" min={secondsToDate(firstDate)} max={secondsToDate(lastDate)}
-          value={pinned === undefined ? '' : secondsToDate(pinned)}
-          onChange={(event) => event.target.value ? inspect(event.target.value) : reset()} />
-        <button type="button" className="secondary" onClick={reset}>Reset view</button>
+        <input id="inspect-date" type="date" min={firstDate} max={lastDate} value={inspectedDate}
+          onChange={(event) => inspect(event.target.value)} />
+        <button type="button" className="secondary" onClick={() => inspect('')}>Reset view</button>
       </div>
     </div>
   </>;
