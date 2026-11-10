@@ -51,23 +51,31 @@ class WorkflowFailure(RuntimeError):
 
 
 def _interpret(question: str) -> Plan | None:
-    words = set(tokens(question))
+    terms = tokens(question)
+    words = set(terms)
+    phrase = f" {' '.join(terms)} "
     covid = bool(words & {"covid", "pandemia", "pandemic", "coronavirus"})
+    inflation = bool(words & {"inflacion", "inflation", "hicp", "iapc"}
+                     or " consumer prices " in phrase or " precios al consumidor " in phrase
+                     or " consumer price " in phrase)
     if ({"eur", "usd"} <= words or "eurusd" in words
             or ("dolar" in words and "euro" in words) or ("dollar" in words and "euro" in words)):
-        return Plan("Evolución del EUR/USD", ("covid", "fx") if covid else ("fx",), ("eur-usd",))
-    if words & {"m3", "monetaria", "monetario", "money"} and words & {"m3", "oferta", "saldo", "supply"}:
+        return Plan("Evolución del EUR/USD", ("fx", "covid") if covid else ("fx",), ("eur-usd",))
+    if ("m3" in words or any(alias in phrase for alias in (
+        " oferta monetaria ", " masa monetaria ", " agregado monetario ", " money supply ", " broad money ",
+    ))):
         return Plan("Relación descriptiva del saldo de M3 y el IAPC", ("money", "inflation"),
-                    ("m3-stock", "hicp-yoy")) if words & {"inflacion", "inflation", "hicp", "iapc"} else Plan(
+                    ("m3-stock", "hicp-yoy")) if inflation else Plan(
             "Evolución del saldo de M3", ("money",), ("m3-stock",),
         )
-    if words & {"pib", "gdp"}:
-        return Plan("Crecimiento intertrimestral del PIB real", ("covid", "gdp") if covid else ("gdp",),
+    if words & {"pib", "gdp"} or " gross domestic product " in phrase or " producto interno bruto " in phrase:
+        return Plan("Crecimiento intertrimestral del PIB real", ("gdp", "covid") if covid else ("gdp",),
                     ("real-gdp-qoq",))
-    if words & {"inflacion", "inflation", "hicp", "iapc"}:
-        topics = ("ukraine", "inflation") if words & {"ucrania", "ukraine", "guerra", "war"} else ("inflation",)
+    if inflation:
+        topics = ("inflation", "ukraine") if words & {"ucrania", "ukraine", "guerra", "war"} else ("inflation",)
         return Plan("Evolución de la inflación general IAPC", topics, ("hicp-yoy",))
-    if words & {"tasa", "tasas", "tipos", "rates", "deposito", "deposit"}:
+    if (words & {"deposito", "deposit", "tasa", "tasas", "rates"}
+            or words & {"interes", "interest", "ecb", "bce"} and words & {"tipo", "tipos", "rate"}):
         return Plan("Evolución de la tasa de facilidad de depósito", ("rates",), ("deposit-rate",))
     return None
 

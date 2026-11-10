@@ -56,6 +56,7 @@ function flushResize() {
 }
 
 beforeEach(() => {
+  window.history.replaceState(null, '', '?workspace=market');
   http.mockReset();
   for (const mock of Object.values(plot)) mock.mockClear();
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
@@ -74,6 +75,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  window.history.replaceState(null, '', '/');
   cleanup();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();

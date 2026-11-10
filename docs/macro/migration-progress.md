@@ -317,6 +317,10 @@ Commit de etapa: `feat(ai): integrate macroeconomic RAG with LangChain and LangG
 
 ## M6 — Rebranding y habilitación
 
+La implementación local y su verificación se registran en el
+[informe M6](m6-progress.md). Las tareas de habilitación pública se
+mantienen separadas del cambio local.
+
 - Actualizar la marca y el manifiesto PWA, y verificar la transición
   de las instalaciones existentes.
 - Preparar y revisar una carga trazable de la proyección en DEMO.

@@ -107,17 +107,20 @@ class CorpusIndex:
         return cls(TypeAdapter(list[CorpusDocument]).validate_json(content))
 
     def retrieve(self, question: str, topics: tuple[str, ...], cutoff: date) -> list[Document]:
+        """Require the indicator topic, then rank by topic overlap and lexical similarity."""
+        if not topics:
+            return []
         topic_set = set(topics)
         query = self.embeddings.embed_query(f"{question} {' '.join(topics)}")
         ranked = []
         for index, (chunk, vector) in enumerate(zip(self.chunks, self.vectors, strict=True)):
             meta = chunk.metadata
-            if meta["published_on"] > cutoff or not topic_set.intersection(meta["topics"]):
+            if meta["published_on"] > cutoff or topics[0] not in meta["topics"]:
                 continue
             score = sum(left * right for left, right in zip(query, vector, strict=True))
             if score >= 0.025:
-                ranked.append((score, index))
-        return [self.chunks[index] for _, index in sorted(ranked, key=lambda hit: (-hit[0], hit[1]))[:MAX_HITS]]
+                ranked.append((-len(topic_set.intersection(meta["topics"])), -score, index))
+        return [self.chunks[index] for _, _, index in sorted(ranked)[:MAX_HITS]]
 
 
 def document_evidence(document: Document) -> Evidence:

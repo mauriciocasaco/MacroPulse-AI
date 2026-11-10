@@ -40,10 +40,16 @@ class Claim(BaseModel):
     citations: list[str] = Field(min_length=1, max_length=4)
 
 
+class CitationSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    citations: list[str] = Field(min_length=2, max_length=4)
+
+
 class GeminiDraft(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    interpretation: list[Claim] = Field(min_length=1, max_length=2)
+    selections: list[CitationSelection] = Field(min_length=1, max_length=2)
 
 
 class ResearchResponse(BaseModel):
@@ -64,10 +70,11 @@ def selected_citations(output: object, evidence: list[Evidence]) -> list[tuple[s
     draft = output if isinstance(output, GeminiDraft) else GeminiDraft.model_validate(output)
     kinds = {entry.id: entry.kind for entry in evidence}
     selections = []
-    for claim in draft.interpretation:
-        if (len(set(claim.citations)) != len(claim.citations)
-                or any(citation not in kinds for citation in claim.citations)
-                or {kinds[citation] for citation in claim.citations} != {"series", "document"}):
+    for selection in draft.selections:
+        citations = selection.citations
+        if (len(set(citations)) != len(citations)
+                or any(citation not in kinds for citation in citations)
+                or {kinds[citation] for citation in citations} != {"series", "document"}):
             raise ValueError("invalid model evidence references")
-        selections.append(tuple(claim.citations))
+        selections.append(tuple(citations))
     return selections

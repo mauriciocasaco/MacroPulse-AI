@@ -123,6 +123,8 @@ legend { margin-bottom: 8px; padding: 0; }
 
 .macro-nav { display: flex; gap: 16px; margin-bottom: 18px; }
 .macro-nav a[aria-current='page'] { color: var(--mint); font-weight: 700; }
+.macro-intro { margin-bottom: 26px; }
+.macro-intro .muted { max-width: 68ch; margin-top: 8px; }
 .macro-window { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-block: 12px; }
 .macro-window label { display: grid; gap: 4px; color: var(--muted); font-size: .84rem; }
 .macro-plot { display: block; width: 100%; min-height: 180px; max-height: 350px; }

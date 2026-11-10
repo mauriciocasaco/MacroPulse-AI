@@ -14,7 +14,7 @@ it('keeps disabled research inert', () => {
   const fetch = vi.fn();
   vi.stubGlobal('fetch', fetch);
   render(<MacroResearch enabled={false} {...period} />);
-  expect((screen.getByLabelText('Research question') as HTMLTextAreaElement).disabled).toBe(true);
+  expect(screen.queryByLabelText('Research question')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Ask' })).toBeNull();
   expect(fetch).not.toHaveBeenCalled();
 });

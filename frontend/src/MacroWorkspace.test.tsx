@@ -44,7 +44,6 @@ function stubMacroApi(observations: MacroObservation[], anchor: MacroObservation
     });
   });
   vi.stubGlobal('fetch', fetch);
-  window.history.replaceState(null, '', '?workspace=macro');
   vi.setSystemTime(new Date('2026-07-01T00:00:00Z'));
   return fetch;
 }
@@ -52,8 +51,18 @@ function stubMacroApi(observations: MacroObservation[], anchor: MacroObservation
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.useRealTimers();
   window.history.replaceState(null, '', '/');
+});
+
+it('opens macro by default in the enabled public build and hides the research form', async () => {
+  vi.stubEnv('MODE', 'public-demo');
+  const fetch = stubMacroApi([]);
+  render(<App macroDemoEnabled macroAiEnabled />);
+  await screen.findByText('AI research is available only in an enabled local workspace.');
+  expect(screen.queryByLabelText('Research question')).toBeNull();
+  expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
 
 it('plots monthly observations without filling gaps and preserves source decimals and units', async () => {
@@ -62,6 +71,7 @@ it('plots monthly observations without filling gaps and preserves source decimal
     point('2026-06', '2026-06-01', '2026-06-30', '17612461.010'),
   ]);
   render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Macroeconomic evidence explorer' })).toBeTruthy();
   fireEvent.change(await screen.findByLabelText('Indicator'), { target: { value: 'm3-stock' } });
   const svg = await screen.findByLabelText('Official macro observations by period');
   expect(svg.querySelectorAll('circle')).toHaveLength(1);

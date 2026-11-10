@@ -45,16 +45,16 @@ export function MacroResearch({ enabled, start, end }: { enabled: boolean; start
     <h2 id="macro-research-title">Ask about macro data</h2>
     <p className="muted">{enabled
       ? `Period ${start} to ${end}. Gemini receives the recognized topic and selected public evidence.`
-      : 'Natural-language research is unavailable in this build.'}</p>
-    <form onSubmit={submit}>
+      : 'AI research is available only in an enabled local workspace.'}</p>
+    {enabled && <form onSubmit={submit}>
       <label className="question">Research question
         <textarea disabled={!enabled || pending} value={question} required rows={2} maxLength={500}
           onChange={(event) => setQuestion(event.target.value)} />
       </label>
-      {enabled && <div className="analysis-actions">
+      <div className="analysis-actions">
         <button type="submit" className="primary" disabled={pending || !question.trim()}>Ask</button>
-      </div>}
-    </form>
+      </div>
+    </form>}
     {pending && <output className="notice">Checking official evidence…</output>}
     {failed && <p role="alert" className="notice error">Local macro research is currently unavailable.</p>}
     {result && <div className="analysis-result">

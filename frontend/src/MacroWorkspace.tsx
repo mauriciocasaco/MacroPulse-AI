@@ -159,10 +159,15 @@ export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }
   if (!selected) return <output className="notice">Loading the official indicator catalog…</output>;
 
   return <>
+    <section className="macro-intro" aria-labelledby="macro-title">
+      <p className="eyebrow">Euro area research</p>
+      <h1 id="macro-title">Macroeconomic evidence explorer</h1>
+      <p className="muted">Chart official ECB and Eurostat series and trace each observation to its source.
+        Local AI research pairs reproducible calculations with cited institutional context.</p>
+    </section>
     <section className="overview" aria-label="Macroeconomic indicator">
       <div>
-        <p className="eyebrow">Macro explorer</p>
-        <h1>{selected.title}</h1>
+        <h2>{selected.title}</h2>
         <p className="coverage muted">{unitLabel(selected.unit, selected.multiplier)} · {frequencyLabels[selected.frequency]}</p>
       </div>
       <div className="asset-select">

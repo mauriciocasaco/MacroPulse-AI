@@ -108,12 +108,15 @@ function Workspace({ assets, publicDemo }: { assets: Asset[]; publicDemo: boolea
   </>;
 }
 
-export function App() {
+export function App({
+  macroDemoEnabled = import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED === true,
+  macroAiEnabled = import.meta.env.MARKETPULSE_MACRO_AI_ENABLED === true,
+}: { macroDemoEnabled?: boolean; macroAiEnabled?: boolean } = {}) {
   const publicDemo = import.meta.env.MODE === 'public-demo';
   const macroAvailable = publicDemo
-    ? import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED === true
+    ? macroDemoEnabled
     : ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
-  const macro = macroAvailable && new URLSearchParams(location.search).get('workspace') === 'macro';
+  const macro = macroAvailable && new URLSearchParams(location.search).get('workspace') !== 'market';
   const [catalog, setCatalog] = useState<Load<Asset[]>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -151,20 +154,20 @@ export function App() {
       <div className="shell topbar-inner">
         <div className="brand">
           <svg aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M4 18h6l4-8 5 13 4-7h5" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <span>MarketPulse <em>AI</em></span>
+          <span>MacroPulse <em>AI</em></span>
         </div>
         <span className="local"><i aria-hidden="true" /> {publicDemo ? 'Public demo' : 'Local workspace'}</span>
       </div>
     </header>
     <main className="shell" id="contenido">
       {macroAvailable && <nav className="macro-nav" aria-label="Workspaces">
-        <a href="?" aria-current={macro ? undefined : 'page'}>Market</a>
-        <a href="?workspace=macro" aria-current={macro ? 'page' : undefined}>Macro</a>
+        <a href="?" aria-current={macro ? 'page' : undefined}>Macro research</a>
+        <a href="?workspace=market" aria-current={macro ? undefined : 'page'}>Market archive</a>
       </nav>}
       {publicDemo && !macro && <p className="notice">All prices are synthetic and use fictional index points.</p>}
-      {updateReady && <output className="notice">An update is ready. Close all MarketPulse AI tabs and windows, then reopen the app.</output>}
+      {updateReady && <output className="notice">An update is ready. Close all MacroPulse AI tabs and windows, then reopen the app.</output>}
       {online ? macro ? <MacroWorkspace key={attempt}
-        analysisEnabled={!publicDemo && import.meta.env.MARKETPULSE_MACRO_AI_ENABLED === true} /> : <>
+        analysisEnabled={!publicDemo && macroAiEnabled} /> : <>
         {catalog.status === 'loading' && <output className="notice">{publicDemo
           ? 'Loading demo assets. The service may take a moment to start…' : 'Loading assets…'}</output>}
         {catalog.status === 'error' && <RequestError message={catalog.message} onRetry={() => {
@@ -176,6 +179,6 @@ export function App() {
           : <output className="notice">No assets available.</output>)}
       </> : <output className="notice">You are offline. Live financial data is unavailable.</output>}
     </main>
-    <footer className="shell footer"><span>MarketPulse AI</span><span>Historical market research</span></footer>
+    <footer className="shell footer"><span>MacroPulse AI</span><span>Historical macroeconomic research</span></footer>
   </>;
 }
