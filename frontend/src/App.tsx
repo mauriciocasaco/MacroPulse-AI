@@ -163,7 +163,8 @@ export function App() {
       </nav>}
       {publicDemo && !macro && <p className="notice">All prices are synthetic and use fictional index points.</p>}
       {updateReady && <output className="notice">An update is ready. Close all MarketPulse AI tabs and windows, then reopen the app.</output>}
-      {online ? macro ? <MacroWorkspace key={attempt} /> : <>
+      {online ? macro ? <MacroWorkspace key={attempt}
+        analysisEnabled={!publicDemo && import.meta.env.MARKETPULSE_MACRO_AI_ENABLED === true} /> : <>
         {catalog.status === 'loading' && <output className="notice">{publicDemo
           ? 'Loading demo assets. The service may take a moment to start…' : 'Loading assets…'}</output>}
         {catalog.status === 'error' && <RequestError message={catalog.message} onRetry={() => {

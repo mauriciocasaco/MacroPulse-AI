@@ -348,3 +348,7 @@ if _MODE == "public_demo":
     app = create_public_app()
 elif _MODE not in {"local", "test"}:
     raise RuntimeError("Invalid MarketPulse mode")
+else:
+    from .macro_ai.api import router as macro_ai_router
+
+    app.include_router(macro_ai_router)

@@ -235,3 +235,94 @@ Commit de etapa: `security(demo): harden macroeconomic public API`.
 ## M5 — RAG y consultas
 
 M5 autorizado por el PASS de M4.
+
+El endpoint local `POST /macro/analysis` usa el intervalo elegido
+en la PWA, lee los indicadores en una transacción de solo lectura y
+mantiene la consulta original en el equipo. LangGraph limita el
+recorrido a interpretación, selección, lectura, recuperación,
+evaluación de suficiencia y generación o abstención. El índice usa
+documentos LangChain, fragmentos acotados y vectores TF-IDF con
+similitud coseno. Es recuperación léxica y el corpus es deliberadamente
+pequeño. La fecha de publicación de cada documento limita su uso
+histórico. Las observaciones estadísticas se toman de las versiones
+capturadas, con la limitación temporal indicada en la respuesta.
+
+El Runnable de LangChain construye el prompt desde el tema reconocido,
+hechos, cálculos y resúmenes públicos. Gemini selecciona referencias
+en una salida estructurada. El servidor valida esas referencias y
+redacta la interpretación usando los títulos y resúmenes revisados.
+Los números y cálculos proceden del backend. Una relación descriptiva
+o una correlación no identifica causalidad. El trazado de la cadena
+está deshabilitado. Gemini usa una sola solicitud por generación y un
+timeout.
+[Derechos y atribución del corpus](data-reuse-policy.md#corpus-institucional-de-m5) ·
+[Modelo Gemini 3.6 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.6-flash).
+
+### Ejecución local
+
+Instalar `backend/requirements-ai.txt` en el entorno local. Proveer
+`MACRO_API_DSN` para una base de solo lectura en loopback y la
+credencial existente como `GEMINI_API_KEY` por el mecanismo seguro del
+entorno. El valor se mantiene del lado del servidor. Activar
+`MARKETPULSE_MACRO_AI_ENABLED=true` en Uvicorn y en el frontend local.
+
+```powershell
+python -m pip install -r backend/requirements-ai.txt
+python -m uvicorn backend.api:app --host 127.0.0.1 --port 8000
+# En otra consola, desde frontend y con el mismo flag local
+npm run dev
+```
+
+Abrir `http://127.0.0.1:5173/?workspace=macro`. Seleccionar un
+intervalo pertinente al episodio antes de enviar la pregunta. El modo
+`public_demo`, el Worker y el proxy Vite en modo público carecen de
+acceso a esta operación. El servicio web conserva un camino separado
+para observaciones públicas macro cuando se autorice DEMO.
+
+Las cinco preguntas del plan se verificaron en el grafo con datos
+oficiales en PostgreSQL desechable y un generador simulado. Esa prueba
+verificó selección de series, cálculos, contexto y citas. Las respuestas
+simuladas se limitaron a las pruebas.
+
+| Pregunta demostrativa | Ventana |
+| --- | --- |
+| EUR/USD durante la pandemia | 2020-02-01 a 2021-12-31 |
+| Inflación tras el inicio de la guerra de Ucrania | 2022-02-24 a 2023-12-31 |
+| Cambios de las tasas en 2022 y 2023 | 2022-01-01 a 2023-12-31 |
+| Relación entre M3 e IAPC | 2020-01-01 a 2023-12-31 |
+| PIB de la eurozona después del COVID-19 | 2020-01-01 a 2023-12-31 |
+
+Por el proxy local de Vite se realizaron tres consultas reales a
+Gemini 3.6 Flash con la credencial configurada. EUR/USD y el segundo
+intento de M3–IAPC devolvieron 200 con citas. El primer intento de
+M3–IAPC devolvió un 503 genérico sin causa confirmada. La respuesta
+del segundo intento exageró la separación temporal entre los
+máximos de M3 e IAPC. Los datos oficiales de esa ventana los sitúan
+en septiembre y octubre de 2022. La versión final descarta la prosa
+libre de Gemini y conserva sólo su selección validada de fuentes.
+Se reprodujo la salida incorrecta en una prueba local y se volvió a
+recorrer el grafo con los cinco ejemplos. Se conservó el protocolo
+de llamada y no se hicieron nuevas consultas a Gemini tras la corrección.
+
+El entorno AI resolvió 56 dependencias sin avisos conocidos en
+`pip-audit`. El escaneo Bandit del módulo nuevo pasó. Se comprobó
+por HTTP que el proxy público rechaza el POST de análisis (404)
+y el origen externo obtiene 403 en el servidor local.
+Pasaron 417 pruebas de backend, 56 del frontend, 6 del Worker, el
+lint y los builds local y público.
+
+La auditoría independiente devolvió PASS (9,51/10) en la ronda 1,
+sin hallazgos altos o críticos.
+Commit de etapa: `feat(ai): integrate macroeconomic RAG with LangChain and LangGraph`.
+
+## M6 — Rebranding y habilitación
+
+- Actualizar la marca y el manifiesto PWA, y verificar la transición
+  de las instalaciones existentes.
+- Preparar y revisar una carga trazable de la proyección en DEMO.
+  Validar atribución, permisos, costos de las consultas y límites
+  reales del Worker y el origen antes de habilitar tráfico.
+- Evaluar una salida Gemini de sólo referencias y repetir una prueba
+  real de la versión final con un nuevo presupuesto autorizado.
+  Mantener Gemini deshabilitado para visitantes públicos hasta que
+  existan cuotas globales verificables y protección contra abuso.

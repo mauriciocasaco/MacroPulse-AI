@@ -117,7 +117,7 @@ def test_openapi_documents_parameters_responses_and_routes():
     paths = specification["paths"]
     assert set(paths) == {
         "/health", "/assets", "/assets/{asset_source_id}/history", "/assets/{asset_source_id}/latest",
-        "/compare", "/analysis", "/macro/indicators", "/macro/indicators/{indicator_id}/history",
+        "/compare", "/analysis", "/macro/indicators", "/macro/indicators/{indicator_id}/history", "/macro/analysis",
     }
     assert set(paths["/compare"]["get"]["responses"]) == {"200", "404", "422", "503"}
     assert {parameter["name"] for parameter in paths["/compare"]["get"]["parameters"]} == {

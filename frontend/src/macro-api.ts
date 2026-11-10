@@ -36,6 +36,35 @@ export interface MacroHistory {
   coverage_end: string | null;
 }
 
+export interface ResearchClaim {
+  text: string;
+  citations: string[];
+}
+
+export interface ResearchEvidence {
+  id: string;
+  kind: 'series' | 'document';
+  title: string;
+  url: string;
+  attribution: string;
+  period_start: string | null;
+  period_end: string | null;
+  published_on: string | null;
+}
+
+export interface MacroAnalysis {
+  status: 'answered' | 'insufficient_evidence';
+  question: string;
+  start: string;
+  end: string;
+  facts: ResearchClaim[];
+  calculations: ResearchClaim[];
+  interpretation: ResearchClaim[];
+  limitations: string[];
+  evidence: ResearchEvidence[];
+  graph_steps: string[];
+}
+
 const ids = new Set(['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy']);
 const frequencies = new Set(['daily', 'monthly', 'quarterly', 'effective_date']);
 const sourceHosts = new Set(['data.ecb.europa.eu', 'www.ecb.europa.eu', 'ec.europa.eu', 'doi.org']);
@@ -80,6 +109,22 @@ function observation(value: unknown): value is MacroObservation {
       && decimal.test(value.value) && Number.isFinite(Number(value.value))));
 }
 
+function strings(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function claims(value: unknown): value is ResearchClaim[] {
+  return Array.isArray(value) && value.every((item) => object(item)
+    && typeof item.text === 'string' && strings(item.citations));
+}
+
+function researchEvidence(value: unknown): value is ResearchEvidence {
+  return object(value) && ['series', 'document'].includes(String(value.kind))
+    && ['id', 'title', 'attribution'].every((key) => typeof value[key] === 'string')
+    && officialLink(value.url)
+    && ['period_start', 'period_end', 'published_on'].every((key) => value[key] === null || date(value[key]));
+}
+
 async function get(path: string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(`/api/macro/indicators${path}`, {
     signal, cache: 'no-store', headers: { Accept: 'application/json' },
@@ -116,5 +161,29 @@ export async function getMacroHistory(
     indicator: result.indicator, start, end, updated_at: result.updated_at,
     observations: result.observations, anchor: result.anchor,
     coverage_start: result.coverage_start, coverage_end: result.coverage_end,
+  };
+}
+
+export async function askMacroAnalysis(
+  question: string, start: string, end: string, signal: AbortSignal,
+): Promise<MacroAnalysis> {
+  const response = await fetch('/api/macro/analysis', {
+    method: 'POST', signal, cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ question, start, end }),
+  });
+  if (!response.ok) throw new Error('Local macro research is unavailable.');
+  const result: unknown = await response.json();
+  if (!object(result) || (result.status !== 'answered' && result.status !== 'insufficient_evidence')
+    || result.question !== question || result.start !== start || result.end !== end
+    || !claims(result.facts) || !claims(result.calculations) || !claims(result.interpretation)
+    || !strings(result.limitations) || !strings(result.graph_steps)
+    || !Array.isArray(result.evidence) || !result.evidence.every(researchEvidence)) {
+    throw new Error('Unexpected research response.');
+  }
+  return {
+    status: result.status, question, start, end, facts: result.facts, calculations: result.calculations,
+    interpretation: result.interpretation, limitations: result.limitations,
+    evidence: result.evidence, graph_steps: result.graph_steps,
   };
 }

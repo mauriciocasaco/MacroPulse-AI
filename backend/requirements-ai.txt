@@ -1,0 +1,7 @@
+# Optional local MacroPulse research stack. The DEMO image uses requirements-demo.txt.
+-r requirements-demo.txt
+langchain-core==1.7.7
+langgraph==1.2.20
+langchain-google-genai==4.4.3
+google-genai==3.0.0
+langsmith==0.14.17

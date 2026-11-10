@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { getMacroHistory, getMacroIndicators, type MacroHistory, type MacroObservation } from './macro-api';
+import { MacroResearch } from './MacroResearch';
 
 const frequencyLabels = {
   daily: 'Daily reference',
@@ -128,7 +129,7 @@ function MacroHistoryPanel({ id, start, end }: { id: string; start: string; end:
   </>;
 }
 
-export function MacroWorkspace() {
+export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }) {
   const [indicators, setIndicators] = useState<Awaited<ReturnType<typeof getMacroIndicators>>>();
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -187,10 +188,6 @@ export function MacroWorkspace() {
         <br />{selected.geography.replaceAll('_', ' ')} · {selected.adjustment.replaceAll('_', ' ')}
       </p>
     </section>
-    <section className="panel" aria-labelledby="macro-research-title">
-      <h2 id="macro-research-title">Ask about macro data</h2>
-      <p className="muted">Natural-language research is unavailable in this build.</p>
-      <label className="question">Research question <textarea disabled rows={2} /></label>
-    </section>
+    <MacroResearch key={`${window.start}:${window.end}`} enabled={analysisEnabled} {...window} />
   </>;
 }

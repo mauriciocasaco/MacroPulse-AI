@@ -1,0 +1,82 @@
+[
+  {
+    "id": "ecb-pepp-march-2020",
+    "title": "ECB announces €750 billion Pandemic Emergency Purchase Programme (PEPP)",
+    "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.pr200318_1~3949d6f266.en.html",
+    "published_on": "2020-03-18",
+    "rights_url": "https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html",
+    "attribution": "Banco Central Europeo · resumen en español de MacroPulse AI",
+    "topics": ["covid", "gdp", "money"],
+    "text": "Al comienzo de la pandemia de COVID-19, el Consejo de Gobierno del BCE anunció el programa temporal PEPP con una dotación inicial de 750.000 millones de euros. El programa contempló compras de valores públicos y privados para responder al riesgo para la transmisión de la política monetaria y para la economía de la zona euro. El comunicado describe una decisión de política, sin cuantificar su efecto sobre el PIB ni el tipo de cambio EUR/USD."
+  },
+  {
+    "id": "ecb-usd-liquidity-march-2020",
+    "title": "Coordinated central bank action to enhance the provision of global US dollar liquidity",
+    "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.pr200315~1fab6a9f1f.en.html",
+    "published_on": "2020-03-15",
+    "rights_url": "https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html",
+    "attribution": "Banco Central Europeo y bancos centrales participantes · hechos resumidos por MacroPulse AI",
+    "topics": ["covid", "fx", "money"],
+    "text": "En marzo de 2020, el BCE y otros bancos centrales anunciaron una acción coordinada mediante líneas swap para facilitar la liquidez en dólares. Redujeron el precio de esas operaciones e incorporaron un vencimiento de 84 días. La medida se refiere al acceso a financiación en USD. Su fecha sirve para contextualizar la evolución de EUR/USD durante la pandemia, sin identificar por sí sola un impacto causal sobre las cotizaciones de referencia."
+  },
+  {
+    "id": "eurostat-gdp-q2-2020",
+    "title": "GDP main aggregates and employment estimates for the second quarter of 2020",
+    "url": "https://ec.europa.eu/eurostat/web/products-euro-indicators/-/2-08092020-ap",
+    "published_on": "2020-09-08",
+    "rights_url": "https://ec.europa.eu/eurostat/help/copyright-notice",
+    "attribution": "Comisión Europea, Eurostat · resumen de MacroPulse AI, del que Eurostat no es responsable",
+    "topics": ["covid", "gdp"],
+    "text": "La publicación de Eurostat de septiembre de 2020 registró una fuerte contracción intertrimestral del PIB ajustado estacionalmente en el segundo trimestre, en el contexto de las medidas de contención de COVID-19. Es una publicación contemporánea del episodio. Sus estimaciones y composición geográfica corresponden a esa edición y pueden diferir de una consulta actual del PIB real EA21 en volumen."
+  },
+  {
+    "id": "ecb-ukraine-march-2022",
+    "title": "Our monetary policy statement at a glance — March 2022",
+    "url": "https://www.ecb.europa.eu/press/press_conference/visual-mps/2022/html/mopo_statement_explained_march.en.html",
+    "published_on": "2022-03-10",
+    "rights_url": "https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html",
+    "attribution": "Banco Central Europeo · resumen en español de MacroPulse AI",
+    "topics": ["ukraine", "inflation", "rates", "gdp"],
+    "text": "En marzo de 2022, el BCE describió que la invasión rusa de Ucrania elevaba los costos de la energía, afectaba el comercio y debilitaba la confianza. También observó aumentos en alimentos y otros bienes y servicios. La evaluación describe canales y expectativas del BCE en esa fecha. Las cifras observadas de inflación se consultan por separado en el IAPC."
+  },
+  {
+    "id": "eurostat-hicp-october-2022",
+    "title": "Annual inflation up to 10.6% in the euro area",
+    "url": "https://ec.europa.eu/eurostat/en/web/products-euro-indicators/-/2-17112022-ap",
+    "published_on": "2022-11-17",
+    "rights_url": "https://ec.europa.eu/eurostat/help/copyright-notice",
+    "attribution": "Comisión Europea, Eurostat · resumen de MacroPulse AI, del que Eurostat no es responsable",
+    "topics": ["ukraine", "inflation", "money"],
+    "text": "Eurostat publicó un IAPC general interanual de 10,6 % para la zona euro en octubre de 2022, tras 9,9 % en septiembre. En ese comunicado la energía tuvo la mayor contribución entre los grandes componentes. Se trata de inflación de la zona euro y de la edición publicada en noviembre, con una distinción entre contribuciones en puntos porcentuales e inflación interanual en porcentaje."
+  },
+  {
+    "id": "ecb-policy-july-2022",
+    "title": "ECB monetary policy decisions of 21 July 2022",
+    "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220721~53e5bdd317.en.html",
+    "published_on": "2022-07-21",
+    "rights_url": "https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html",
+    "attribution": "Banco Central Europeo · resumen en español de MacroPulse AI",
+    "topics": ["rates", "inflation"],
+    "text": "El Consejo de Gobierno anunció el 21 de julio de 2022 un aumento de 50 puntos básicos en las tres tasas oficiales del BCE. La tasa de la facilidad de depósito pasó a 0,00 % desde el 27 de julio. La fecha de la decisión es distinta de la fecha efectiva de la tasa; la serie DFR representa esta última."
+  },
+  {
+    "id": "ecb-policy-september-2023",
+    "title": "ECB monetary policy decisions of 14 September 2023",
+    "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp230914~aab39f8c21.en.html",
+    "published_on": "2023-09-14",
+    "rights_url": "https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html",
+    "attribution": "Banco Central Europeo · resumen en español de MacroPulse AI",
+    "topics": ["rates", "inflation"],
+    "text": "En septiembre de 2023, el BCE anunció un aumento de 25 puntos básicos de sus tasas oficiales. Para la facilidad de depósito fijó 4,00 % anual con efecto desde el 20 de septiembre. Es un nivel de la tasa de política; el aumento anunciado y el nivel anual se expresan en unidades diferentes."
+  },
+  {
+    "id": "ecb-monetary-developments-2020-12",
+    "title": "Monetary developments in the euro area: December 2020",
+    "url": "https://www.ecb.europa.eu/press/stats/md/html/ecb.md2012~cbd6f9f354.en.html",
+    "published_on": "2021-01-29",
+    "rights_url": "https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html",
+    "attribution": "Banco Central Europeo · resumen en español de MacroPulse AI",
+    "topics": ["money", "covid", "inflation"],
+    "text": "El comunicado de enero de 2021 registró un crecimiento interanual de 12,3 % de M3 en diciembre de 2020. Ese crecimiento oficial y el saldo monetario M3 son indicadores distintos. MacroPulse usa el saldo ajustado en millones de euros. Un ejercicio que compare ese saldo con la inflación IAPC usa medidas diferentes y permite una descripción conjunta, no una atribución causal."
+  }
+]

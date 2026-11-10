@@ -11,6 +11,8 @@ const host = lanIp ?? loopback;
 const port = 5173;
 const apiPort = process.env.MARKETPULSE_API_PORT ?? '8000';
 const analysisRoute = /^\/api\/analysis$/;
+const macroAnalysisRoute = '/api/macro/analysis';
+const macroAiEnabled = process.env.MARKETPULSE_MACRO_AI_ENABLED === 'true';
 
 if (!/^[1-9]\d{0,4}$/.test(apiPort) || Number(apiPort) > 65_535) {
   throw new Error('MARKETPULSE_API_PORT must be an integer from 1 to 65535');
@@ -54,7 +56,9 @@ const localApi: Plugin = {
       }
 
       const read = request.method === 'GET' && allowsLocalRead(url, lanIp !== undefined);
-      const analysis = request.method === 'POST' && analysisRoute.test(url)
+      const analysis = request.method === 'POST'
+        && (analysisRoute.test(url) || (lanIp === undefined && macroAiEnabled
+          && server.config.mode !== 'public-demo' && url === macroAnalysisRoute))
         && /^application\/json(?:;|$)/i.test(contentType ?? '');
       if (read || analysis) return next();
       response.writeHead(404).end();
@@ -69,6 +73,7 @@ export default defineConfig({
   envPrefix: [],
   define: {
     'import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED': JSON.stringify(process.env.MARKETPULSE_DEMO_MACRO_ENABLED === 'true'),
+    'import.meta.env.MARKETPULSE_MACRO_AI_ENABLED': JSON.stringify(macroAiEnabled),
   },
   build: { license: true },
   preview: { host: loopback, proxy: {} },

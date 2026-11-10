@@ -78,3 +78,30 @@ propia precisión, flags y fechas. La coincidencia de la muestra no certifica
 todas las versiones, disponibilidad histórica ni equivalencia a través de
 cambios de clasificación. La verificación de muestras no autoriza tareas
 operativas en esta fase.
+
+## Corpus institucional de M5
+
+El [corpus local](../../backend/macro_ai/corpus.json) registra ocho
+publicaciones fechadas del BCE y Eurostat. Cada entrada conserva título,
+URL, publicación, atribución y aviso de reutilización. Guarda un
+resumen elaborado por MacroPulse AI con hechos de la publicación
+oficial. Se revisaron la procedencia y los avisos de cada fuente.
+
+- Para las publicaciones institucionales del BCE se aplica su aviso
+  de reproducción fiel y atribución. Los resúmenes indican que son
+  adaptaciones. El comunicado conjunto sobre liquidez en USD aporta
+  únicamente hechos resumidos. El corpus excluye textos firmados,
+  material gráfico y reproducciones de aportes de terceros.
+- Para los dos comunicados de Eurostat se aplica su aviso de
+  reutilización. La atribución identifica a Eurostat, la adaptación
+  y la ausencia de responsabilidad por el resumen. Las cifras de una
+  publicación histórica se mantienen separadas de las series actuales.
+
+Se permite guardar, fragmentar, indexar y procesar estos resúmenes
+atribuidos, así como mostrar citas y fragmentos del propio resumen.
+Los embeddings se calculan localmente. Si se habilita Gemini en
+loopback, el contexto enviado contiene el tema reconocido, las fechas,
+los resúmenes seleccionados y hechos o cálculos sobre las cinco series
+aprobadas. La pregunta original se procesa localmente.
+La aplicación pública sirve referencias y gráficos según sus propios
+controles de M4. La generación de respuestas permanece local.
