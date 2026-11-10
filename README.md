@@ -53,3 +53,7 @@ explains how to validate a local archive set without writing to a database.
 
 The [news ingestion design](docs/news-ingestion-design.md) describes the
 next local pilot. RAG, research agents and a web/PWA interface remain planned.
+
+The [MacroPulse AI migration plan](docs/macro/migration-plan.md) defines the
+official macro data milestones. M5 covers a verifiable RAG implementation
+with LangChain, LangGraph and the Gemini API.
