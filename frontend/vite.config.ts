@@ -49,7 +49,7 @@ const localApi: Plugin = {
       if (!/^\/api(?:\/|\?|$)/.test(url)) return next();
 
       const { origin, 'content-type': contentType } = request.headers;
-      if ((origin && origin !== `http://${host}:${port}`)
+      if ((origin && origin !== `http://${host}:${server.config.server.port ?? port}`)
         || Object.keys(request.headers).some((name) => name === 'forwarded' || name.startsWith('x-forwarded-'))) {
         response.writeHead(403).end();
         return;

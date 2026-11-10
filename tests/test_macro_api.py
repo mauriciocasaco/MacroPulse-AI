@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 import psycopg
+from psycopg.conninfo import conninfo_to_dict
 import pytest
 
 from backend.api import app
@@ -12,6 +13,8 @@ from backend import public_demo
 from backend.macro_data import api as macro
 from backend.macro_data.contracts import CATALOG, Observation, parse_period
 from backend.macro_data.repository import Capture, record_capture, register_catalog
+from backend.market_data.connection import secure_supabase_dsn
+from backend.market_data.dev_import import DEV_PROJECT_REF
 
 
 def _sample(indicator, period, value, *, confidentiality="F", state="normal", flag="A"):
@@ -109,12 +112,118 @@ def test_loopback_dsn_rejects_remote_or_overridden_route(dsn):
         macro._loopback_dsn(dsn)
 
 
+def test_default_reader_uses_explicit_loopback_dsn(monkeypatch):
+    class Connection:
+        read_only = False
+        isolation_level = None
+
+    monkeypatch.delenv("MACRO_API_MODE", raising=False)
+    for key in macro._ROUTE_OVERRIDES:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("MACRO_API_DSN", "host=127.0.0.1 port=5432 dbname=fixture user=fixture")
+
+    def connect(dsn):
+        options = conninfo_to_dict(dsn)
+        assert options["host"] == options["hostaddr"] == "127.0.0.1"
+        return Connection()
+
+    monkeypatch.setattr(macro.psycopg, "connect", connect)
+    reader = macro.open_macro_reader()
+    assert reader.read_only
+    assert reader.isolation_level == psycopg.IsolationLevel.REPEATABLE_READ
+
+
 def test_database_errors_are_sanitized(client, monkeypatch):
     def fail():
         raise psycopg.OperationalError("synthetic private details")
     monkeypatch.setattr(macro, "open_macro_reader", fail)
     response = client.get("/macro/indicators/eur-usd/history?start=2024-01-02&end=2024-01-03")
     assert response.status_code == 503 and response.json() == {"detail": "Macro data unavailable"}
+
+
+@pytest.fixture
+def remote_settings(monkeypatch):
+    settings = {
+        "MARKETPULSE_DEV_PROJECT_REF": DEV_PROJECT_REF,
+        "USER_RO": f"marketpulse_api_ro.{DEV_PROJECT_REF}",
+        "PASS_USER_RO": "fixture \\ ' @ : ? #",
+        "HOST_RO": "aws-0-test.pooler.supabase.com",
+        "PORT_RO": "5432",
+        "DB_RO": "postgres",
+        "SSL_MODE_RO": "verify-full",
+        "SSL_ROOT_CERT_RO": conninfo_to_dict(secure_supabase_dsn(""))["sslrootcert"],
+    }
+    for key in set(settings) | {key for key in macro.os.environ if key.upper().startswith("PG")}:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("MARKETPULSE_DISABLE_LOCAL_DOTENV", raising=False)
+    monkeypatch.setenv("MACRO_API_MODE", "supabase-dev")
+    monkeypatch.setattr(macro, "_read_dotenv", lambda name: settings)
+    return settings
+
+
+def test_remote_reader_preserves_tls_password_and_transaction(monkeypatch, remote_settings):
+    class Connection:
+        read_only = False
+        isolation_level = None
+
+    def connect(dsn):
+        options = conninfo_to_dict(dsn)
+        assert options["password"] == remote_settings["PASS_USER_RO"]
+        assert options["host"] == remote_settings["HOST_RO"]
+        assert options["sslmode"] == "verify-full"
+        assert options["gssencmode"] == "disable"
+        return Connection()
+
+    monkeypatch.setattr(macro, "connect_dev", connect)
+    reader = macro.open_macro_reader()
+    assert reader.read_only
+    assert reader.isolation_level == psycopg.IsolationLevel.REPEATABLE_READ
+
+
+@pytest.mark.parametrize(("key", "value"), [
+    ("HOST_RO", "fixture.invalid"),
+    ("PORT_RO", "6543"),
+    ("SSL_MODE_RO", "require"),
+    ("SSL_MODE_RO", "disable"),
+    ("SSL_ROOT_CERT_RO", "missing-fixture.crt"),
+    ("PASS_USER_RO", ""),
+    ("USER_RO", "postgres"),
+    ("MARKETPULSE_DEV_PROJECT_REF", "wrong-project"),
+])
+def test_invalid_remote_config_fails_before_connection(monkeypatch, remote_settings, key, value):
+    remote_settings[key] = value
+    monkeypatch.setattr(macro, "connect_dev", lambda _: pytest.fail("unexpected connection"))
+    with pytest.raises(macro.MacroConfigError):
+        macro.open_macro_reader()
+
+
+def test_remote_rejects_libpq_override(monkeypatch, remote_settings):
+    monkeypatch.setenv("PGHOSTADDR", "192.0.2.1")
+    with pytest.raises(macro.MacroConfigError, match="unexpected PostgreSQL environment"):
+        macro.open_macro_reader()
+
+
+def test_remote_rejects_invalid_certificate(monkeypatch, remote_settings, tmp_path):
+    invalid = tmp_path / "invalid.crt"
+    invalid.write_text("invalid certificate", encoding="utf-8")
+    from backend.market_data import connection
+    monkeypatch.setattr(connection, "_CA_CERTIFICATE", invalid)
+    remote_settings["SSL_ROOT_CERT_RO"] = str(invalid)
+    with pytest.raises(macro.MacroConfigError, match="root certificate invalid"):
+        macro.open_macro_reader()
+
+
+@pytest.mark.parametrize("error_type", [psycopg.errors.InvalidPassword, psycopg.OperationalError])
+def test_remote_connection_failure_is_sanitized(client, monkeypatch, remote_settings, caplog, error_type):
+    def fail(_):
+        raise error_type("synthetic private details")
+
+    monkeypatch.setattr(macro, "connect_dev", fail)
+    response = client.get("/macro/indicators/eur-usd/history?start=2024-01-02&end=2024-01-03")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Macro data unavailable"}
+    assert "Supabase DEV verified connection failed" in caplog.text
+    assert "synthetic private details" not in caplog.text
 
 
 def test_decimal_strings_period_bounds_confidentiality_and_read_only(client, api_dsn, monkeypatch):

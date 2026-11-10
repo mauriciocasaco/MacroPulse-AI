@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+import logging
 import os
 import re
+import ssl
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -15,7 +17,8 @@ import psycopg
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
-from ..market_data.api_config import _local_uvicorn
+from ..market_data.api_config import MarketApiConfigError, _local_uvicorn, _read_dotenv, _split_dev_config
+from ..market_data.dev_import import DevImportError, connect_dev
 from .contracts import CATALOG, Indicator
 from .repository import read_observations
 
@@ -24,6 +27,7 @@ MAX_DAYS = 3660
 MAX_POINTS = MAX_DAYS + 1
 _DSN_OPTIONS = frozenset({"host", "hostaddr", "port", "dbname", "user", "password", "sslmode", "sslrootcert"})
 _ROUTE_OVERRIDES = ("PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS")
+_logger = logging.getLogger(__name__)
 
 
 class MacroIndicator(BaseModel):
@@ -104,8 +108,36 @@ def _loopback_dsn(value: str) -> str:
         raise MacroConfigError("invalid PostgreSQL configuration") from None
 
 
+def _open_supabase_reader() -> psycopg.Connection:
+    # Do not inherit libpq settings for remote connections.
+    if any(key.upper().startswith("PG") for key in os.environ):
+        raise MacroConfigError("unexpected PostgreSQL environment settings")
+    try:
+        shared = {} if os.environ.get("MARKETPULSE_DISABLE_LOCAL_DOTENV") else _read_dotenv(".env")
+        config = _split_dev_config(shared)
+    except MarketApiConfigError as error:
+        raise MacroConfigError(str(error)) from None
+    options = conninfo_to_dict(config.dsn)
+    if options["port"] != "5432":
+        raise MacroConfigError("Supabase DEV requires port 5432")
+    try:
+        ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT).load_verify_locations(cafile=options["sslrootcert"])
+    except (OSError, ValueError):
+        raise MacroConfigError("Supabase DEV root certificate invalid") from None
+    try:
+        return connect_dev(config.dsn)
+    except (DevImportError, psycopg.Error, ValueError):
+        raise MacroConfigError("Supabase DEV verified connection failed") from None
+
+
 def open_macro_reader() -> psycopg.Connection:
-    connection = psycopg.connect(_loopback_dsn(os.environ.get("MACRO_API_DSN", "")))
+    mode = os.environ.get("MACRO_API_MODE", "loopback")
+    if mode == "loopback":
+        connection = psycopg.connect(_loopback_dsn(os.environ.get("MACRO_API_DSN", "")))
+    elif mode == "supabase-dev":
+        connection = _open_supabase_reader()
+    else:
+        raise MacroConfigError("invalid macro connection mode")
     connection.read_only = True
     connection.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
     return connection
@@ -226,5 +258,8 @@ def history(indicator_id: str, query: Annotated[MacroWindow, Query()], request: 
     try:
         with open_macro_reader() as connection:
             return load_history(connection, item, query)
-    except (MacroConfigError, psycopg.Error):
+    except MacroConfigError as error:
+        _logger.warning("Macro reader configuration or connection failure (%s)", error)
+        raise HTTPException(status_code=503, detail="Macro data unavailable") from None
+    except psycopg.Error:
         raise HTTPException(status_code=503, detail="Macro data unavailable") from None

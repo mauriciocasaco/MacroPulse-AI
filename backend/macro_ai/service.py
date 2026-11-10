@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import date
 from functools import lru_cache
 import json
 import logging
 from pathlib import Path
 import re
 from typing import NamedTuple, TypedDict
+import unicodedata
 
 from langchain_core.documents import Document
 from langgraph.graph import END, START, StateGraph
@@ -22,6 +24,50 @@ from .statistics import Summary, read_statistics, summarize
 
 
 _LOGGER = logging.getLogger(__name__)
+
+_EURO_AREA = re.compile(r"\b(?:euro (?:area|zone)|eurozona|eurozone|zona (?:del )?euro|ea21)\b")
+_GDP = re.compile(r"\b(?:gross domestic product|producto (?:interno|interior) bruto|pib|gdp)\b")
+_INFLATION = re.compile(r"\b(?:consumer prices?|precios al consumidor|inflacion|inflation|hicp|iapc)\b")
+_M3 = re.compile(r"\b(?:oferta monetaria|masa monetaria|agregado monetario|money supply|broad money|m3)\b")
+_RATES = re.compile(
+    r"\b(?:tasas?|tipos?) (?:de (?:la )?facilidad de deposito|de deposito|de interes|"
+    r"de politica monetaria|oficial(?:es)?|del (?:bce|ecb))\b|"
+    r"\b(?:(?:(?:ecb|bce) )?deposit (?:facility(?: rates?)?|rates?)|"
+    r"(?:interest|policy|official|ecb) rates?|dfr)\b",
+)
+_ECB_NAMES = re.compile(r"\b(?:european central bank|banco central europeo)\b")
+_ECB_COUNCIL = re.compile(
+    r"\b(?:(?:ecb|bce) governing council|consejo de gobierno del (?:ecb|bce))\b",
+)
+_RATE_SCOPES = frozenset({"bce", "ecb", "euroarea"})
+_RATE_SCOPE_PRONOUNS = frozenset({"it", "its", "su", "sus"})
+_BEFORE_INDICATOR = frozenset(
+    "el la los las the of de del and with y con entre between did does do was is were are has had have "
+    "about sobre in en for compare compara comparen comparar changed change cambio cambiaron "
+    "movio movieron evolucion evoluciono evolucionaron happened ocurrio ocurria paso afecta afecto "
+    "show muestra moved grew fell rose track describe explica cuanto como what how".split()
+)
+_AFTER_INDICATOR = frozenset(
+    "and with y con after before following during since through until amid against "
+    "tras durante despues antes desde hasta frente evoluciono evolucionaron cambiaron cambio "
+    "change changed move moved grow grew recover recovered fall fell rise rose show "
+    "increase increased decrease decreased cause affected affect aumento crecio cayo subio bajo".split()
+)
+_RATE_QUERY_WORDS = _BEFORE_INDICATOR | _AFTER_INDICATOR | _RATE_SCOPES | _RATE_SCOPE_PRONOUNS | frozenset(
+    "a an to by por un una se there be been being will when why whether if could would might or o "
+    "que cuando explicame explain tell me please you ever again recently already gradually rapidly "
+    "high highest lowest level levels much done hizo "
+    "raise raised hike hiked cut lower lowered reduce reduced set kept hold adjust adjusted update updated "
+    "freeze froze maintain maintained decide decided cambia sube aumenta baja reduce redujo recorta recorto "
+    "fija fijo mantiene mantuvo sostener sostuvo ajusta ajusto modifica modifico decide decidio "
+    "announcement meeting decision anuncio reunion comunicado policy monetary politica monetaria "
+    "pandemic pandemia covid crisis financial financiera "
+    "first second third fourth primer segundo tercer cuarto quarter trimestre year years ano anos".split()
+)
+_SCOPE_COMPLEMENT = re.compile(
+    r"(?:the |la |el )?(?:euroarea|ecb|bce|(?:19|20)\d{2}|pandemic|pandemia|covid|"
+    r"(?:first|second|third|fourth) quarter|(?:primer|segundo|tercer|cuarto) trimestre)\b"
+)
 
 
 class Plan(NamedTuple):
@@ -40,6 +86,7 @@ class State(TypedDict, total=False):
     interpretation: list[Claim]
     issue: str | None
     sufficient: bool
+    abstention_reason: str
     result: ResearchResponse
     steps: list[str]
 
@@ -50,34 +97,124 @@ class WorkflowFailure(RuntimeError):
         self.steps = steps
 
 
+def _scope_supported(
+    phrase: str, aliases: re.Pattern[str], *, prefix: frozenset[str] = frozenset(),
+    suffix: frozenset[str] = frozenset(),
+) -> bool:
+    # Recognize adjacent qualifiers in the supported bilingual grammar.
+    # Unknown qualifiers cannot silently select the euro-area aggregate.
+    for match in aliases.finditer(phrase):
+        left = phrase[:match.start()].split()
+        while left and left[-1] in prefix | {"euroarea"}:
+            left.pop()
+        if left and left[-1] not in _BEFORE_INDICATOR:
+            return False
+        right = phrase[match.end():].split()
+        while right and right[0] in suffix | {"euroarea"}:
+            right.pop(0)
+        if right and right[0] in {"change", "grow", "move", "recover", "cambio", "crecio", "evoluciono"}:
+            right.pop(0)
+        if not right:
+            continue
+        if right[0] in {"of", "de", "del", "in", "en", "for", "from", "between", "entre"}:
+            if not _SCOPE_COMPLEMENT.match(" ".join(right[1:])):
+                return False
+        elif right[0] not in _AFTER_INDICATOR and not re.fullmatch(r"(?:19|20)\d{2}", right[0]):
+            return False
+    return True
+
+
+def _rate_phrase(question: str) -> str:
+    # Preserve unknown words, including single-letter and non-Latin names.
+    folded = "".join(
+        char for char in unicodedata.normalize("NFKD", question.casefold()) if not unicodedata.combining(char)
+    )
+    folded = re.sub(r"(?<=\w)['’]s\b", "", folded)
+    # Full ISO references are already checked against the request window.
+    folded = re.sub(r"\b((?:19|20)\d{2})-\d{2}-\d{2}\b", r"\1", folded)
+    phrase = " ".join(re.findall(r"[^\W_]+", folded))
+    return _ECB_COUNCIL.sub("ecb", _ECB_NAMES.sub("ecb", _EURO_AREA.sub("euroarea", phrase)))
+
+
+def _rate_query_supported(phrase: str) -> bool:
+    # Every word outside recognized rate aliases must have a supported role
+    # anywhere in the question. An unfamiliar actor or scope fails closed.
+    residual = set(_RATES.sub(" ", phrase).split())
+    if residual & _RATE_SCOPE_PRONOUNS and not _RATE_SCOPES.intersection(phrase.split()):
+        return False
+    return all(word in _RATE_QUERY_WORDS or re.fullmatch(r"(?:19|20)\d{2}", word) for word in residual)
+
+
+def _dates_fit(request: ResearchRequest) -> bool:
+    historical_crisis = re.compile(
+        r"\b(?:after|following|tras|despu[eé]s de) (?:(?:the|la) )?"
+        r"(?:(?P<before>(?:19|20)\d{2}) (?:financial )?crisis|"
+        r"(?:financial )?crisis(?: financiera)? (?:of |de )?(?P<after>(?:19|20)\d{2}))\b",
+        flags=re.IGNORECASE,
+    )
+    question = historical_crisis.sub(
+        lambda match: "" if int(match["before"] or match["after"]) < request.start.year else match[0],
+        request.question,
+    )
+    for reference in re.findall(r"\b(?:19|20)\d{2}(?:-\d{2}-\d{2})?\b", question):
+        if len(reference) == 4:
+            if not request.start.year <= int(reference) <= request.end.year:
+                return False
+        else:
+            try:
+                day = date.fromisoformat(reference)
+            except ValueError:
+                return False
+            if not request.start <= day <= request.end:
+                return False
+    return True
+
+
 def _interpret(question: str) -> Plan | None:
-    terms = tokens(question)
+    # Keep dotted country initials as a qualifier instead of dropping their
+    # one-letter tokens, while leaving normal sentence punctuation alone.
+    normalized = re.sub(r"\b(?:[A-Za-z]\.)+[A-Za-z]\b\.?", lambda match: match[0].replace(".", ""), question)
+    normalized = re.sub(r"\by\b", "and", normalized, flags=re.IGNORECASE)
+    terms = tokens(normalized)
     words = set(terms)
-    phrase = f" {' '.join(terms)} "
+    phrase = _EURO_AREA.sub("euroarea", f" {' '.join(terms)} ")
     covid = bool(words & {"covid", "pandemia", "pandemic", "coronavirus"})
-    inflation = bool(words & {"inflacion", "inflation", "hicp", "iapc"}
-                     or " consumer prices " in phrase or " precios al consumidor " in phrase
-                     or " consumer price " in phrase)
+    inflation = bool(_INFLATION.search(phrase))
+    if inflation and (
+        words & {"core", "subyacente"} or not _scope_supported(
+            phrase, _INFLATION, prefix=frozenset({"headline", "overall", "annual"}),
+            suffix=frozenset({"general", "europea", "interanual", "anual"}),
+        )
+    ):
+        return None
+    plans = []
     if ({"eur", "usd"} <= words or "eurusd" in words
             or ("dolar" in words and "euro" in words) or ("dollar" in words and "euro" in words)):
-        return Plan("Evolución del EUR/USD", ("fx", "covid") if covid else ("fx",), ("eur-usd",))
-    if ("m3" in words or any(alias in phrase for alias in (
-        " oferta monetaria ", " masa monetaria ", " agregado monetario ", " money supply ", " broad money ",
-    ))):
-        return Plan("Relación descriptiva del saldo de M3 y el IAPC", ("money", "inflation"),
-                    ("m3-stock", "hicp-yoy")) if inflation else Plan(
-            "Evolución del saldo de M3", ("money",), ("m3-stock",),
-        )
-    if words & {"pib", "gdp"} or " gross domestic product " in phrase or " producto interno bruto " in phrase:
-        return Plan("Crecimiento intertrimestral del PIB real", ("gdp", "covid") if covid else ("gdp",),
-                    ("real-gdp-qoq",))
-    if inflation:
+        plans.append(Plan("Evolución del EUR/USD", ("fx", "covid") if covid else ("fx",), ("eur-usd",)))
+    money = bool(_M3.search(phrase))
+    if money and not _scope_supported(
+        phrase, _M3, prefix=frozenset({"saldo", "stock"}), suffix=frozenset({"stock"}),
+    ):
+        return None
+    if money and inflation:
+        plans.append(Plan("Relación descriptiva del saldo de M3 y el IAPC", ("money", "inflation"),
+                          ("m3-stock", "hicp-yoy")))
+    elif money:
+        plans.append(Plan("Evolución del saldo de M3", ("money",), ("m3-stock",)))
+    elif inflation:
         topics = ("inflation", "ukraine") if words & {"ucrania", "ukraine", "guerra", "war"} else ("inflation",)
-        return Plan("Evolución de la inflación general IAPC", topics, ("hicp-yoy",))
-    if (words & {"deposito", "deposit", "tasa", "tasas", "rates"}
-            or words & {"interes", "interest", "ecb", "bce"} and words & {"tipo", "tipos", "rate"}):
-        return Plan("Evolución de la tasa de facilidad de depósito", ("rates",), ("deposit-rate",))
-    return None
+        plans.append(Plan("Evolución de la inflación general IAPC", topics, ("hicp-yoy",)))
+    if _GDP.search(phrase):
+        if not _scope_supported(phrase, _GDP, prefix=frozenset({"real"}), suffix=frozenset({"real"})):
+            return None
+        plans.append(Plan("Crecimiento intertrimestral del PIB real", ("gdp", "covid") if covid else ("gdp",),
+                          ("real-gdp-qoq",)))
+    rate_phrase = _rate_phrase(normalized)
+    if _RATES.search(rate_phrase):
+        if not _rate_query_supported(rate_phrase):
+            return None
+        plans.append(Plan("Evolución de la tasa de facilidad de depósito", ("rates",), ("deposit-rate",)))
+    return plans[0] if len(plans) == 1 else None
 
 
 def _step(state: State, name: str) -> list[str]:
@@ -92,16 +229,12 @@ def _render_interpretation(
     claims = []
     seen = set()
     for selection in selections:
-        series = [by_id[citation] for citation in selection if by_id[citation].kind == "series"]
-        names = ", ".join(item.title for item in series)
-        heading = f"Contexto institucional para {names}. "
         for citation in selection:
-            if citation not in summaries:
+            if citation not in summaries or citation in seen:
                 continue
-            references = (*[item.id for item in series], citation)
-            if references in seen:
-                continue
-            seen.add(references)
+            seen.add(citation)
+            source = by_id[citation]
+            heading = f"Contexto documental publicado el {source.published_on}. "
             summary = ""
             for sentence in re.split(r"(?<=[.!?])\s+", summaries[citation]):
                 if not sentence.endswith((".", "!", "?")):
@@ -111,9 +244,8 @@ def _render_interpretation(
                     break
                 summary = combined
             if not summary:
-                source = by_id[citation]
-                summary = f"Documento seleccionado publicado el {source.published_on} por la fuente indicada."
-            claims.append(Claim(text=heading + summary, citations=list(references)))
+                summary = "Consulta el documento en la fuente indicada."
+            claims.append(Claim(text=heading + summary, citations=[citation]))
     return claims
 
 
@@ -160,7 +292,12 @@ class Workflow:
         return final["result"]
 
     def _interpret(self, state: State) -> State:
-        return {"plan": _interpret(state["request"].question), "steps": _step(state, "interpret")}
+        request = state["request"]
+        steps = _step(state, "interpret")
+        if not _dates_fit(request):
+            return {"plan": None, "steps": steps,
+                    "abstention_reason": "La fecha indicada en la pregunta no coincide con la ventana solicitada."}
+        return {"plan": _interpret(request.question), "steps": steps}
 
     def _select(self, state: State) -> State:
         plan = state["plan"]
@@ -224,8 +361,10 @@ class Workflow:
         request = state["request"]
         summary = state.get("summary")
         steps = _step(state, "abstain")
-        message = ("La pregunta queda fuera del catálogo de indicadores." if state.get("plan") is None
-                   else "La ventana requiere más observaciones válidas o contexto documental verificable.")
+        message = state.get("abstention_reason") or (
+            "La pregunta queda fuera del catálogo de indicadores." if state.get("plan") is None
+            else "La ventana requiere más observaciones válidas o contexto documental verificable."
+        )
         return {"result": ResearchResponse(
             status="insufficient_evidence", question=request.question, start=request.start, end=request.end,
             facts=summary.facts if summary else [], calculations=summary.calculations if summary else [],

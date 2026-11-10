@@ -36,6 +36,7 @@ it('submits only the selected period and separates facts, calculations, interpre
   render(<MacroResearch enabled {...period} />);
   fireEvent.change(screen.getByLabelText('Research question'), { target: { value: question } });
   fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  expect(screen.getByText('Checking official evidence…')).toBeTruthy();
   await screen.findByRole('heading', { name: 'Interpretation' });
   for (const name of ['Facts', 'Calculations', 'Limitations', 'Sources']) {
     expect(screen.getByRole('heading', { name })).toBeTruthy();
@@ -47,4 +48,19 @@ it('submits only the selected period and separates facts, calculations, interpre
   expect(init.method).toBe('POST');
   expect(init.cache).toBe('no-store');
   expect(JSON.parse(String(init.body))).toEqual({ question, ...period });
+});
+
+it.each([
+  [Response.json({ status: 'insufficient_evidence', question: 'How did rates change?', ...period,
+    facts: [], calculations: [], interpretation: [], limitations: ['No matching evidence.'], evidence: [],
+    graph_steps: ['interpret', 'select_indicators', 'abstain'] }), 'There is insufficient evidence for an answer.'],
+  [new Response(null, { status: 503 }), 'Local macro research is currently unavailable.'],
+])('renders abstentions and errors and clears the loading state', async (response, message) => {
+  vi.stubGlobal('fetch', vi.fn(async () => response));
+  render(<MacroResearch enabled {...period} />);
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'How did rates change?' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  await screen.findByText(message);
+  expect(screen.queryByText('Checking official evidence…')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Ask' })).toHaveProperty('disabled', false);
 });
