@@ -96,11 +96,14 @@ export interface AnalysisResponse extends DateWindow {
 }
 
 const errors: Record<number, string> = {
+  408: 'The request timed out. Please try again.',
   404: 'The requested resource is unavailable.',
   413: 'The request is too large.',
   422: 'Check the request parameters and try again.',
+  429: 'Too many requests. Wait before trying again.',
   502: 'The service could not complete the request.',
   503: 'The service or its data source is unavailable.',
+  504: 'The request timed out. The service may still be waking up.',
 };
 
 type JsonObject = Record<string, unknown>;
@@ -156,25 +159,36 @@ function isAnalysis(value: unknown, query: AnalysisRequest): value is AnalysisRe
 
 async function request<T>(path: string, signal: AbortSignal, matches: (value: unknown) => value is T, body?: AnalysisRequest): Promise<T> {
   let response: Response;
+  const publicDemo = import.meta.env.MODE === 'public-demo';
+  const timeout = publicDemo ? AbortSignal.timeout(25_000) : undefined;
   try {
     response = await fetch(`/api${path}`, {
-      signal,
+      signal: timeout ? AbortSignal.any([signal, timeout]) : signal,
       cache: 'no-store',
       headers: { Accept: 'application/json', ...(body && { 'Content-Type': 'application/json' }) },
       ...(body && { method: 'POST', body: JSON.stringify(body) }),
     });
   } catch {
-    throw new Error('Could not connect. Check that the local service is running.');
+    if (timeout?.aborted) throw new Error('The request timed out. Please try again.');
+    throw new Error(publicDemo ? 'Could not connect to the service.' : 'Could not connect. Check that the local service is running.');
   }
 
   if (!response.ok) {
-    throw new Error(`${errors[response.status] ?? 'The service could not respond.'} (HTTP ${response.status})`);
+    const wait = response.headers.get('Retry-After');
+    if (response.status === 429 && wait && /^\d{1,3}$/.test(wait)) {
+      throw new Error(`Too many requests. Try again in ${wait} seconds. (HTTP 429)`);
+    }
+    const message = publicDemo && response.status === 503
+      ? 'The service may be waking up or temporarily unavailable. Please try again shortly.'
+      : errors[response.status] ?? 'The service could not respond.';
+    throw new Error(`${message} (HTTP ${response.status})`);
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
   } catch {
+    if (timeout?.aborted) throw new Error('The request timed out. Please try again.');
     throw new Error('The service returned invalid data.');
   }
   if (!matches(payload)) throw new Error('The service returned an unexpected response.');

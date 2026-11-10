@@ -76,6 +76,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
@@ -128,6 +129,30 @@ describe('market workspace', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('HTTP 503');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('No assets available.')).toBeDefined();
+  });
+
+  it('labels the public dataset and disables analysis in the public build', async () => {
+    vi.stubEnv('MODE', 'public-demo');
+    const synthetic = { ...gold, symbol: 'DEMO-1', name: 'Synthetic equity index' };
+    http.mockImplementation((url) => url === '/api/assets' ? json([synthetic]) : json({ asset: synthetic, bars: [] }));
+    render(<App />);
+    expect(screen.getByText('Public demo')).toBeDefined();
+    expect(screen.getByText(/All prices are synthetic/)).toBeDefined();
+    expect(await screen.findByText('Analysis is unavailable in the public demo.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Run analysis' })).toBeNull();
+    expect(http.mock.calls.map(([url]) => url)).not.toContain('/api/analysis');
+  });
+
+  it('reports rate limits and timeout distinctly', async () => {
+    vi.stubEnv('MODE', 'public-demo');
+    http.mockResolvedValueOnce(new Response('', { status: 429, headers: { 'Retry-After': '20' } }));
+    render(<App />);
+    expect((await screen.findByRole('alert')).textContent).toContain('Try again in 20 seconds');
+    const timeout = AbortSignal.abort();
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeout);
+    http.mockRejectedValueOnce(new DOMException('fixture timeout', 'TimeoutError'));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('The request timed out');
   });
 
   it('rejects a successful catalog response with an incompatible shape', async () => {

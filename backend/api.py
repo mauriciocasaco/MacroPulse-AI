@@ -175,6 +175,8 @@ def _read_only_connection(dsn: str) -> psycopg.Connection:
 
 
 def _market_config(request: Request = None) -> MarketApiConfig:
+    if _MODE == "test":
+        raise MarketApiConfigError("test_requires_repository_fixture")
     return resolve_market_api(request.scope if request is not None else None)
 
 
@@ -336,3 +338,11 @@ def financial_analysis(
 
 
 app.include_router(_analysis_router)
+
+_MODE = os.environ.get("MARKETPULSE_MODE", "local")
+if _MODE == "public_demo":
+    from .public_demo import create_public_app
+
+    app = create_public_app()
+elif _MODE not in {"local", "test"}:
+    raise RuntimeError("Invalid MarketPulse mode")

@@ -9,6 +9,8 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.dev.vars
+.dev.vars.*
 
 # Local databases and data
 /data/backfills/
@@ -19,6 +21,7 @@ data/
 # Frontend
 node_modules/
 dist/
+.wrangler/
 
 # IDE
 .vscode/

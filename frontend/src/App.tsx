@@ -44,7 +44,7 @@ function History({ asset, period, field }: { asset: Asset; period: PeriodId; fie
   return <PriceChart key={field} asset={load.data.asset} bars={bars} field={field} />;
 }
 
-function Workspace({ assets }: { assets: Asset[] }) {
+function Workspace({ assets, publicDemo }: { assets: Asset[]; publicDemo: boolean }) {
   const [id, setId] = useState(() => assets.find(({ symbol }) => symbol === 'GC=F')?.asset_source_id ?? assets[0].asset_source_id);
   const [period, setPeriod] = useState<PeriodId>('1y');
   const [field, setField] = useState<PriceField>('close');
@@ -79,7 +79,7 @@ function Workspace({ assets }: { assets: Asset[] }) {
         <div className="field-select">
           <label htmlFor="price-field">Price series</label>
           <select id="price-field" value={field} onChange={(e) => setField(e.target.value as PriceField)}>
-            <option value="close">Close</option><option value="adjusted_close">Adj Close</option>
+            <option value="close">Close</option>{!publicDemo && <option value="adjusted_close">Adj Close</option>}
           </select>
         </div>
       </div>
@@ -100,14 +100,15 @@ function Workspace({ assets }: { assets: Asset[] }) {
           <h2 id="analysis-title">Financial Analysis</h2>
           <p className="muted">Explore how an event relates to {name}.</p>
         </div>
-        <span className="badge">Simulated provider</span>
+        {!publicDemo && <span className="badge">Simulated provider</span>}
       </div>
-      <Analysis key={id} asset={asset} />
+      {publicDemo ? <p className="notice">Analysis is unavailable in the public demo.</p> : <Analysis key={id} asset={asset} />}
     </section>
   </>;
 }
 
 export function App() {
+  const publicDemo = import.meta.env.MODE === 'public-demo';
   const [catalog, setCatalog] = useState<Load<Asset[]>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -147,19 +148,21 @@ export function App() {
           <svg aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M4 18h6l4-8 5 13 4-7h5" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" /></svg>
           <span>MarketPulse <em>AI</em></span>
         </div>
-        <span className="local"><i aria-hidden="true" /> Local workspace</span>
+        <span className="local"><i aria-hidden="true" /> {publicDemo ? 'Public demo' : 'Local workspace'}</span>
       </div>
     </header>
     <main className="shell" id="contenido">
+      {publicDemo && <p className="notice">All prices are synthetic and use fictional index points.</p>}
       {updateReady && <output className="notice">An update is ready. Close all MarketPulse AI tabs and windows, then reopen the app.</output>}
       {online ? <>
-        {catalog.status === 'loading' && <output className="notice">Loading assets…</output>}
+        {catalog.status === 'loading' && <output className="notice">{publicDemo
+          ? 'Loading demo assets. The service may take a moment to start…' : 'Loading assets…'}</output>}
         {catalog.status === 'error' && <RequestError message={catalog.message} onRetry={() => {
           setCatalog({ status: 'loading' });
           setAttempt((value) => value + 1);
         }} />}
         {catalog.status === 'ready' && (catalog.data.length > 0
-          ? <Workspace assets={catalog.data} />
+          ? <Workspace assets={catalog.data} publicDemo={publicDemo} />
           : <output className="notice">No assets available.</output>)}
       </> : <output className="notice">You are offline. Live financial data is unavailable.</output>}
     </main>

@@ -26,6 +26,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const { pathname } = new URL(request.url);
+  if (pathname === '/api' || pathname.startsWith('/api/')) return;
   if (request.method !== 'GET' || request.headers.has('authorization') || request.headers.has('range')) return;
   const navigation = request.mode === 'navigate' && (request.url === scope || request.url === index);
   if (!navigation && (!request.destination || request.url === index || !files.has(request.url))) return;
