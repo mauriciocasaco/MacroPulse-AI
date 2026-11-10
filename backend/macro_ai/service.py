@@ -25,6 +25,27 @@ from .statistics import Summary, read_statistics, summarize
 
 _LOGGER = logging.getLogger(__name__)
 
+_HISTORICAL_QUESTIONS = re.compile(
+    r"How did (?P<event>the COVID-19 pandemic|the war in Ukraine|the rise of generative AI and LLMs) "
+    r"affect (?P<indicator>[^?]+)\??", re.IGNORECASE,
+)
+_EVENTS = {
+    "covid": (date(2020, 1, 1), "COVID-19"),
+    "ukraine": (date(2022, 2, 24), "guerra de Ucrania"),
+    "generative-ai": (date(2022, 11, 30), "auge de IA generativa y LLMs"),
+}
+
+
+def _historical_event(question: str) -> str | None:
+    words = set(tokens(question))
+    if words & {"covid", "pandemia", "pandemic", "coronavirus"}:
+        return "covid"
+    if words & {"ukraine", "ucrania"}:
+        return "ukraine"
+    if "generative" in words or "generativa" in words or words & {"llm", "llms"}:
+        return "generative-ai"
+    return None
+
 _EURO_AREA = re.compile(r"\b(?:euro (?:area|zone)|eurozona|eurozone|zona (?:del )?euro|ea21)\b")
 _GDP = re.compile(r"\b(?:gross domestic product|producto (?:interno|interior) bruto|pib|gdp)\b")
 _INFLATION = re.compile(r"\b(?:consumer prices?|precios al consumidor|inflacion|inflation|hicp|iapc)\b")
@@ -74,6 +95,7 @@ class Plan(NamedTuple):
     label: str
     topics: tuple[str, ...]
     indicators: tuple[str, ...]
+    event: str | None = None
 
 
 class State(TypedDict, total=False):
@@ -171,6 +193,15 @@ def _dates_fit(request: ResearchRequest) -> bool:
 
 
 def _interpret(question: str) -> Plan | None:
+    historical = _HISTORICAL_QUESTIONS.fullmatch(question.strip())
+    if historical:
+        # Only remove the exact event wrapper; the remaining indicator/authority
+        # still passes all existing scope checks. UI context never overrides it.
+        plan = _interpret(historical['indicator'])
+        if plan is None:
+            return None
+        event = _historical_event(historical['event'])
+        return plan._replace(topics=(*plan.topics, event), event=event)
     # Keep dotted country initials as a qualifier instead of dropping their
     # one-letter tokens, while leaving normal sentence punctuation alone.
     normalized = re.sub(r"\b(?:[A-Za-z]\.)+[A-Za-z]\b\.?", lambda match: match[0].replace(".", ""), question)
@@ -297,7 +328,14 @@ class Workflow:
         if not _dates_fit(request):
             return {"plan": None, "steps": steps,
                     "abstention_reason": "La fecha indicada en la pregunta no coincide con la ventana solicitada."}
-        return {"plan": _interpret(request.question), "steps": steps}
+        plan = _interpret(request.question)
+        event = _historical_event(request.question)
+        if plan and event:
+            plan = plan._replace(topics=tuple(dict.fromkeys((*plan.topics, event))), event=event)
+            if request.end < _EVENTS[event][0]:
+                return {"plan": None, "steps": steps,
+                        "abstention_reason": "La ventana seleccionada termina antes del evento histórico consultado."}
+        return {"plan": plan, "steps": steps}
 
     def _select(self, state: State) -> State:
         plan = state["plan"]
@@ -316,6 +354,10 @@ class Workflow:
         plan, request = state["plan"], state["request"]
         try:
             documents = self.corpus.retrieve(request.question, plan.topics, request.end)
+            if plan.event:
+                documents = [chunk for chunk in documents
+                             if plan.event in chunk.metadata['topics']
+                             and chunk.metadata['published_on'] >= _EVENTS[plan.event][0]]
             return {"documents": documents, "steps": steps}
         except Exception:
             return {"issue": "retrieval_unavailable", "steps": steps}
@@ -332,6 +374,8 @@ class Workflow:
         # Send only canonical intent, public-statistic summaries and approved
         # corpus summaries. The original question remains local.
         prompt_question = f"{plan.label}, entre {request.start} y {request.end}"
+        if plan.event:
+            prompt_question += f"; contexto histórico: {_EVENTS[plan.event][1]}"
         context = {
             "statistics": [claim.model_dump() for claim in (*summary.facts, *summary.calculations)],
             "documents": [{"id": chunk.id, "title": chunk.metadata["title"], "summary": chunk.page_content[:1100]}
@@ -354,7 +398,8 @@ class Workflow:
         return {"result": ResearchResponse(
             status="answered", question=request.question, start=request.start, end=request.end,
             facts=summary.facts, calculations=summary.calculations, interpretation=state["interpretation"],
-            limitations=summary.limitations, evidence=state["evidence"], graph_steps=steps,
+            limitations=[*summary.limitations, *self._event_limitations(state)],
+            evidence=state["evidence"], graph_steps=steps,
         ), "steps": steps}
 
     def _abstain(self, state: State) -> State:
@@ -368,9 +413,22 @@ class Workflow:
         return {"result": ResearchResponse(
             status="insufficient_evidence", question=request.question, start=request.start, end=request.end,
             facts=summary.facts if summary else [], calculations=summary.calculations if summary else [],
-            limitations=[message, *(summary.limitations if summary else [])],
+            limitations=[message, *(summary.limitations if summary else []), *self._event_limitations(state)],
             evidence=state.get("evidence", []), graph_steps=steps,
         ), "steps": steps}
+
+    @staticmethod
+    def _event_limitations(state: State) -> list[str]:
+        plan = state.get('plan')
+        if not plan or not plan.event:
+            return []
+        onset, label = _EVENTS[plan.event]
+        notes = [f"Referencia temporal de {label}: desde {onset}. Se conserva la ventana seleccionada; "
+                 "los cambios observados y el contexto documental no identifican un efecto causal."]
+        if not state.get('documents'):
+            notes.append("El corpus revisado no contiene evidencia documental suficiente para este indicador y evento; "
+                         "no se generan hipótesis ni se amplía el corpus automáticamente.")
+        return notes
 
     def _error(self, state: State) -> State:
         return {"steps": _step(state, "handle_error")}

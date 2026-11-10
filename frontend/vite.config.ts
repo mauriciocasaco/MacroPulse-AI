@@ -10,7 +10,6 @@ const lanIp = process.env.MARKETPULSE_LAN_IP;
 const host = lanIp ?? loopback;
 const port = 5173;
 const apiPort = process.env.MARKETPULSE_API_PORT ?? '8000';
-const analysisRoute = /^\/api\/analysis$/;
 const macroAnalysisRoute = '/api/macro/analysis';
 const macroAiEnabled = process.env.MARKETPULSE_MACRO_AI_ENABLED === 'true';
 
@@ -57,8 +56,8 @@ const localApi: Plugin = {
 
       const read = request.method === 'GET' && allowsLocalRead(url, lanIp !== undefined);
       const analysis = request.method === 'POST'
-        && (analysisRoute.test(url) || (lanIp === undefined && macroAiEnabled
-          && server.config.mode !== 'public-demo' && url === macroAnalysisRoute))
+        && lanIp === undefined && macroAiEnabled
+        && server.config.mode !== 'public-demo' && url === macroAnalysisRoute
         && /^application\/json(?:;|$)/i.test(contentType ?? '');
       if (read || analysis) return next();
       response.writeHead(404).end();

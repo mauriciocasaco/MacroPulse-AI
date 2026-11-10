@@ -1,6 +1,4 @@
-const maxBody = 8192;
 const maxResponse = 3 * 1024 * 1024;
-const history = /^\/api\/assets\/[1-3]\/history$/;
 const macroHistory = /^\/api\/macro\/indicators\/(?:eur-usd|m3-stock|deposit-rate|real-gdp-qoq|hicp-yoy)\/history$/;
 const date = /^\d{4}-\d{2}-\d{2}$/;
 const maxMacroDays = 2600;
@@ -68,33 +66,21 @@ export default {
     const macroEnabled = env.MARKETPULSE_DEMO_MACRO_ENABLED === 'true';
     const macroCatalog = macroEnabled && url.pathname === '/api/macro/indicators';
     const macro = macroEnabled && macroHistory.test(url.pathname);
-    const catalog = url.pathname === '/api/assets' || macroCatalog;
-    const prices = history.test(url.pathname);
-    const analysis = url.pathname === '/api/analysis';
-    if (!catalog && !prices && !macro && !analysis) return error(404, 'Not found');
-    if (request.method !== (analysis ? 'POST' : 'GET')) return error(405, 'Method not allowed');
+    const catalog = macroCatalog;
+    if (!catalog && !macro) return error(404, 'Not found');
+    if (request.method !== 'GET') return error(405, 'Method not allowed');
     const originHeader = request.headers.get('Origin');
     if ((macroCatalog || macro) && originHeader !== null && originHeader !== url.origin) {
       return error(403, 'Forbidden');
     }
-    const historical = prices || macro;
+    const historical = macro;
     if (url.search.length > 257 || (!historical && url.search)) return error(400, 'Invalid request');
     if (historical && (url.searchParams.size !== 2 || !date.test(url.searchParams.get('start') ?? '')
-      || !date.test(url.searchParams.get(macro ? 'end' : 'end_exclusive') ?? ''))) {
+      || !date.test(url.searchParams.get('end') ?? ''))) {
       return error(422, 'Invalid request parameters');
     }
     if (macro && !macroWindow(url.searchParams)) return error(422, 'Invalid request parameters');
-    if (!analysis && request.body) return error(413, 'Request too large');
-
-    // The feature remains unavailable until a strict global analysis quota exists.
-    // Consume no visitor body and send no traffic to Render for this endpoint.
-    if (analysis) {
-      const length = request.headers.get('Content-Length');
-      if (length !== null && (!/^\d{1,10}$/.test(length) || Number(length) > maxBody)) {
-        return error(413, 'Request too large');
-      }
-      return error(503, 'Public demo analysis is disabled');
-    }
+    if (request.body) return error(413, 'Request too large');
 
     const base = origin(env);
     const ip = request.headers.get('CF-Connecting-IP');

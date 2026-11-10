@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { askMacroAnalysis, type MacroAnalysis, type ResearchClaim } from './macro-api';
 
+const researchLabels: Record<string, string> = {
+  'eur-usd': 'EUR/USD rate', 'm3-stock': 'Eurozone M3', 'deposit-rate': 'ECB rate',
+  'real-gdp-qoq': 'Eurozone GDP', 'hicp-yoy': 'Eurozone Inflation',
+};
+const eventQuestions = [
+  ['COVID-19', 'How did the COVID-19 pandemic affect'],
+  ['Ukraine War', 'How did the war in Ukraine affect'],
+  ['Generative AI', 'How did the rise of generative AI and LLMs affect'],
+] as const;
+
 function ClaimList({ title, items, evidence }: { title: string; items: ResearchClaim[]; evidence: string[] }) {
   if (items.length === 0) return null;
   return <section className="result-section">
@@ -15,7 +25,9 @@ function ClaimList({ title, items, evidence }: { title: string; items: ResearchC
   </section>;
 }
 
-export function MacroResearch({ enabled, start, end }: { enabled: boolean; start: string; end: string }) {
+export function MacroResearch({ enabled, start, end, indicatorId = 'eur-usd' }: {
+  enabled: boolean; start: string; end: string; indicatorId?: string;
+}) {
   const [question, setQuestion] = useState('');
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -42,11 +54,17 @@ export function MacroResearch({ enabled, start, end }: { enabled: boolean; start
 
   const evidence = result?.evidence.map(({ id }) => id) ?? [];
   return <section className="panel" aria-labelledby="macro-research-title">
-    <h2 id="macro-research-title">Ask about macro data</h2>
+    <h2 id="macro-research-title">RAG-Powered Macro Research</h2>
+    <p className="muted">Ask questions about macroeconomic trends. Powered by LangGraph, Gemini and retrieval-augmented generation using official institutional sources.</p>
     <p className="muted">{enabled
       ? `Period ${start} to ${end}. Gemini receives the recognized topic and selected public evidence.`
       : 'AI research is available only in an enabled local workspace.'}</p>
     {enabled && <form onSubmit={submit}>
+      <div className="analysis-actions">
+        {eventQuestions.map(([label, prefix]) => <button key={label} type="button"
+          disabled={pending || !researchLabels[indicatorId]}
+          onClick={() => setQuestion(`${prefix} ${researchLabels[indicatorId]}?`)}>{label}</button>)}
+      </div>
       <label className="question">Research question
         <textarea disabled={!enabled || pending} value={question} required rows={2} maxLength={500}
           onChange={(event) => setQuestion(event.target.value)} />

@@ -501,3 +501,115 @@ def test_public_demo_import_avoids_optional_packages_and_analysis_route(tmp_path
         "assert not any(m.startswith(('backend.macro_ai', 'langchain_core', 'langgraph', 'google.genai')) for m in sys.modules); "
         "assert '/macro/analysis' not in {route.path for route in app.routes}"
     )], env=env, check=True, timeout=15)
+
+HISTORICAL_INDICATORS = [
+    ('eur-usd', 'EUR/USD rate', 'fx'), ('m3-stock', 'Eurozone M3', 'money'),
+    ('deposit-rate', 'ECB rate', 'rates'), ('real-gdp-qoq', 'Eurozone GDP', 'gdp'),
+    ('hicp-yoy', 'Eurozone Inflation', 'inflation'),
+]
+HISTORICAL_EVENTS = [
+    ('covid', 'How did the COVID-19 pandemic affect'),
+    ('ukraine', 'How did the war in Ukraine affect'),
+    ('generative-ai', 'How did the rise of generative AI and LLMs affect'),
+]
+
+
+@pytest.mark.parametrize('key,label,topic', HISTORICAL_INDICATORS)
+@pytest.mark.parametrize('event,prefix', HISTORICAL_EVENTS)
+def test_historical_matrix_preserves_intent_evidence_and_abstention(key, label, topic, event, prefix):
+    question = f'{prefix} {label}?'
+    request = _request(question, '2020-01-01', '2023-12-31')
+    plan = service._interpret(question)
+    assert plan.indicators == (key,)
+    assert plan.topics[0] == topic and event in plan.topics
+    assert plan.event == event
+    calls = []
+
+    def generate(prompt, context):
+        calls.append(prompt)
+        return _draft(prompt, context)
+
+    corpus = CorpusIndex.load(CORPUS)
+    response = service.Workflow(corpus, read=_histories, generate=generate).run(request)
+    supported = (event == 'covid' and key != 'deposit-rate') or (event == 'ukraine' and key == 'hicp-yoy')
+    assert response.status == ('answered' if supported else 'insufficient_evidence')
+    assert len(calls) == int(supported)
+    assert any('no identifican un efecto causal' in note for note in response.limitations)
+    assert {item.id for item in response.evidence if item.kind == 'series'} == {f'series:{key}'}
+    for item in response.evidence:
+        if item.kind == 'document':
+            chunk = next(chunk for chunk in corpus.chunks if chunk.id == item.id)
+            assert event in chunk.metadata['topics']
+            assert service._EVENTS[event][0] <= item.published_on <= request.end
+    if not supported:
+        assert not response.interpretation
+        assert any('no contiene evidencia documental suficiente' in note for note in response.limitations)
+
+    # A separate synthetic corpus exercises the full graph for every pairing.
+    document = CorpusDocument(
+        id='fixture-history', title='Synthetic historical macro context',
+        url='https://www.ecb.europa.eu/fixture', rights_url='https://www.ecb.europa.eu/fixture-rights',
+        published_on=date(2023, 1, 1), attribution='Synthetic test fixture',
+        topics=[topic, event],
+        text='Synthetic observations describe changes during this event. Temporal overlap alone does not identify causality.',
+    )
+    result = service.Workflow(CorpusIndex([document]), read=_histories, generate=generate).run(request)
+    assert result.status == 'answered' and result.graph_steps[-2:] == ['generate', 'finish']
+    allowed = {item.id for item in result.evidence}
+    assert all(set(claim.citations) <= allowed for claim in result.facts + result.calculations + result.interpretation)
+    assert result.interpretation[0].citations == ['doc:fixture-history:1']
+    assert service._EVENTS[event][1] in calls[-1]
+
+
+@pytest.mark.parametrize('event,prefix', HISTORICAL_EVENTS)
+@pytest.mark.parametrize('indicator', [
+    'Federal Reserve interest rate', 'Bank of England interest rate', 'Fed deposit rate',
+    'US GDP', 'UK inflation', 'Alpine Trust deposit rates',
+])
+def test_historical_wrappers_never_override_explicit_foreign_authorities(event, prefix, indicator):
+    def forbidden(*_args):
+        pytest.fail('Unsupported institution must abstain before statistics or Gemini')
+
+    result = service.Workflow(CorpusIndex.load(CORPUS), read=forbidden, generate=forbidden).run(
+        _request(f'{prefix} {indicator}?', '2020-01-01', '2023-12-31'))
+    assert result.status == 'insufficient_evidence'
+    assert result.graph_steps == ['interpret', 'select_indicators', 'abstain']
+    assert not result.evidence
+
+
+@pytest.mark.parametrize('event,prefix', HISTORICAL_EVENTS)
+def test_event_window_ending_before_onset_abstains_without_provider(event, prefix):
+    def forbidden(*_args):
+        pytest.fail('Pre-event window must abstain before I/O')
+
+    result = service.Workflow(CorpusIndex.load(CORPUS), read=forbidden, generate=forbidden).run(
+        _request(f'{prefix} Eurozone Inflation?', '2018-01-01', '2019-12-31'))
+    assert result.status == 'insufficient_evidence'
+    assert 'antes del evento' in result.limitations[0]
+
+
+@pytest.mark.parametrize('question', [
+    'How did the Federal Reserve change interest rates?',
+    'When did the Bank of England raise policy rates?',
+    '¿Cómo cambió la Reserva Federal las tasas de interés?',
+    '¿Cuándo redujo el Banco de Inglaterra sus tasas oficiales?',
+    'How did the COVID-19 pandemic affect Federal Reserve interest rates?',
+    'How did the war in Ukraine affect Bank of England interest rates?',
+])
+def test_m6_high_foreign_rate_question_never_returns_ecb_via_http(monkeypatch, question):
+    def forbidden(*_args):
+        pytest.fail('Explicit foreign institution reached statistics or Gemini')
+
+    workflow = service.Workflow(CorpusIndex.load(CORPUS), read=forbidden, generate=forbidden)
+    monkeypatch.setattr(service, 'workflow', lambda: workflow)
+    monkeypatch.setattr(research_api, '_require_local', lambda _: None)
+    monkeypatch.setenv('MARKETPULSE_MACRO_AI_ENABLED', 'true')
+    with TestClient(app) as client:
+        response = client.post('/macro/analysis', json={
+            'question': question, 'start': '2020-01-01', 'end': '2023-12-31',
+        })
+    assert response.status_code == 200
+    result = response.json()
+    assert result['status'] == 'insufficient_evidence'
+    assert result['graph_steps'] == ['interpret', 'select_indicators', 'abstain']
+    assert result['facts'] == result['calculations'] == result['interpretation'] == result['evidence'] == []
