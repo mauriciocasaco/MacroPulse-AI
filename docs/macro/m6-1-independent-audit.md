@@ -73,8 +73,8 @@ Durante las tres auditorías coincidieron HEAD, estado Git, inventario de 149 ru
 
 El gate público sigue abierto. Quedan los [gates DEMO del informe M6](m6-independent-audit.md#gates-de-publicación-demo), la verificación del proveedor real en un entorno autorizado y la revalidación de avisos remotos de dependencias. La aprobación del código no autoriza la publicación.
 
-**M6.1 AUDIT: PASS**  
-**SCORE: 8.76 / 10**  
-**HIGH/CRITICAL OPEN: 0**  
-**M6 CODE GATE: CLOSED**  
+**M6.1 AUDIT: PASS**\
+**SCORE: 8.76 / 10**\
+**HIGH/CRITICAL OPEN: 0**\
+**M6 CODE GATE: CLOSED**\
 **PUBLIC RELEASE GATE: OPEN**

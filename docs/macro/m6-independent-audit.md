@@ -127,8 +127,8 @@ Se observó un Coordinador, un `ejecutor` y un `auditor` en el mismo chat Deskto
 
 La auditoría usó fixtures sintéticos y dejó la publicación pública abierta. No hubo llamadas reales a Gemini, cambios a DEV/DEMO, commits, push ni despliegue.
 
-**M6 AUDIT: REJECT**  
-**SCORE: 8.23 / 10**  
-**HIGH/CRITICAL OPEN: 1**  
-**M6 CODE GATE: OPEN**  
+**M6 AUDIT: REJECT**\
+**SCORE: 8.23 / 10**\
+**HIGH/CRITICAL OPEN: 1**\
+**M6 CODE GATE: OPEN**\
 **PUBLIC RELEASE GATE: OPEN**
