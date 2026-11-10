@@ -121,6 +121,21 @@ legend { margin-bottom: 8px; padding: 0; }
 .source:target { background: var(--selected); }
 .footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); padding-block: 0 22px; font-size: .75rem; }
 
+.macro-nav { display: flex; gap: 16px; margin-bottom: 18px; }
+.macro-nav a[aria-current='page'] { color: var(--mint); font-weight: 700; }
+.macro-window { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-block: 12px; }
+.macro-window label { display: grid; gap: 4px; color: var(--muted); font-size: .84rem; }
+.macro-plot { display: block; width: 100%; min-height: 180px; max-height: 350px; }
+.macro-plot text { fill: var(--muted); font: 12px var(--mono); }
+.macro-gridline { stroke: var(--border); }
+.macro-dot { fill: var(--mint); }
+.macro-segment { stroke: var(--mint); stroke-width: 2; }
+.macro-source, .macro-observations { margin-top: 10px; }
+.macro-series-key { font-family: var(--mono); overflow-wrap: anywhere; }
+.macro-observations { overflow-x: auto; }
+.macro-observations table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+.macro-observations th, .macro-observations td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+
 @media (max-width: 780px) {
   .overview { align-items: start; flex-direction: column; }
 }

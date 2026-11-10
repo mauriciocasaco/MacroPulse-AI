@@ -9,6 +9,7 @@ import json
 from uuid import UUID
 
 import psycopg
+from psycopg import sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
@@ -212,6 +213,8 @@ def _insert_revisions_and_links(connection, indicator, capture, changed, links) 
 
 def read_observations(
     connection: psycopg.Connection, indicator_id: str, *, known_at: datetime | None = None,
+    start: date | None = None, end: date | None = None, limit: int | None = None,
+    newest_first: bool = False,
 ) -> list[dict]:
     """Read promoted snapshot revisions captured by the cutoff.
 
@@ -222,8 +225,9 @@ def read_observations(
         raise ValueError("unknown macro indicator")
     if known_at is not None and known_at.utcoffset() is None:
         raise ValueError("macro cutoff requires a timezone")
+    direction = sql.SQL("DESC" if newest_first else "ASC")
     with connection.cursor(row_factory=dict_row) as cursor:
-        return cursor.execute("""
+        return cursor.execute(sql.SQL("""
             SELECT DISTINCT ON (r.period_start, r.period_raw)
                    r.*, c.captured_at AS last_seen_at, original.captured_at AS first_seen_at
             FROM macro_data.observation_revision AS r
@@ -232,5 +236,8 @@ def read_observations(
             JOIN macro_data.capture AS original ON original.capture_id = r.created_capture_id
             WHERE r.indicator_id = %s AND r.provider_valid_from IS NULL
               AND (%s::timestamptz IS NULL OR c.captured_at <= %s)
-            ORDER BY r.period_start, r.period_raw, c.captured_at DESC, r.revision_id DESC
-        """, (indicator_id, known_at, known_at)).fetchall()
+              AND (%s::date IS NULL OR r.period_end >= %s)
+              AND (%s::date IS NULL OR r.period_start <= %s)
+            ORDER BY r.period_start {}, r.period_raw, c.captured_at DESC, r.revision_id DESC
+            LIMIT %s
+        """).format(direction), (indicator_id, known_at, known_at, start, start, end, end, limit)).fetchall()

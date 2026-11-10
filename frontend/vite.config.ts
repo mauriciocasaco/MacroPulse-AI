@@ -3,13 +3,13 @@ import { networkInterfaces } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { marketPulsePwa } from './pwa/build.ts';
+import { allowsLocalRead } from './pwa/local-read.ts';
 
 const loopback = '127.0.0.1';
 const lanIp = process.env.MARKETPULSE_LAN_IP;
 const host = lanIp ?? loopback;
 const port = 5173;
 const apiPort = process.env.MARKETPULSE_API_PORT ?? '8000';
-const readRoute = /^\/api\/assets(?:\/[1-9]\d{0,18}\/history)?(?:\?|$)/;
 const analysisRoute = /^\/api\/analysis$/;
 
 if (!/^[1-9]\d{0,4}$/.test(apiPort) || Number(apiPort) > 65_535) {
@@ -53,7 +53,7 @@ const localApi: Plugin = {
         return;
       }
 
-      const read = request.method === 'GET' && readRoute.test(url);
+      const read = request.method === 'GET' && allowsLocalRead(url, lanIp !== undefined);
       const analysis = request.method === 'POST' && analysisRoute.test(url)
         && /^application\/json(?:;|$)/i.test(contentType ?? '');
       if (read || analysis) return next();

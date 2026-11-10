@@ -139,8 +139,46 @@ conteos. Reintentar sólo los indicadores o intervalos fallidos. Mantener
 la auditoría independiente y el commit local por etapa. No repetir
 operaciones remotas exitosas.
 
-## M3, M4 y M5
+## M3 — API y PWA
 
-M3 autorizado por el PASS de M2. M4 y M5 pendientes de sus etapas
-predecesoras. La integración existente conserva sus rutas y comportamiento
-mientras se validan los hitos siguientes.
+Recuperación del 10 de noviembre de 2026. La rama estaba limpia en
+`aaae7ed015b1740243c3f9bb8b18c1e292c6b52f`, con `dev.py`, sus pruebas
+y este registro incluidos en M2. El resultado de la ronda 2 se cotejó
+con el informe independiente. Una consulta `--status` de solo lectura
+confirmó el ledger y las 2252 observaciones en DEV. La migración y la
+carga histórica se conservan.
+
+La API local agrega `GET /macro/indicators` y
+`GET /macro/indicators/{id}/history?start=YYYY-MM-DD&end=YYYY-MM-DD`.
+La lectura histórica usa `MACRO_API_DSN`, un DSN explícito en loopback
+para una transacción de solo lectura, con límites de intervalo y tiempo.
+El contrato expone Decimal como texto, períodos originales, estado,
+unidad, frecuencia, fuente y hora de captura. La tasa de depósito
+distingue eventos, ancla previa y cobertura comprobada.
+
+La PWA local ofrece el espacio Macro mediante `?workspace=macro`. El
+gráfico dibuja observaciones por período. Los segmentos de la tasa de
+depósito se limitan a fechas con cobertura. La tabla conserva la
+precisión original y marca valores ausentes. El área de consulta
+en lenguaje natural está prevista para M5. El espacio de precios y
+las rutas públicas de 4.4A siguen disponibles con sus contratos.
+
+Verificación local con PostgreSQL 17 desechable: 397 pruebas de
+backend, 54 del frontend y 4 del Worker aprobadas. Pasaron el lint y ambos
+builds. Vite y Uvicorn en loopback devolvieron el catálogo completo y
+datos oficiales de las cinco series desde el proxy normal de la PWA.
+La prueba confirmó la diferencia entre el último evento de depósito y
+el final de la cobertura. Los reintentos de dos consultas BCE se
+resolvieron usando la ventana oficial previamente verificada en M2.
+
+La ronda 1 de auditoría devolvió REJECT (8,83/10). Se cerró el acceso
+indirecto desde la LAN en la política del proxy Vite y se comprobó que
+las rutas de precios conservan el acceso anterior. La ronda 2 devolvió
+PASS (9,55/10), sin hallazgos altos o críticos.
+Commit de etapa: `feat(pwa): add macroeconomic indicators and charts`.
+La API devuelve el primer tramo continuo de cobertura si existen tramos
+disjuntos en una misma selección. La gráfica conserva el hueco.
+
+## M4 y M5
+
+M4 autorizado por el PASS de M3. M5 espera la aprobación de M4.

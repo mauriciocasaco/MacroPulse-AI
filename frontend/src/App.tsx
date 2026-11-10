@@ -3,6 +3,7 @@ import { Analysis } from './Analysis';
 import { getAssets, getHistory, type Asset, type HistoryResponse } from './api';
 import { type PriceField } from './chart-data';
 import { formatDate, formatWindow, historyWindow, PERIODS, type PeriodId } from './dates';
+import { MacroWorkspace } from './MacroWorkspace';
 import { PriceChart } from './PriceChart';
 import { assetPresentation } from './presentation';
 import { usePwaUpdate } from './pwa';
@@ -109,6 +110,8 @@ function Workspace({ assets, publicDemo }: { assets: Asset[]; publicDemo: boolea
 
 export function App() {
   const publicDemo = import.meta.env.MODE === 'public-demo';
+  const macroAvailable = !publicDemo && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+  const macro = macroAvailable && new URLSearchParams(location.search).get('workspace') === 'macro';
   const [catalog, setCatalog] = useState<Load<Asset[]>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -130,7 +133,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!online) return;
+    if (!online || macro) return;
     const controller = new AbortController();
     getAssets(controller.signal).then((data) => {
       if (!controller.signal.aborted) setCatalog({ status: 'ready', data });
@@ -138,7 +141,7 @@ export function App() {
       if (!controller.signal.aborted) setCatalog({ status: 'error', message: error.message });
     });
     return () => controller.abort();
-  }, [attempt, online]);
+  }, [attempt, online, macro]);
 
   return <>
     <a className="skip-link" href="#contenido">Skip to content</a>
@@ -152,9 +155,13 @@ export function App() {
       </div>
     </header>
     <main className="shell" id="contenido">
+      {macroAvailable && <nav className="macro-nav" aria-label="Workspaces">
+        <a href="?" aria-current={macro ? undefined : 'page'}>Market</a>
+        <a href="?workspace=macro" aria-current={macro ? 'page' : undefined}>Macro</a>
+      </nav>}
       {publicDemo && <p className="notice">All prices are synthetic and use fictional index points.</p>}
       {updateReady && <output className="notice">An update is ready. Close all MarketPulse AI tabs and windows, then reopen the app.</output>}
-      {online ? <>
+      {online ? macro ? <MacroWorkspace key={attempt} /> : <>
         {catalog.status === 'loading' && <output className="notice">{publicDemo
           ? 'Loading demo assets. The service may take a moment to start…' : 'Loading assets…'}</output>}
         {catalog.status === 'error' && <RequestError message={catalog.message} onRetry={() => {
