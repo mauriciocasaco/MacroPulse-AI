@@ -1,4 +1,7 @@
-# MarketPulse AI · Frontend local
+# MacroPulse AI · Market archive and local PWA
+
+For the primary macroeconomic workspace, see the [root setup guide](../README.md#local-development).
+The asset workspace described below is available at `/?workspace=market`.
 
 ## Inicio en Windows
 
@@ -35,7 +38,7 @@ npm.cmd run dev
 Cuando Vite indique que está listo, abrí la interfaz desde otra terminal o desde la barra de direcciones del navegador.
 
 ```powershell
-Start-Process 'http://127.0.0.1:5173'
+Start-Process 'http://127.0.0.1:5173/?workspace=market'
 ```
 
 Vite usa el puerto fijo `5173` en loopback. Si el puerto `8000` ya está ocupado, iniciá FastAPI con `--port 8001` y ejecutá `$env:MARKETPULSE_API_PORT = '8001'` en la terminal B antes de iniciar Vite. Para detener ambos procesos, presioná **Ctrl+C** en cada terminal. Si usaste un puerto alternativo, podés limpiar esa variable con `Remove-Item Env:MARKETPULSE_API_PORT`.

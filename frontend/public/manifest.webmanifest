@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "MarketPulse AI",
-  "short_name": "MarketPulse",
-  "description": "Explore historical market prices, financial analysis, and linked research evidence across six assets.",
+  "name": "MacroPulse AI",
+  "short_name": "MacroPulse",
+  "description": "Explore official macroeconomic observations and source-attributed research.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

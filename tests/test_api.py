@@ -115,7 +115,10 @@ def test_openapi_documents_parameters_responses_and_routes():
     with TestClient(api.app) as client:
         specification = client.get("/openapi.json").json()
     paths = specification["paths"]
-    assert set(paths) == {"/health", "/assets", "/assets/{asset_source_id}/history", "/assets/{asset_source_id}/latest", "/compare", "/analysis"}
+    assert set(paths) == {
+        "/health", "/assets", "/assets/{asset_source_id}/history", "/assets/{asset_source_id}/latest",
+        "/compare", "/analysis", "/macro/indicators", "/macro/indicators/{indicator_id}/history", "/macro/analysis",
+    }
     assert set(paths["/compare"]["get"]["responses"]) == {"200", "404", "422", "503"}
     assert {parameter["name"] for parameter in paths["/compare"]["get"]["parameters"]} == {
         "first", "second", "start", "end_exclusive",

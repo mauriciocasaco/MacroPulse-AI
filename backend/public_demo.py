@@ -1,4 +1,4 @@
-"""Restricted API for the separate, synthetic-only public demonstration."""
+"""Restricted API for the isolated public demonstration."""
 
 from asyncio import timeout
 from collections.abc import Mapping
@@ -22,6 +22,9 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.rows import dict_row, tuple_row
 
 from .api import AssetResponse, DailyBar, HistoryResponse, QueryDate
+from .macro_data.api import MacroHistory, MacroIndicator, MacroWindow, indicator_metadata
+from .macro_data.contracts import CATALOG
+from .macro_data.public import read_history as read_macro_history, verify_projection
 from .market_data.api_config import _ROLE_CHECK, _WRITE_PRIVILEGES, is_dev_target
 
 
@@ -34,6 +37,14 @@ CONVENTION = "synthetic:marketpulse-demo-v1"
 SERIES = ("Synthetic equity index", "Synthetic energy index", "Synthetic metal index")
 _HISTORY = re.compile(r"/assets/[1-3]/history")
 _RO_ROLE = "marketpulse_demo_ro"
+_MACRO_CATALOG_PATH = "/macro/indicators"
+_MACRO_HISTORY_PATHS = frozenset(f"{_MACRO_CATALOG_PATH}/{key}/history" for key in CATALOG)
+_NON_DEMO_SETTINGS = frozenset({
+    "MARKET_API_DSN", "MACRO_API_DSN", "MACRO_API_MODE", "DATABASE_URL", "MARKETPULSE_DEV_PROJECT_REF",
+    "USER_RO", "PASS_USER_RO", "HOST_RO", "PORT_RO", "DB_RO", "SSL_MODE_RO", "SSL_ROOT_CERT_RO",
+    "GEMINI_API_KEY", "GOOGLE_API_KEY", "MARKET_ANALYSIS_EMBEDDING_CACHE",
+    "MARKETPULSE_MACRO_AI_ENABLED", "MARKETPULSE_GEMINI_MODEL",
+})
 
 
 class DemoConfigurationError(RuntimeError):
@@ -47,6 +58,7 @@ class DemoSettings:
     catalog_per_minute: int = 30
     history_per_minute: int = 20
     concurrency: int = 4
+    macro_enabled: bool = False
 
 
 def _limit(env: Mapping[str, str], key: str, default: int) -> int:
@@ -60,11 +72,13 @@ def resolve_demo_settings(env: Mapping[str, str]) -> DemoSettings:
     for key in ("DEBUG", "MARKETPULSE_DEBUG", "MARKETPULSE_DEMO_ANALYSIS_ENABLED"):
         if env.get(key, "false") != "false":
             raise DemoConfigurationError("Public demo debug and analysis must be disabled")
-    if any(key in env for key in ("MARKET_API_DSN", "GEMINI_API_KEY", "GOOGLE_API_KEY",
-                                  "MARKET_ANALYSIS_EMBEDDING_CACHE")) or any(
+    if _NON_DEMO_SETTINGS.intersection(env) or any(
         key.upper().startswith("PG") for key in env
     ):
         raise DemoConfigurationError("Public demo must use only dedicated settings")
+    macro_enabled = env.get("MARKETPULSE_DEMO_MACRO_ENABLED", "false")
+    if macro_enabled not in {"true", "false"}:
+        raise DemoConfigurationError("Public demo macro feature flag is invalid")
 
     secret = env.get("MARKETPULSE_DEMO_ORIGIN_SECRET", "")
     if (not re.fullmatch(r"[a-f0-9]{64}", secret) or len(set(secret)) < 12
@@ -98,15 +112,17 @@ def resolve_demo_settings(env: Mapping[str, str]) -> DemoSettings:
                         gssencmode="disable", connect_timeout=5)
     return DemoSettings(dsn, secret, _limit(env, "MARKETPULSE_DEMO_CATALOG_PER_MINUTE", 30),
                         _limit(env, "MARKETPULSE_DEMO_HISTORY_PER_MINUTE", 20),
-                        _limit(env, "MARKETPULSE_DEMO_CONCURRENCY", 4))
+                        _limit(env, "MARKETPULSE_DEMO_CONCURRENCY", 4), macro_enabled == "true")
 
 
-def connect_demo(dsn: str) -> psycopg.Connection:
+def connect_demo(dsn: str, *, macro_enabled: bool = False) -> psycopg.Connection:
     connection = psycopg.connect(dsn, row_factory=dict_row)
     try:
         if not connection.pgconn.ssl_in_use:
             raise DemoConfigurationError("Public demo PostgreSQL requires TLS")
         connection.read_only = True
+        if macro_enabled:
+            connection.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
         connection.execute("SET LOCAL statement_timeout = '3s'")
         connection.execute("SET LOCAL lock_timeout = '1s'")
         connection.execute("SET LOCAL search_path = pg_catalog")
@@ -120,6 +136,8 @@ def connect_demo(dsn: str) -> psycopg.Connection:
                 """, (_RO_ROLE,)).fetchone()
         if verified != (True,) or scope != (True,):
             raise DemoConfigurationError("Public demo PostgreSQL role lacks required read-only scope")
+        if macro_enabled:
+            verify_projection(connection)
     except Exception:
         connection.close()
         raise
@@ -232,7 +250,8 @@ def create_public_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         try:
-            with connect_demo(settings.dsn):
+            with (connect_demo(settings.dsn, macro_enabled=True) if settings.macro_enabled
+                  else connect_demo(settings.dsn)):
                 pass
         except Exception:
             raise DemoConfigurationError("Public demo database startup verification failed") from None
@@ -269,6 +288,11 @@ def create_public_app() -> FastAPI:
         if raw_path != path.encode("utf-8") or len(request.scope["query_string"]) > 256:
             return _error(400, "Invalid request")
         operation = "catalog" if path == "/assets" else "history" if _HISTORY.fullmatch(path) else None
+        if settings.macro_enabled:
+            if path == _MACRO_CATALOG_PATH:
+                operation = "catalog"
+            elif path in _MACRO_HISTORY_PATHS:
+                operation = "history"
         analysis = path == "/analysis"
         if not (operation or analysis):
             return _error(404, "Not found")
@@ -328,5 +352,18 @@ def create_public_app() -> FastAPI:
     def history(series: Annotated[int, Path(ge=1, le=3)], window: Annotated[DemoWindow, Query()],
                 repo: Annotated[DemoRepository, Depends(repository)]) -> HistoryResponse:
         return repo.history(series, window)
+
+    if settings.macro_enabled:
+        @app.get(_MACRO_CATALOG_PATH)
+        def macro_catalog() -> list[MacroIndicator]:
+            with connect_demo(settings.dsn, macro_enabled=True):
+                return [indicator_metadata(item) for item in CATALOG.values()]
+
+        @app.get(f"{_MACRO_CATALOG_PATH}/{{indicator_id}}/history")
+        def macro_history(indicator_id: str, window: Annotated[MacroWindow, Query()]) -> MacroHistory:
+            if (window.end - window.start).days >= MAX_WINDOW_DAYS:
+                raise HTTPException(status_code=422, detail="Invalid request parameters")
+            with connect_demo(settings.dsn, macro_enabled=True) as connection:
+                return read_macro_history(connection, CATALOG[indicator_id], window, max_points=MAX_WINDOW_DAYS)
 
     return app

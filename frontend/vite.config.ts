@@ -3,14 +3,15 @@ import { networkInterfaces } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { marketPulsePwa } from './pwa/build.ts';
+import { allowsLocalRead } from './pwa/local-read.ts';
 
 const loopback = '127.0.0.1';
 const lanIp = process.env.MARKETPULSE_LAN_IP;
 const host = lanIp ?? loopback;
 const port = 5173;
 const apiPort = process.env.MARKETPULSE_API_PORT ?? '8000';
-const readRoute = /^\/api\/assets(?:\/[1-9]\d{0,18}\/history)?(?:\?|$)/;
-const analysisRoute = /^\/api\/analysis$/;
+const macroAnalysisRoute = '/api/macro/analysis';
+const macroAiEnabled = process.env.MARKETPULSE_MACRO_AI_ENABLED === 'true';
 
 if (!/^[1-9]\d{0,4}$/.test(apiPort) || Number(apiPort) > 65_535) {
   throw new Error('MARKETPULSE_API_PORT must be an integer from 1 to 65535');
@@ -47,14 +48,16 @@ const localApi: Plugin = {
       if (!/^\/api(?:\/|\?|$)/.test(url)) return next();
 
       const { origin, 'content-type': contentType } = request.headers;
-      if ((origin && origin !== `http://${host}:${port}`)
+      if ((origin && origin !== `http://${host}:${server.config.server.port ?? port}`)
         || Object.keys(request.headers).some((name) => name === 'forwarded' || name.startsWith('x-forwarded-'))) {
         response.writeHead(403).end();
         return;
       }
 
-      const read = request.method === 'GET' && readRoute.test(url);
-      const analysis = request.method === 'POST' && analysisRoute.test(url)
+      const read = request.method === 'GET' && allowsLocalRead(url, lanIp !== undefined);
+      const analysis = request.method === 'POST'
+        && lanIp === undefined && macroAiEnabled
+        && server.config.mode !== 'public-demo' && url === macroAnalysisRoute
         && /^application\/json(?:;|$)/i.test(contentType ?? '');
       if (read || analysis) return next();
       response.writeHead(404).end();
@@ -67,6 +70,10 @@ export default defineConfig({
   plugins: [localApi, marketPulsePwa()],
   envDir: false,
   envPrefix: [],
+  define: {
+    'import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED': JSON.stringify(process.env.MARKETPULSE_DEMO_MACRO_ENABLED === 'true'),
+    'import.meta.env.MARKETPULSE_MACRO_AI_ENABLED': JSON.stringify(macroAiEnabled),
+  },
   build: { license: true },
   preview: { host: loopback, proxy: {} },
   server: {

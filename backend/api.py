@@ -19,6 +19,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_valida
 
 from .analysis import AnalysisRequest, AnalysisResponse, AnalysisUnavailable, analyze
 from .analysis_provider import InterpretationProvider, ProviderError, SimulatedProvider
+from .macro_data.api import router as macro_router
 from .market_data.api_config import (
     MarketApiConfig, MarketApiConfigError, connect_read_only_dev, is_dev_target, resolve_market_api,
 )
@@ -338,6 +339,7 @@ def financial_analysis(
 
 
 app.include_router(_analysis_router)
+app.include_router(macro_router)
 
 _MODE = os.environ.get("MARKETPULSE_MODE", "local")
 if _MODE == "public_demo":
@@ -346,3 +348,7 @@ if _MODE == "public_demo":
     app = create_public_app()
 elif _MODE not in {"local", "test"}:
     raise RuntimeError("Invalid MarketPulse mode")
+else:
+    from .macro_ai.api import router as macro_ai_router
+
+    app.include_router(macro_ai_router)

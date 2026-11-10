@@ -1,7 +1,8 @@
-const maxBody = 8192;
 const maxResponse = 3 * 1024 * 1024;
-const history = /^\/api\/assets\/[1-3]\/history$/;
+const macroHistory = /^\/api\/macro\/indicators\/(?:eur-usd|m3-stock|deposit-rate|real-gdp-qoq|hicp-yoy)\/history$/;
 const date = /^\d{4}-\d{2}-\d{2}$/;
+const maxMacroDays = 2600;
+const dayMs = 86_400_000;
 const allowedStatuses = new Set([200, 400, 404, 405, 408, 413, 415, 422, 429, 503]);
 
 function error(status, detail, retry) {
@@ -47,29 +48,39 @@ function origin(env) {
   return new URL(raw);
 }
 
+function macroWindow(query) {
+  const start = query.get('start');
+  const end = query.get('end');
+  const first = Date.parse(start);
+  const last = Date.parse(end);
+  return Number.isFinite(first) && Number.isFinite(last)
+    && new Date(first).toISOString().slice(0, 10) === start
+    && new Date(last).toISOString().slice(0, 10) === end
+    && last >= first && last - first < maxMacroDays * dayMs;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname !== '/api' && !url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-    const catalog = url.pathname === '/api/assets';
-    const prices = history.test(url.pathname);
-    const analysis = url.pathname === '/api/analysis';
-    if (!catalog && !prices && !analysis) return error(404, 'Not found');
-    if (request.method !== (analysis ? 'POST' : 'GET')) return error(405, 'Method not allowed');
-    if (url.search.length > 257 || (!prices && url.search)) return error(400, 'Invalid request');
-    if (prices && (url.searchParams.size !== 2 || !date.test(url.searchParams.get('start') ?? '')
-      || !date.test(url.searchParams.get('end_exclusive') ?? ''))) return error(422, 'Invalid request parameters');
-    if (!analysis && request.body) return error(413, 'Request too large');
-
-    // The feature remains unavailable until a strict global analysis quota exists.
-    // Consume no visitor body and send no traffic to Render for this endpoint.
-    if (analysis) {
-      const length = request.headers.get('Content-Length');
-      if (length !== null && (!/^\d{1,10}$/.test(length) || Number(length) > maxBody)) {
-        return error(413, 'Request too large');
-      }
-      return error(503, 'Public demo analysis is disabled');
+    const macroEnabled = env.MARKETPULSE_DEMO_MACRO_ENABLED === 'true';
+    const macroCatalog = macroEnabled && url.pathname === '/api/macro/indicators';
+    const macro = macroEnabled && macroHistory.test(url.pathname);
+    const catalog = macroCatalog;
+    if (!catalog && !macro) return error(404, 'Not found');
+    if (request.method !== 'GET') return error(405, 'Method not allowed');
+    const originHeader = request.headers.get('Origin');
+    if ((macroCatalog || macro) && originHeader !== null && originHeader !== url.origin) {
+      return error(403, 'Forbidden');
     }
+    const historical = macro;
+    if (url.search.length > 257 || (!historical && url.search)) return error(400, 'Invalid request');
+    if (historical && (url.searchParams.size !== 2 || !date.test(url.searchParams.get('start') ?? '')
+      || !date.test(url.searchParams.get('end') ?? ''))) {
+      return error(422, 'Invalid request parameters');
+    }
+    if (macro && !macroWindow(url.searchParams)) return error(422, 'Invalid request parameters');
+    if (request.body) return error(413, 'Request too large');
 
     const base = origin(env);
     const ip = request.headers.get('CF-Connecting-IP');

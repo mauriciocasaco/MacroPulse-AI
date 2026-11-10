@@ -121,6 +121,17 @@ legend { margin-bottom: 8px; padding: 0; }
 .source:target { background: var(--selected); }
 .footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); padding-block: 0 22px; font-size: .75rem; }
 
+.macro-intro { margin-bottom: 26px; }
+.macro-intro .muted { max-width: 68ch; margin-top: 8px; }
+.macro-plot { display: block; width: 100%; min-height: 180px; max-height: 350px; }
+.macro-plot text { fill: var(--muted); font: 12px var(--mono); }
+.macro-gridline { stroke: var(--border); }
+.macro-source, .macro-observations { margin-top: 10px; }
+.macro-series-key { font-family: var(--mono); overflow-wrap: anywhere; }
+.macro-observations { overflow-x: auto; }
+.macro-observations table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+.macro-observations th, .macro-observations td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+
 @media (max-width: 780px) {
   .overview { align-items: start; flex-direction: column; }
 }
@@ -146,3 +157,14 @@ legend { margin-bottom: 8px; padding: 0; }
   .mouse-chart-help { display: none; }
   .touch-chart-help { display: inline; }
 }
+
+/* Macro indicator accents stay on data marks; labels use neutral theme colors. */
+.macro-presets { border: 0; padding: 0; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; margin-block: 14px; }
+.macro-presets button { min-width: 48px; min-height: 42px; font-weight: 600; }
+.macro-presets button[aria-pressed='true'] { background: var(--selected); border-color: var(--selected-border); box-shadow: inset 0 -2px currentColor; }
+.macro-line, .macro-segment, .macro-step { stroke: var(--indicator-color); stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.macro-dot { fill: var(--indicator-color); stroke: currentColor; stroke-width: .65; }
+.macro-dot:focus { outline: none; stroke-width: 2; }
+
+/* A neutral edge keeps the prescribed GDP gold distinguishable on light surfaces. */
+.macro-outline { stroke: #111214; stroke-width: 4.5; fill: none; vector-effect: non-scaling-stroke; }
