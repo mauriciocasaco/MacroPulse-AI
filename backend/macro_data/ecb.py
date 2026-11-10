@@ -6,7 +6,8 @@ import csv
 from datetime import date, datetime
 from io import StringIO
 from urllib.parse import urlencode
-from xml.etree import ElementTree
+
+from defusedxml import ElementTree
 
 from .contracts import Indicator, Observation, format_period, parse_period, parse_value
 from .transport import Response
@@ -91,9 +92,7 @@ def parse_history(indicator: Indicator, response: Response) -> tuple[tuple[Obser
     if response.content_type not in {_HISTORY_CONTENT_TYPE, "application/xml", "text/xml"}:
         raise ValueError("unexpected ECB historical content type")
     xml = response.body.decode("utf-8-sig")
-    if "<!DOCTYPE" in xml.upper() or "<!ENTITY" in xml.upper():
-        raise ValueError("unexpected ECB document declaration")
-    root = ElementTree.fromstring(xml)
+    root = ElementTree.fromstring(xml, forbid_dtd=True, forbid_entities=True, forbid_external=True)
     sender = root.find(f"{_MESSAGE}Header/{_MESSAGE}Sender")
     if root.tag != f"{_MESSAGE}GenericData" or sender is None or sender.get("id") != "ECB":
         raise ValueError("unexpected ECB historical data")

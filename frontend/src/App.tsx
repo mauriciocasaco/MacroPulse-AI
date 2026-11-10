@@ -110,7 +110,9 @@ function Workspace({ assets, publicDemo }: { assets: Asset[]; publicDemo: boolea
 
 export function App() {
   const publicDemo = import.meta.env.MODE === 'public-demo';
-  const macroAvailable = !publicDemo && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+  const macroAvailable = publicDemo
+    ? import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED === true
+    : ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
   const macro = macroAvailable && new URLSearchParams(location.search).get('workspace') === 'macro';
   const [catalog, setCatalog] = useState<Load<Asset[]>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
@@ -159,7 +161,7 @@ export function App() {
         <a href="?" aria-current={macro ? undefined : 'page'}>Market</a>
         <a href="?workspace=macro" aria-current={macro ? 'page' : undefined}>Macro</a>
       </nav>}
-      {publicDemo && <p className="notice">All prices are synthetic and use fictional index points.</p>}
+      {publicDemo && !macro && <p className="notice">All prices are synthetic and use fictional index points.</p>}
       {updateReady && <output className="notice">An update is ready. Close all MarketPulse AI tabs and windows, then reopen the app.</output>}
       {online ? macro ? <MacroWorkspace key={attempt} /> : <>
         {catalog.status === 'loading' && <output className="notice">{publicDemo

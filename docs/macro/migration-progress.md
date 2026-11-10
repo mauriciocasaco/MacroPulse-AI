@@ -179,6 +179,59 @@ Commit de etapa: `feat(pwa): add macroeconomic indicators and charts`.
 La API devuelve el primer tramo continuo de cobertura si existen tramos
 disjuntos en una misma selección. La gráfica conserva el hueco.
 
-## M4 y M5
+## M4 — Seguridad de la superficie pública
 
-M4 autorizado por el PASS de M3. M5 espera la aprobación de M4.
+El acceso macro público requiere `MARKETPULSE_DEMO_MACRO_ENABLED=true`
+en el build público, el Worker y FastAPI. El valor predeterminado está
+deshabilitado. Los dos endpoints GET usan la misma autenticación de
+origen, cuotas y límites de concurrencia de 4.4A. Worker y FastAPI
+acotan el intervalo a 2600 días inclusivos. El Worker usa el origen
+HTTPS fijo, rechaza solicitudes macro de otro origen y evita
+almacenar las respuestas. El service worker excluye toda la API.
+
+`supabase/demo/macro_projection.sql` prepara una proyección vacía
+para un DEMO independiente, con SELECT para el rol existente. La
+aplicación comprueba catálogo, permisos, columnas y aislamiento de
+los esquemas de DEV. La carga futura requiere una extracción revisada
+de las cinco fuentes aprobadas, con períodos y escalas originales,
+estados confidenciales retenidos como valores nulos y cobertura DFR
+verificada. El repositorio no incluye un cargador de DEMO. Las pruebas
+usaron una proyección sintética identificada en PostgreSQL desechable.
+No se aplicó el SQL en remoto. El análisis público permanece deshabilitado.
+
+Controles alineados con [OWASP API Security Top 10 2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/):
+inventario cerrado de rutas e indicadores, autorización de origen,
+proyección de campos y roles separados, límites de consulta y volumen,
+cuotas, tiempos máximos y respuestas genéricas. Se probaron accesos
+directos sin credencial, métodos y parámetros fuera del contrato,
+aislamiento de permisos, agotamiento de cuota y exclusión de caché.
+La configuración real de Cloudflare, Render y DEMO queda para una
+validación operativa posterior a esta entrega local.
+
+Verificación: 402 pruebas de backend, 54 de frontend, 6 del Worker,
+lint y builds de PWA local y pública con ambas configuraciones.
+`npm audit` y `pip-audit` finalizaron sin avisos conocidos en las
+dependencias resueltas. El primer escaneo de Python detectó cinco
+avisos únicos de Starlette 0.52.1. La corrección fijó FastAPI 0.162.2
+y Starlette 1.10.0. Se conserva el aviso de obsolescencia de httpx
+en TestClient. [Versiones de FastAPI](https://fastapi.tiangolo.com/release-notes/).
+
+`bandit -r backend -f json` detectó el parser SDMX con ElementTree.
+Se sustituyó por defusedxml, con rechazo de DTD, entidades y
+referencias externas probado. El escaneo final señaló cuatro patrones
+en código legado fuera de la superficie pública nueva. El aviso
+B608 se cotejó con predicados constantes y parámetros separados. Los
+avisos bajos corresponden a un nombre de opción, manejo de interrupción
+y una aserción del normalizador. Gitleaks 8.30.1 detectó dos
+coincidencias históricas en fixtures sintéticos de 4.4A. El diff de M4
+pasó el escaneo de secretos sin coincidencias. Los reportes se
+examinaron sin revelar valores.
+
+La auditoría independiente devolvió PASS (9,59/10) en la ronda 1,
+sin hallazgos altos o críticos. En M6 se medirá el costo de validar
+la proyección y sus permisos por conexión antes de habilitar tráfico.
+Commit de etapa: `security(demo): harden macroeconomic public API`.
+
+## M5 — RAG y consultas
+
+M5 autorizado por el PASS de M4.

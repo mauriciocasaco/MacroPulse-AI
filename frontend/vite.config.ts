@@ -67,6 +67,9 @@ export default defineConfig({
   plugins: [localApi, marketPulsePwa()],
   envDir: false,
   envPrefix: [],
+  define: {
+    'import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED': JSON.stringify(process.env.MARKETPULSE_DEMO_MACRO_ENABLED === 'true'),
+  },
   build: { license: true },
   preview: { host: loopback, proxy: {} },
   server: {

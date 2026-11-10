@@ -10,7 +10,8 @@ from decimal import DecimalException
 import os
 import re
 from uuid import uuid4
-from xml.etree.ElementTree import ParseError
+
+from defusedxml.ElementTree import ParseError
 
 import psycopg
 from psycopg.conninfo import conninfo_to_dict, make_conninfo

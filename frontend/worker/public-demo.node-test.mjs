@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { runInNewContext } from 'node:vm';
 import worker from './public-demo.mjs';
 
 const secret = createHash('sha256').update('MarketPulse synthetic test fixture').digest('hex');
@@ -92,4 +94,53 @@ test('redirects, oversized bodies, and origin errors become generic service erro
   }
   fetch.mock.mockImplementationOnce(() => { throw new DOMException('fixture timeout', 'TimeoutError'); });
   assert.equal((await worker.fetch(request('/api/assets'), env)).status, 504);
+});
+
+test('macro reads require opt-in and an exact route, method, query and browser origin', async (t) => {
+  const upstream = t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+  const enabled = { ...env, MARKETPULSE_DEMO_MACRO_ENABLED: 'true' };
+  const catalog = '/api/macro/indicators';
+  const path = catalog + '/eur-usd/history';
+  const query = '?start=2026-01-01&end=2026-01-31';
+  assert.equal((await worker.fetch(request(catalog), env)).status, 404);
+  assert.equal((await worker.fetch(request(path + query), env)).status, 404);
+  assert.equal((await worker.fetch(request(catalog + '/other/history' + query), enabled)).status, 404);
+  assert.equal((await worker.fetch(request('/api/macro/analysis', { method: 'POST' }), enabled)).status, 404);
+  assert.equal((await worker.fetch(request(path + query, { method: 'POST' }), enabled)).status, 405);
+  assert.equal((await worker.fetch(request(catalog, { headers: { Origin: 'https://foreign.example' } }), enabled)).status, 403);
+  assert.equal((await worker.fetch(request(path + '?start=2026-01-01&start=2026-01-31'), enabled)).status, 422);
+  assert.equal((await worker.fetch(request(path + query + '&extra=1'), enabled)).status, 422);
+  assert.equal((await worker.fetch(request(path + '?start=2026-02-30&end=2026-03-04'), enabled)).status, 422);
+  assert.equal((await worker.fetch(request(path + '?start=2010-01-01&end=2026-01-31'), enabled)).status, 422);
+  assert.equal(upstream.mock.calls.length, 0);
+
+  const response = await worker.fetch(request(path + query, { headers: { Origin: url } }), enabled);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  const [target, init] = upstream.mock.calls[0].arguments;
+  assert.equal(String(target), enabled.MARKETPULSE_DEMO_ORIGIN_URL + '/macro/indicators/eur-usd/history' + query);
+  assert.equal(init.headers['X-MarketPulse-Origin'], secret);
+  assert.equal(init.headers.Origin, undefined);
+  const quota = { limit: async () => ({ success: false }) };
+  assert.equal((await worker.fetch(request(path + query), { ...enabled, HISTORY_RATE_LIMIT: quota })).status, 429);
+  assert.equal((await worker.fetch(request(catalog), { ...enabled, CATALOG_RATE_LIMIT: quota })).status, 429);
+  assert.equal(upstream.mock.calls.length, 1);
+});
+
+test('the PWA service worker never intercepts macro API requests for offline caching', () => {
+  const listeners = new Map();
+  runInNewContext(readFileSync(new URL('../pwa/service-worker.js', import.meta.url), 'utf8'), {
+    self: {
+      registration: { scope: url + '/' },
+      addEventListener: (type, handler) => listeners.set(type, handler),
+    },
+    URL, version: 'fixture', shell: [],
+  });
+  for (const path of ['/api', '/api/macro/indicators', '/api/macro/indicators/hicp-yoy/history', '/api/macro/analysis']) {
+    listeners.get('fetch')({
+      request: request(path),
+      respondWith: () => assert.fail('API must bypass offline interception'),
+    });
+  }
 });

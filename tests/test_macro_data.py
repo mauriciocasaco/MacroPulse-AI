@@ -28,6 +28,12 @@ GDP = CATALOG["real-gdp-qoq"]
 HICP = CATALOG["hicp-yoy"]
 
 
+def test_ecb_history_rejects_document_type_declarations():
+    response = Response(b"<!DOCTYPE GenericData><GenericData/>", 200, ecb.HISTORY_ACCEPT, 1)
+    with pytest.raises(ValueError):
+        ecb.parse_history(FX, response)
+
+
 def _csv(item, rows, *, unit=None):
     source_unit = {"EXR": "USD", "BSI": "EUR", "FM": "PCPA"}[item.dataset]
     columns = ("KEY", *dict(item.dimensions), "TIME_PERIOD", "OBS_VALUE", "OBS_STATUS", "OBS_CONF", "UNIT", "UNIT_MULT")
