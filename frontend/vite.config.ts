@@ -2,6 +2,7 @@ import { BlockList } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
+import { marketPulsePwa } from './pwa/build.ts';
 
 const loopback = '127.0.0.1';
 const lanIp = process.env.MARKETPULSE_LAN_IP;
@@ -62,10 +63,12 @@ const localApi: Plugin = {
 };
 
 export default defineConfig({
-  plugins: [localApi],
+  base: './',
+  plugins: [localApi, marketPulsePwa()],
   envDir: false,
   envPrefix: [],
   build: { license: true },
+  preview: { host: loopback, proxy: {} },
   server: {
     host,
     port,

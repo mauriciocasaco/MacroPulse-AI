@@ -5,6 +5,7 @@ import { type PriceField } from './chart-data';
 import { formatDate, formatWindow, historyWindow, PERIODS, type PeriodId } from './dates';
 import { PriceChart } from './PriceChart';
 import { assetPresentation } from './presentation';
+import { usePwaUpdate } from './pwa';
 
 type Load<T> = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: T };
 
@@ -109,7 +110,26 @@ function Workspace({ assets }: { assets: Asset[] }) {
 export function App() {
   const [catalog, setCatalog] = useState<Load<Asset[]>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [online, setOnline] = useState(() => navigator.onLine);
+  const updateReady = usePwaUpdate();
+
   useEffect(() => {
+    const reconnect = () => {
+      setCatalog({ status: 'loading' });
+      setOnline(true);
+      setAttempt((value) => value + 1);
+    };
+    const disconnect = () => setOnline(false);
+    window.addEventListener('online', reconnect);
+    window.addEventListener('offline', disconnect);
+    return () => {
+      window.removeEventListener('online', reconnect);
+      window.removeEventListener('offline', disconnect);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!online) return;
     const controller = new AbortController();
     getAssets(controller.signal).then((data) => {
       if (!controller.signal.aborted) setCatalog({ status: 'ready', data });
@@ -117,7 +137,7 @@ export function App() {
       if (!controller.signal.aborted) setCatalog({ status: 'error', message: error.message });
     });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, online]);
 
   return <>
     <a className="skip-link" href="#contenido">Skip to content</a>
@@ -131,14 +151,17 @@ export function App() {
       </div>
     </header>
     <main className="shell" id="contenido">
-      {catalog.status === 'loading' && <output className="notice">Loading assets…</output>}
-      {catalog.status === 'error' && <RequestError message={catalog.message} onRetry={() => {
-        setCatalog({ status: 'loading' });
-        setAttempt((value) => value + 1);
-      }} />}
-      {catalog.status === 'ready' && (catalog.data.length > 0
-        ? <Workspace assets={catalog.data} />
-        : <output className="notice">No assets available.</output>)}
+      {updateReady && <output className="notice">An update is ready. Close all MarketPulse AI tabs and windows, then reopen the app.</output>}
+      {online ? <>
+        {catalog.status === 'loading' && <output className="notice">Loading assets…</output>}
+        {catalog.status === 'error' && <RequestError message={catalog.message} onRetry={() => {
+          setCatalog({ status: 'loading' });
+          setAttempt((value) => value + 1);
+        }} />}
+        {catalog.status === 'ready' && (catalog.data.length > 0
+          ? <Workspace assets={catalog.data} />
+          : <output className="notice">No assets available.</output>)}
+      </> : <output className="notice">You are offline. Live financial data is unavailable.</output>}
     </main>
     <footer className="shell footer"><span>MarketPulse AI</span><span>Historical market research</span></footer>
   </>;

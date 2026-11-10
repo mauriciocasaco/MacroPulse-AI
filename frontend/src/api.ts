@@ -159,6 +159,7 @@ async function request<T>(path: string, signal: AbortSignal, matches: (value: un
   try {
     response = await fetch(`/api${path}`, {
       signal,
+      cache: 'no-store',
       headers: { Accept: 'application/json', ...(body && { 'Content-Type': 'application/json' }) },
       ...(body && { method: 'POST', body: JSON.stringify(body) }),
     });

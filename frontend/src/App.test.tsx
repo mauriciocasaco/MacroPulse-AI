@@ -93,6 +93,23 @@ async function start(result = insufficient) {
 }
 
 describe('market workspace', () => {
+  it('shows the shell offline and requests fresh catalog data after reconnecting', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    http.mockImplementation((url) => url === '/api/assets' ? json([gold]) : json({ asset: gold, bars: [] }));
+    render(<App />);
+
+    expect(screen.getByText('You are offline. Live financial data is unavailable.')).toBeTruthy();
+    expect(http).not.toHaveBeenCalled();
+
+    fireEvent(window, new Event('online'));
+    await screen.findByRole('combobox', { name: 'Asset' });
+    expect(http).toHaveBeenCalledWith('/api/assets', expect.objectContaining({ cache: 'no-store' }));
+
+    fireEvent(window, new Event('offline'));
+    expect(screen.getByText('You are offline. Live financial data is unavailable.')).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: 'Asset' })).toBeNull();
+  });
+
   it('loads the real mappings and updates the window, coverage, and preset with the selected asset', async () => {
     const select = await start();
     expect(screen.getByRole('heading', { name: 'Gold' })).toBeDefined();

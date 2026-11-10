@@ -103,3 +103,77 @@ npm.cmd audit
 2. Elegí **Crude Oil**, **Max** y **20/04/2020** en **Inspect date**. Comprobá el cierre de **-37.6 USD/bbl**. Seleccioná **19/04/2020** para revisar un día sin observación y probá el selector de **Adj Close**.
 3. Ejecutá una consulta predefinida y una personalizada. Revisá el período de análisis, el indicador de proveedor, la cobertura y los enlaces originales cuando haya citas.
 4. Probá en una ventana angosta y navegá con teclado. Para comprobar el estado de error, detené FastAPI, cambiá de período, reiniciá FastAPI y usá **Retry**.
+
+## Production PWA on Windows
+
+From `frontend/`, build and serve the production files on loopback:
+
+```powershell
+npm.cmd ci
+npm.cmd run build
+npm.cmd exec vite -- preview --host 127.0.0.1 --port 4173 --strictPort
+```
+
+Open `http://127.0.0.1:4173/` in a current desktop browser. Vite preview is
+for local build verification. It binds to loopback by default and has no API
+proxy. The regular Vite development commands above still serve the manifest
+and icons without registering a worker. Use a same-origin synthetic API
+fixture server to verify the online catalog, charts, and analysis during a
+local build test.
+
+1. In the browser's Application panel, verify the manifest has standalone
+   display and the worker `sw.js` has activated. Reload once to put the page
+   under worker control. If registration fails, check the console and confirm
+   the worker and all precache files came from the same build.
+2. Inspect Cache Storage. The scope-specific `marketpulse-shell:` cache should
+   contain the build's index, manifest, icons, and hashed CSS/JavaScript.
+   After using the catalog, history, or analysis, verify those routes are
+   absent from Cache Storage. The application's API requests also use
+   `cache: 'no-store'` to bypass the browser's HTTP cache.
+3. Go offline using browser network controls. Reload the app's root. The
+   shell should show **You are offline. Live financial data is unavailable.**
+   Restore the connection and check that the app requests fresh data.
+4. To exercise an update, serve a second build with a distinguishable static
+   change on the same preview origin. In the original tab, trigger a worker
+   update check from the Application panel. It should install and wait while
+   the first build has open clients. After the update notice appears, close
+   all app tabs and windows and reopen the app. Confirm the second build is
+   active and the old shell cache is gone. Leave unrelated origin caches
+   untouched.
+
+Private LAN HTTP can serve the frontend, icons, and manifest, and iPhone
+Safari can add the page to the Home Screen. A private LAN IP over HTTP is not
+a secure context. Service worker registration, offline relaunch, and worker
+updates on a physical iPhone must be verified on trusted HTTPS.
+
+### Phase 4.4 hosting requirements
+
+- Publish the complete contents of `frontend/dist/` to a trusted HTTPS static
+  origin, preferably at its root. Keep the worker at the app root and preserve
+  the generated directory structure. If mounting under a path, use its
+  trailing slash for the app URL and keep the browser's `/api` endpoint at the
+  origin root.
+- Serve `sw.js` as JavaScript and the manifest as
+  `application/manifest+json`. Revalidate `sw.js`, the entry HTML, manifest,
+  and unversioned icons. Hashed assets can use immutable caching. Serve the
+  static shell to anonymous clients using bytes from one build. Compression
+  is compatible, but HTML or asset rewriting breaks precache integrity.
+- Deploy the new hashed files before exposing the new worker and entry HTML,
+  or publish the complete release atomically. Keep the previous release's
+  hashed assets available during rollout for pages opened before the worker
+  took control. Verify install, offline relaunch, and update activation on
+  a real iPhone and on the supported desktop browsers.
+- Route only the required `/api` operations to the backend on the same origin.
+  Keep private data and credentials on the server. Define access controls,
+  disable intermediary caching for API responses, and verify the HTTPS
+  proxy's allowed methods and routes before public rollout.
+
+Vite 8 is supported by vite-plugin-pwa 1.3.0. The Vite build generates a
+worker directly because this shell needs only an integrity-pinned list of
+build outputs. [vite-plugin-pwa release notes](https://github.com/vite-pwa/vite-plugin-pwa/releases/tag/v1.3.0)
+
+Each release has an exact integrity-pinned static allowlist. The worker requests
+those files without credentials, serves cached shell content at the app root
+and `index.html`, and removes only obsolete shell caches in its own scope.
+API calls, financial documents, and cross-origin resources use the network
+without service-worker caching.

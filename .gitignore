@@ -29,3 +29,10 @@ dist/
 
 # Supabase TLS certificates - local only
 /Certificate/
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.p12
+*.pfx
