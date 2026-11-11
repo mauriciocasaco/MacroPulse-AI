@@ -52,9 +52,20 @@ export interface ResearchEvidence {
   period_start: string | null;
   period_end: string | null;
   published_on: string | null;
+  updated_at?: string | null;
   rights_url?: string | null;
   similarity_score?: number | null;
   similarity_metric?: 'cosine' | null;
+}
+
+export interface ObservedChange {
+  indicator_id: string;
+  value: string;
+  unit: 'percent' | 'percentage_points';
+  direction: 'up' | 'down' | 'flat';
+  first_observed_on: string;
+  last_observed_on: string;
+  citation: string;
 }
 
 export interface MacroAnalysis {
@@ -69,6 +80,8 @@ export interface MacroAnalysis {
   evidence: ResearchEvidence[];
   graph_steps: string[];
   narrative?: ResearchClaim[];
+  narrative_kind?: 'gemini' | 'deterministic' | null;
+  observed_changes?: ObservedChange[];
   model_id?: string | null;
   indicator_id?: string | null;
   event_id?: string | null;
@@ -132,12 +145,28 @@ function researchEvidence(value: unknown): value is ResearchEvidence {
     && ['id', 'title', 'attribution'].every((key) => typeof value[key] === 'string')
     && officialLink(value.url)
     && ['period_start', 'period_end', 'published_on'].every((key) => value[key] === null || date(value[key]))
+    && (value.updated_at == null || (value.kind === 'series' && typeof value.updated_at === 'string'
+      && Number.isFinite(Date.parse(value.updated_at))))
     && (value.rights_url == null || officialLink(value.rights_url))
     && (value.similarity_metric == null || value.similarity_metric === 'cosine')
     && (value.similarity_score == null || (value.kind === 'document' && value.similarity_metric === 'cosine'
       && typeof value.similarity_score === 'number' && Number.isFinite(value.similarity_score)
       && value.similarity_score >= 0 && value.similarity_score <= 1))
     && (value.similarity_metric == null || value.similarity_score != null);
+}
+
+function observedChange(value: unknown, start: string, end: string): value is ObservedChange {
+  if (!object(value) || typeof value.indicator_id !== 'string' || !ids.has(value.indicator_id)
+    || typeof value.value !== 'string' || !/^-?\d+\.\d{2}$/.test(value.value)
+    || !Number.isFinite(Number(value.value)) || value.value === '-0.00'
+    || value.unit !== (['eur-usd', 'm3-stock'].includes(value.indicator_id) ? 'percent' : 'percentage_points')
+    || value.citation !== `series:${value.indicator_id}`
+    || !date(value.first_observed_on) || !date(value.last_observed_on)
+    || value.first_observed_on < start || value.last_observed_on > end
+    || value.first_observed_on >= value.last_observed_on) return false;
+  const number = Number(value.value);
+  return number > 0 ? value.direction === 'up' : number < 0 ? value.direction === 'down'
+    : value.direction === 'flat' || value.direction === 'up' || value.direction === 'down';
 }
 
 async function get(path: string, signal: AbortSignal): Promise<unknown> {
@@ -198,6 +227,8 @@ export async function askMacroAnalysis(
       || (result.event_id != null && result.event_id !== context.event_id)))
     || (result.narrative !== undefined && (!claims(result.narrative)
       || (result.status === 'answered' && result.narrative.length === 0)))
+    || !(result.narrative_kind == null || (result.status === 'answered' && claims(result.narrative)
+      && result.narrative.length > 0 && (result.narrative_kind === 'gemini' || result.narrative_kind === 'deterministic')))
     || !(result.model_id == null || (typeof result.model_id === 'string' && /^gemini-[a-z0-9]+(?:[.-][a-z0-9]+){1,6}$/.test(result.model_id)))
     || !claims(result.facts) || !claims(result.calculations) || !claims(result.interpretation)
     || !strings(result.limitations) || !strings(result.graph_steps)
@@ -205,6 +236,13 @@ export async function askMacroAnalysis(
     throw new Error('Unexpected research response.');
   }
   const evidence = result.evidence as ResearchEvidence[];
+  const changes = result.observed_changes ?? [];
+  if (!Array.isArray(changes) || !changes.every((item) => observedChange(item, start, end)
+    && (!context || item.indicator_id === context.indicator_id)
+    && evidence.some((source) => source.kind === 'series' && source.id === item.citation))
+    || new Set(changes.map(({ indicator_id }) => indicator_id)).size !== changes.length) {
+    throw new Error('Unexpected observed change.');
+  }
   const citations = new Set(evidence.map(({ id }) => id));
   const allClaims = [...result.facts, ...result.calculations, ...result.interpretation,
     ...(result.narrative as ResearchClaim[] | undefined ?? [])];
@@ -217,6 +255,8 @@ export async function askMacroAnalysis(
     && entry.similarity_score > documents[index - 1].similarity_score!)) throw new Error('Unexpected retrieval order.');
   return {
     narrative: result.narrative as ResearchClaim[] | undefined,
+    narrative_kind: result.narrative_kind as MacroAnalysis['narrative_kind'],
+    observed_changes: changes,
     model_id: result.model_id as string | null | undefined,
     indicator_id: result.indicator_id as string | null | undefined,
     event_id: result.event_id as string | null | undefined,

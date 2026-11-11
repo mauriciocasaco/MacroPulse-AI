@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 
 from ..macro_data.api import MacroWindow
 
@@ -48,6 +48,7 @@ class Evidence(BaseModel):
     period_start: date | None = None
     period_end: date | None = None
     published_on: date | None = None
+    updated_at: datetime | None = None
     rights_url: str | None = None
     similarity_score: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     similarity_metric: Literal["cosine"] | None = None
@@ -60,10 +61,28 @@ class Claim(BaseModel):
     citations: list[str] = Field(min_length=1, max_length=4)
 
 
+class DraftSentence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    evidence_id: StrictInt
+    text: str = Field(min_length=10, max_length=300)
+
+
 class GeminiDraft(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    narrative: list[Claim] = Field(min_length=1, max_length=12)
+    sentences: list[DraftSentence] = Field(min_length=2, max_length=3)
+    caveat: str = Field(min_length=10, max_length=200)
+
+
+class ObservedChange(BaseModel):
+    indicator_id: IndicatorId
+    value: str = Field(pattern=r"^-?\d+\.\d{2}$")
+    unit: Literal["percent", "percentage_points"]
+    direction: Literal["up", "down", "flat"]
+    first_observed_on: date
+    last_observed_on: date
+    citation: str
 
 
 class ResearchResponse(BaseModel):
@@ -78,6 +97,8 @@ class ResearchResponse(BaseModel):
     evidence: list[Evidence]
     graph_steps: list[str]
     narrative: list[Claim] = Field(default_factory=list)
+    narrative_kind: Literal["gemini", "deterministic"] | None = None
+    observed_changes: list[ObservedChange] = Field(default_factory=list)
     model_id: str | None = None
     indicator_id: IndicatorId | None = None
     event_id: EventId | None = None

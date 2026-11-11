@@ -107,6 +107,24 @@ legend { margin-bottom: 8px; padding: 0; }
 .primary { padding: 9px 15px; color: #0b201c; background: var(--mint); border-color: var(--mint); font-weight: 720; }
 .primary:hover { background: #a2eed8; border-color: #a2eed8; }
 .analysis-result { margin-top: 24px; overflow-wrap: anywhere; }
+.research-change { border-block-start: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+.research-change-value {
+  font-size: clamp(2.65rem, 9vw, 4.4rem);
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.055em;
+  line-height: 1.08;
+  margin-bottom: 6px;
+}
+.research-change-value span { font-size: .6em; vertical-align: .14em; }
+.research-change-value.up { color: var(--mint); }
+.research-change-value.down { color: #ff9a9a; }
+.research-narrative { max-width: 68ch; font-size: 1.05rem; line-height: 1.65; }
+.research-sources { list-style: none; padding: 0; }
+.research-sources li { margin-bottom: 10px; }
+.research-details { margin-top: 14px; }
+.research-details summary { width: fit-content; cursor: pointer; color: var(--muted); }
+.research-details p { margin-top: 6px; }
 .price-change { padding: 16px; border-radius: 10px; background: #0d0e10; }
 .price-change h3, .result-section h3 { font-size: 1.05rem; margin-bottom: 8px; }
 .change-value { font: 650 clamp(2rem, 6vw, 3rem)/1.2 var(--mono); margin-bottom: 4px; }

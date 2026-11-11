@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend.macro_ai.models import ResearchRequest, EVENT_WINDOWS, Claim
+from backend.macro_ai.models import ResearchRequest, EVENT_WINDOWS, ObservedChange
 from backend.macro_ai.statistics import summarize
 from backend.macro_ai.retrieval import CorpusIndex, CorpusDocument
-from backend.macro_ai.grounding import validate_narrative
-from backend.macro_ai.service import Workflow, WorkflowFailure
+from backend.macro_ai.grounding import Proposition, movement, permitted_caveats, validate_narrative
+from backend.macro_ai.service import Workflow
 from backend.macro_data.api import MacroHistory, MacroObservation, indicator_metadata
 from backend.macro_data.contracts import CATALOG, parse_period
 
@@ -32,12 +32,6 @@ def doc(id="fixture", text="The institutional context describes observed data wi
     return CorpusDocument(id=id, title="Synthetic institutional context", url="https://www.ecb.europa.eu/fixture",
                           rights_url="https://www.ecb.europa.eu/rights", attribution="Synthetic test fixture",
                           published_on=published, topics=topics or ["fx", "covid"], text=text)
-
-
-def draft(_intent, raw):
-    context = json.loads(raw)
-    statement = next(item for item in context['approved_statements'] if item['citations'][0].startswith('doc:'))
-    return {'narrative': [*context['required_statistics'], statement]}
 
 
 @pytest.mark.parametrize('event', list(EVENT_WINDOWS))
@@ -74,6 +68,7 @@ def test_percent_safety_and_largest_swing_chronology(values, reported):
     summary = summarize({'eur-usd': history('eur-usd', request, list(reversed(rows)))}, ('eur-usd',), request)
     percents = [item.text for item in summary.calculations if 'percentage change' in item.text]
     assert bool(percents) == reported
+    assert bool(summary.observed_changes) == reported
     if reported:
         assert '10.000000%' in percents[0]
         assert '22.222222%' in percents[1]
@@ -89,6 +84,8 @@ def test_rate_and_growth_changes_keep_meaningful_units(key, unit):
     summary = summarize({key: history(key, request, [row(key, periods[0], '-1'), row(key, periods[1], '2')])}, (key,), request)
     assert unit in summary.calculations[0].text and unit in summary.calculations[1].text
     assert not any('percentage change' in claim.text for claim in summary.calculations)
+    assert summary.observed_changes[0].unit == 'percentage_points'
+    assert summary.observed_changes[0].value == '3.00'
 
 
 def test_selected_event_excludes_prior_anchor_and_outside_rows_and_preserves_dates():
@@ -126,38 +123,63 @@ def test_retrieval_filters_event_before_top_k_and_exposes_real_cosine():
     assert scores == sorted(scores, reverse=True)
 
 
-@pytest.mark.parametrize('mutation', ['number', 'date', 'unit', 'causality', 'citation', 'omission'])
-def test_narrative_grounding_rejects_fabrication_or_missing_required_coverage(mutation):
-    stat = Claim(text='The observed rate was 1.20 USD per EUR on 2020-02-01.', citations=['series:eur-usd'])
-    context = Claim(text='The context does not establish causality.', citations=['doc:fixture:1'])
-    claims = [stat.model_dump(), context.model_dump()]
-    if mutation == 'number': claims[0]['text'] = claims[0]['text'].replace('1.20', '999')
-    if mutation == 'date': claims[0]['text'] = claims[0]['text'].replace('2020-02-01', '2022-01-01')
-    if mutation == 'unit': claims[0]['text'] = claims[0]['text'].replace('USD per EUR', 'percent')
-    if mutation == 'causality': claims[1]['text'] = 'COVID-19 caused the observed currency movement.'
-    if mutation == 'citation': claims[0]['citations'] = ['doc:fixture:1']
-    if mutation == 'omission': claims.pop(0)
+@pytest.mark.parametrize('sentence', [
+    'The euro rose by 999% over the selected period.',
+    'The euro rose by 10.89 percentage points over the selected period.',
+    'The euro rose by 10.89% in 2022.',
+    'The euro fell by 10.89% over the selected period.',
+    'COVID-19 caused the euro to rise by 10.89% over the selected period.',
+    'The euro rose by 10.89% over the selected period. [1]',
+])
+def test_grounding_rejects_unsupported_factual_claim_even_with_valid_id(sentence):
+    change = ObservedChange(indicator_id='eur-usd', value='10.89', unit='percent', direction='up',
+                            first_observed_on='2020-02-03', last_observed_on='2020-12-31', citation='series:eur-usd')
+    context = Proposition('doc:fixture:1', ('the ECB',), ('announced a joint effort',), ('in March 2020',))
+    caveats = permitted_caveats(event=True, multiple=False)
     with pytest.raises(ValueError):
-        validate_narrative({'narrative': claims}, [stat, context], [stat])
+        validate_narrative({
+            'sentences': [{'evidence_id': 1, 'text': sentence},
+                          {'evidence_id': 2, 'text': 'In March 2020, the ECB announced a joint effort.'}],
+            'caveat': caveats[0],
+        }, [movement(change), context], caveats)
 
 
-def test_success_is_model_composed_and_mock_has_no_invented_model_identity():
-    request = ResearchRequest(question='How did the COVID-19 pandemic affect EUR/USD rate?', indicator_id='eur-usd', event_id='covid', start='2020-02-01', end='2020-12-31')
+def test_covid_eur_usd_uses_actual_fixture_endpoints_and_keeps_authored_prose():
+    request = ResearchRequest(question='How did the COVID-19 pandemic affect EUR/USD rate?',
+                              indicator_id='eur-usd', event_id='covid', start='2020-02-01', end='2020-12-31')
     def read(keys, req):
         assert keys == ('eur-usd',) and (req.start, req.end) == EVENT_WINDOWS['covid']
-        return {'eur-usd': history('eur-usd', req, [row('eur-usd', '2020-02-03', '1.20'), row('eur-usd', '2020-12-01', '1.32')])}
+        return {'eur-usd': history('eur-usd', req, [
+            row('eur-usd', '2020-12-31', '1.2271'), row('eur-usd', '2020-02-01', '2', status='missing'),
+            row('eur-usd', '2020-02-03', '1.1066'), row('eur-usd', '2021-01-01', '3'),
+        ])}
+    authored = [
+        'Between the first and last observations, the value of the euro in US dollars rose.',
+        'For context, central banks including the ECB announced a joint effort to make US dollars easier to obtain in March 2020.',
+        'The timing provides useful context, but it does not show that the event caused the observed change.',
+    ]
+
     def model(intent, raw):
-        response = draft(intent, raw)
-        response['narrative'][0]['text'] = 'In this period, ' + response['narrative'][0]['text']
-        return response
-    result = Workflow(CorpusIndex([doc()]), read=read, generate=model).run(request)
-    assert result.status == 'answered' and result.narrative[0].text.startswith('In this period, ')
-    assert result.model_id is None
-    assert any('10.000000%' in claim.text for claim in result.narrative)
-    assert result.evidence[-1].rights_url == 'https://www.ecb.europa.eu/rights'
-    assert result.evidence[-1].similarity_metric == 'cosine'
+        assert 'historical context: COVID-19' in intent
+        context = json.loads(raw)
+        assert 'rose by 10.89%' in context['propositions'][0]['predicates']
+        return {'sentences': [{'evidence_id': i, 'text': text} for i, text in enumerate(authored[:2], 1)],
+                'caveat': authored[2]}
+
+    corpus = CorpusIndex.load(Path('backend/macro_ai/corpus.json'))
+    result = Workflow(corpus, read=read, generate=model).run(request)
+    assert result.status == 'answered' and result.narrative_kind == 'gemini' and result.model_id is None
+    change, = result.observed_changes
+    assert (change.value, change.unit, change.direction) == ('10.89', 'percent', 'up')
+    assert (change.first_observed_on, change.last_observed_on) == (date(2020, 2, 3), date(2020, 12, 31))
+    assert [claim.text for claim in result.narrative] == authored
+    assert result.narrative[1].citations == ['doc:ecb-usd-liquidity-march-2020:1']
+    assert result.evidence[-1].published_on <= request.end
+
 
 def test_positive_level_to_zero_reports_minus_one_hundred_percent():
     request = ResearchRequest(question='How did M3 change?', start='2020-01-01', end='2020-12-31')
     summary = summarize({'m3-stock': history('m3-stock', request, [row('m3-stock', '2020-01', '100'), row('m3-stock', '2020-12', '0')])}, ('m3-stock',), request)
     assert any('-100.000000%' in claim.text for claim in summary.calculations)
+    assert summary.observed_changes[0].value == '-100.00'
+    assert summary.observed_changes[0].direction == 'down'

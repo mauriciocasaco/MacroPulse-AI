@@ -40,27 +40,30 @@ it.each(events)('submits %s dates and explicit chart context only after Ask LLM 
   });
   expect(fetch.mock.calls[0][0]).toBe('/api/macro/analysis');
   expect(fetch.mock.calls[0][1].cache).toBe('no-store');
-  expect(screen.getByRole('heading', { name: 'LLM Model' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'AI Analysis' })).toBeTruthy();
   expect(screen.getByText('No institutional documents were retrieved for this answer.')).toBeTruthy();
 });
 
-it('renders one narrative and actual retrieved document order with three-decimal genuine cosine scores', async () => {
+it('renders the KPI, one uncited paragraph, and deduplicated institutional sources below it', async () => {
   const question = 'How did the COVID-19 pandemic affect EUR/USD rate?';
   const series = { id: 'series:eur-usd', kind: 'series', title: 'ECB reference rate',
     url: 'https://data.ecb.europa.eu/', attribution: 'ECB statistics',
     period_start: '2020-02-03', period_end: '2020-12-31', published_on: null };
   const sourceDocument = (id: string, title: string, score?: number) => ({
-    id, title, kind: 'document', url: 'https://www.ecb.europa.eu/', attribution: 'European Central Bank',
+    id, title, kind: 'document', url: `https://www.ecb.europa.eu/${id.replace(/:[^:]+$/, '')}`, attribution: 'European Central Bank',
     published_on: '2020-03-15', period_start: null, period_end: null,
     ...(score == null ? {} : { similarity_score: score, similarity_metric: 'cosine' }),
   });
   vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-    ...response(question), status: 'answered', model_id: 'gemini-test-fixture',
+    ...response(question), status: 'answered', narrative_kind: 'gemini', model_id: 'gemini-test-fixture',
+    observed_changes: [{ indicator_id: 'eur-usd', direction: 'up', value: '10.89', unit: 'percent',
+      first_observed_on: '2020-02-03', last_observed_on: '2020-12-31', citation: series.id }],
     narrative: [{ text: 'The observed change is descriptive and does not establish causality.',
-      citations: ['series:eur-usd', 'doc:high'] }],
+      citations: ['series:eur-usd', 'high:1'] }],
     facts: [{ text: 'Legacy fact should not render twice.', citations: ['series:eur-usd'] }],
-    evidence: [series, sourceDocument('doc:high', 'High relevance source', 0.81256),
-      sourceDocument('doc:low', 'Lower relevance source', 0.23444), sourceDocument('doc:unknown', 'Unscored source')],
+    evidence: [series, sourceDocument('high:1', 'High relevance source', 0.81256),
+      sourceDocument('low:1', 'Lower relevance source', 0.23444),
+      sourceDocument('low:2', 'Duplicate chunk', 0.12345)],
   })));
   render(<MacroResearch {...props} />);
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
@@ -69,17 +72,21 @@ it('renders one narrative and actual retrieved document order with three-decimal
   for (const heading of ['Facts', 'Calculations', 'Interpretation', 'Sources']) {
     expect(screen.queryByRole('heading', { name: heading })).toBeNull();
   }
-  const raw = screen.getByRole('heading', { name: 'RAW sources' }).parentElement!;
-  expect(within(raw).getAllByRole('link').map((link) => link.textContent))
-    .toEqual(['High relevance source', 'Lower relevance source', 'Unscored source']);
-  expect(raw.textContent).toContain('Cosine similarity 0.813');
-  expect(raw.textContent).toContain('Cosine similarity 0.234');
-  expect(raw.textContent?.match(/Cosine similarity/g)).toHaveLength(2);
-  expect(within(raw).getAllByRole('listitem').map((item) => item.getAttribute('value'))).toEqual(['2', '3', '4']);
-  expect(screen.getByText(/gemini-test-fixture/)).toBeTruthy();
-  for (const link of screen.getAllByRole('link', { name: /^\[/ })) {
-    expect(document.getElementById(link.getAttribute('href')!.slice(1))).toBeTruthy();
-  }
+  const kpi = screen.getByText('+10.89%');
+  expect(kpi.classList.contains('up')).toBe(true);
+  expect(screen.getByText('3 Feb 2020').getAttribute('datetime')).toBe('2020-02-03');
+  const analysis = screen.getByRole('region', { name: 'AI Analysis' });
+  expect(kpi.compareDocumentPosition(analysis) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(analysis).queryAllByRole('link')).toHaveLength(0);
+  expect(analysis.textContent).not.toMatch(/\[\d+\]/);
+  const sources = screen.getByRole('heading', { name: 'RAG Sources & Evidence' }).parentElement!;
+  expect(analysis.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(sources).getAllByRole('link').map((link) => link.textContent))
+    .toEqual(['High relevance source', 'Lower relevance source', 'ECB reference rate']);
+  expect(sources.querySelector('details')?.open).toBe(false);
+  expect(sources.textContent).toContain('Cosine similarity 0.813');
+  expect(sources.textContent).toContain('Cosine similarity 0.234');
+  expect(sources.textContent).not.toContain('Duplicate chunk');
 });
 
 it('cancels old requests on chart indicator change and prevents stale rendering', async () => {
@@ -94,11 +101,11 @@ it('cancels old requests on chart indicator change and prevents stale rendering'
   complete(Response.json(response('How did the COVID-19 pandemic affect EUR/USD rate?')));
   await Promise.resolve();
   expect(screen.queryByText('Checking official evidence…')).toBeNull();
-  expect(screen.queryByRole('heading', { name: 'LLM Model' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'AI Analysis' })).toBeNull();
   expect(screen.getByLabelText('Research question')).toHaveProperty('value',
     'How did the COVID-19 pandemic affect Eurozone Inflation?');
   view.rerender(<MacroResearch {...props} />);
-  expect(screen.queryByRole('heading', { name: 'LLM Model' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'AI Analysis' })).toBeNull();
   expect(screen.queryByText('Checking official evidence…')).toBeNull();
 });
 
@@ -120,4 +127,23 @@ it('renders network errors and clears the loading state', async () => {
   expect(screen.getByText('Local macro research is currently unavailable.')).toBeTruthy();
   expect(screen.queryByText('Checking official evidence…')).toBeNull();
   expect(screen.getByRole('button', { name: 'Ask LLM Model' })).toHaveProperty('disabled', false);
+});
+
+
+it('labels a deterministic fallback without showing raw calculations', async () => {
+  const series = { id: 'series:eur-usd', kind: 'series', title: 'ECB reference rate',
+    url: 'https://data.ecb.europa.eu/', attribution: 'ECB statistics',
+    period_start: '2020-02-03', period_end: '2020-12-31', published_on: null };
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+    ...response('How did the COVID-19 pandemic affect EUR/USD rate?'),
+    status: 'answered', narrative_kind: 'deterministic',
+    narrative: [{ text: 'The euro rose over the selected period.', citations: [series.id] }],
+    calculations: [{ text: 'Raw calculation.', citations: [series.id] }], evidence: [series],
+  })));
+  render(<MacroResearch {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  const summary = await screen.findByRole('region', { name: 'Data summary' });
+  expect(within(summary).getByText('Generated from official data without Gemini.')).toBeTruthy();
+  expect(within(summary).getByText('The euro rose over the selected period.')).toBeTruthy();
+  expect(screen.queryByText('Raw calculation.')).toBeNull();
 });

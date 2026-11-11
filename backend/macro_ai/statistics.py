@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import NamedTuple
 
 from ..macro_data.api import MacroHistory, MacroWindow, load_history, open_macro_reader
 from ..macro_data.contracts import CATALOG
-from .models import Claim, Evidence, ResearchRequest
+from .models import Claim, Evidence, ObservedChange, ResearchRequest
 
 
 _UNITS = {
@@ -29,6 +29,8 @@ class Summary(NamedTuple):
     calculations: list[Claim]
     limitations: list[str]
     complete: bool
+    observed_changes: list[ObservedChange]
+    correlation: Decimal | None
 
 
 def read_statistics(indicator_ids: tuple[str, ...], request: ResearchRequest) -> dict[str, MacroHistory]:
@@ -44,6 +46,31 @@ def _decimal(value: Decimal) -> str:
 def _month_distance(period: str) -> int:
     year, month = map(int, period.split("-"))
     return year * 12 + month - 1
+
+
+def _level_baseline_floor(rows) -> Decimal:
+    return max(Decimal("1e-12"), max(abs(row.value) for row in rows) * Decimal("1e-6"))
+
+
+def _observed_change(key: str, rows, citation: str) -> ObservedChange | None:
+    if len(rows) < 2:
+        return None
+    first, last = rows[0], rows[-1]
+    delta = last.value - first.value
+    if key in {"eur-usd", "m3-stock"}:
+        if first.value <= _level_baseline_floor(rows) or last.value < 0:
+            return None
+        delta = delta / first.value * 100
+        unit = "percent"
+    else:
+        unit = "percentage_points"
+    rounded = delta.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return ObservedChange(
+        indicator_id=key, value=_decimal(rounded if rounded else abs(rounded)), unit=unit,
+        direction="up" if delta > 0 else "down" if delta < 0 else "flat",
+        first_observed_on=first.effective_date or first.period_start,
+        last_observed_on=last.effective_date or last.period_end, citation=citation,
+    )
 
 
 def _pearson(pairs: list[tuple[Decimal, Decimal]]) -> Decimal | None:
@@ -62,12 +89,14 @@ def summarize(
     evidence: list[Evidence] = []
     facts: list[Claim] = []
     calculations: list[Claim] = []
+    observed_changes: list[ObservedChange] = []
     limitations = [
         "Locally captured data vintages are used. The cutoff concerns observation periods, not historical publication vintages.",
         "Temporal overlap and descriptive correlations do not establish causality.",
     ]
     aligned: dict[str, dict[str, Decimal]] = {}
     complete = True
+    correlation = None
     for key in indicator_ids:
         history = histories[key]
         item = CATALOG[key]
@@ -75,6 +104,7 @@ def summarize(
                 if row.value is not None and row.status_kind in _PUBLISHABLE
                 and request.start <= row.period_start and row.period_end <= request.end]
         rows.sort(key=lambda row: (row.period_start, row.period_end))
+        in_window = rows.copy()
         anchor = history.anchor if not request.event_id and history.coverage_start == request.start else None
         if (anchor is not None and anchor.value is not None and anchor.status_kind in _PUBLISHABLE
                 and (not rows or rows[0].period_start > request.start)):
@@ -91,10 +121,14 @@ def summarize(
         if item.frequency == "effective_date" and history.coverage_end is not None:
             limitations.append(f"The first verified continuous rate coverage ends on {history.coverage_end}.")
         citation = f"series:{key}"
+        change = _observed_change(key, in_window, citation)
+        if change:
+            observed_changes.append(change)
         first, last = rows[0], rows[-1]
         evidence.append(Evidence(
             id=citation, kind="series", title=item.title, url=item.source_url, attribution=item.attribution,
             period_start=first.period_start, period_end=last.period_end,
+            updated_at=history.updated_at, rights_url=item.reuse_url,
         ))
         minimum, maximum = min(rows, key=lambda row: row.value), max(rows, key=lambda row: row.value)
         context = " The first date is a prior effective event used as an explicitly verified anchor." if rows[0] is anchor else ""
@@ -138,8 +172,7 @@ def summarize(
             # confused with their economically meaningful percentage-point move.
             # For positive level series, reject baselines below 1 ppm of sample
             # scale (and an absolute 1e-12 floor), or a negative endpoint.
-            scale = max(abs(row.value) for row in rows)
-            floor = max(Decimal("1e-12"), scale * Decimal("1e-6"))
+            floor = _level_baseline_floor(rows)
             if key in {"eur-usd", "m3-stock"} and left.value > floor and right.value >= 0:
                 change = (right.value - left.value) / left.value * 100
                 calculations.append(Claim(
@@ -177,4 +210,4 @@ def summarize(
                       f"{correlation:.2f} with {len(pairs)} matching pairs from {pair_periods[0]} to {pair_periods[-1]}."),
                 citations=["series:m3-stock", "series:hicp-yoy"],
             ))
-    return Summary(evidence, facts, calculations, limitations, complete)
+    return Summary(evidence, facts, calculations, limitations, complete, observed_changes, correlation)

@@ -82,11 +82,14 @@ def _histories(keys, request):
 
 def _draft(prompt, evidence):
     context = json.loads(evidence)
-    approved = context["approved_statements"]
-    required = context["required_statistics"]
-    document = next(item for item in approved if item["citations"][0].startswith("doc:"))
-    return {"narrative": [*required, document]}
-
+    propositions = context["propositions"]
+    selected = [item for item in propositions if item["kind"] == "series"]
+    selected.append(next(item for item in propositions if item["kind"] == "doc"))
+    sentences = []
+    for item in selected:
+        text = f"{item['subjects'][0]} {item['predicates'][0]} {item['time_phrases'][0]}."
+        sentences.append({"evidence_id": item["evidence_id"], "text": text[0].upper() + text[1:]})
+    return {"sentences": sentences, "caveat": context["allowed_closing_sentences"][0]}
 
 
 @pytest.mark.parametrize(("demo", "variant"), list(zip(QUERIES, PARAPHRASES, strict=True)))
@@ -103,7 +106,7 @@ def test_demonstrations_use_statistics_retrieval_and_generation(demo, variant, u
     workflow = service.Workflow(CorpusIndex.load(CORPUS), read=read, generate=_draft)
     response = workflow.run(_request(paraphrase if use_paraphrase else question, start, end))
     assert requested == [keys]
-    assert response.status == "answered"
+    assert response.status == "answered" and response.narrative_kind == "gemini"
     assert response.graph_steps == [
         "interpret", "select_indicators", "read_statistics", "retrieve_documents", "assess_evidence", "generate", "finish",
     ]
@@ -306,16 +309,14 @@ def test_supported_scopes_and_contextual_dates_preserve_indicator(question, star
 def test_m3_retrieval_excludes_documents_without_m3_support():
     def model(_question, evidence):
         context = json.loads(evidence)
-        assert [document["id"] for document in context["documents"]] == [
-            "doc:ecb-monetary-developments-2020-12:1",
-        ]
+        assert sum(item["kind"] == "doc" for item in context["propositions"]) == 1
         return _draft(_question, evidence)
 
     workflow = service.Workflow(CorpusIndex.load(CORPUS), read=_histories, generate=model)
     response = workflow.run(_request("What relationship do M3 and inflation show?", *QUERIES[3][1:3]))
     assert response.status == "answered"
     assert response.interpretation[0].citations == ["doc:ecb-monetary-developments-2020-12:1"]
-    assert response.interpretation[0].text.startswith("Published 2021-01-29:")
+    assert "broad money was higher than a year earlier" in response.interpretation[0].text
 
 
 def test_document_instruction_cannot_create_an_unretrieved_citation():
@@ -326,34 +327,34 @@ def test_document_instruction_cannot_create_an_unretrieved_citation():
         attribution="Synthetic fixture", topics=["fx", "covid"], text=f"EUR USD. {instruction}",
     )
 
-    def compromised_model(question, context):
-        assert instruction in json.loads(context)["documents"][0]["summary"]
-        return {"selections": [{"citations": ["series:eur-usd", "doc:inventado:1"]}]}
+    def compromised_model(*_):
+        pytest.fail("Unreviewed corpus text must not be sent to Gemini")
 
     workflow = service.Workflow(CorpusIndex([document]), read=_histories, generate=compromised_model)
-    with pytest.raises(service.WorkflowFailure) as error:
-        workflow.run(_request(*QUERIES[0][:3]))
-    assert error.value.steps[-2:] == ["generate", "handle_error"]
+    result = workflow.run(_request(*QUERIES[0][:3]))
+    assert result.narrative_kind == "deterministic"
+    assert instruction not in result.model_dump_json()
+    assert not result.interpretation
 
 
 @pytest.mark.parametrize("change", [
     "invented-citation", "duplicate-citation", "only-series", "generation-failure",
     "empty-output", "empty-selections", "malformed-output", "free-text",
 ])
-def test_generation_failures_end_in_fixed_error_state(change):
+def test_generation_failures_return_short_attributed_summary(change):
     def invalid(question, evidence):
         draft = _draft(question, evidence)
-        claim = draft["narrative"][-1]
+        claim = draft["sentences"][-1]
         if change == "invented-citation":
-            claim["citations"] = ["doc:invented"]
+            claim["evidence_id"] = 999
         elif change == "duplicate-citation":
-            claim["citations"].append(claim["citations"][0])
+            claim["evidence_id"] = draft["sentences"][0]["evidence_id"]
         elif change == "only-series":
-            draft["narrative"].pop()
+            draft["sentences"].pop()
         elif change == "empty-output":
             return None
         elif change == "empty-selections":
-            return {"narrative": []}
+            return {"sentences": [], "caveat": draft["caveat"]}
         elif change == "malformed-output":
             return "not structured"
         elif change == "free-text":
@@ -363,62 +364,41 @@ def test_generation_failures_end_in_fixed_error_state(change):
         return draft
 
     workflow = service.Workflow(CorpusIndex.load(CORPUS), read=_histories, generate=invalid)
-    with pytest.raises(service.WorkflowFailure, match="macro research unavailable") as error:
-        workflow.run(_request(*QUERIES[0][:3]))
-    assert error.value.steps[-2:] == ["generate", "handle_error"]
+    result = workflow.run(_request(*QUERIES[0][:3]))
+    assert result.graph_steps[-2:] == ["generate", "finish"]
+    assert result.status == "answered" and result.narrative_kind == "deterministic"
+    assert len(result.narrative) == 2 and result.narrative[0].citations == ["series:eur-usd"]
+    assert not result.interpretation and result.model_id is None
+    assert "999 percent" not in result.model_dump_json() and "synthetic private" not in result.model_dump_json()
 
 
-def test_model_selects_evidence_without_changing_official_peak_chronology():
-    alternate = CorpusDocument(
-        id="fixture-m3", title="Synthetic M3 and HICP context",
-        url="https://www.ecb.europa.eu/fixture", rights_url="https://www.ecb.europa.eu/fixture-rights",
-        published_on=date(2022, 10, 1), attribution="Synthetic fixture",
-        topics=["money", "inflation"],
-        text="M3 and HICP are different measures. Their simultaneous movements do not establish causality.",
-    )
-    documents = [CorpusDocument.model_validate(item) for item in json.loads(CORPUS.read_text(encoding="utf-8"))]
-    index = CorpusIndex([*documents, alternate])
-
-    def read(keys, request):
-        histories = _histories(keys, request)
-        for key, values in {"m3-stock": ("150", "170", "160"), "hicp-yoy": ("8", "9", "10")}.items():
-            histories[key].observations = [
-                _observation(key, period, value)
-                for period, value in zip(("2022-08", "2022-09", "2022-10"), values, strict=True)
-            ]
-        return histories
-
-    def answer(index_in_retrieval):
-        chosen = []
-
-        def model(_question, evidence):
-            document = json.loads(evidence)["documents"][index_in_retrieval]
-            chosen.append(document["id"])
+def test_model_can_choose_between_retrieved_sources_without_altering_statistics():
+    def answer(document_index):
+        def model(question, evidence):
             context = json.loads(evidence)
-            context["approved_statements"] = [item for item in context["approved_statements"]
-                                                 if item["citations"][0].startswith("series:")
-                                                 or item["citations"] == [document["id"]]]
-            return _draft(_question, json.dumps(context))
-
-        result = service.Workflow(index, read=read, generate=model).run(_request(*QUERIES[3][:3]))
-        assert result.status == "answered"
-        assert "170 on 2022-09" in result.facts[0].text and "10 on 2022-10" in result.facts[1].text
-        assert all(phrase not in result.model_dump_json() for phrase in ("meses antes", "provocó", "18 unidades"))
-        rendered = result.interpretation[0]
-        assert rendered.citations == [chosen[0]]
-        summary = next(chunk.page_content for chunk in index.chunks if chunk.id == chosen[0])
-        assert summary.split(". ", 1)[0] in rendered.text
-        return result
+            propositions = context["propositions"]
+            documents = [item for item in propositions if item["kind"] == "doc"]
+            context["propositions"] = [item for item in propositions if item["kind"] == "series"] + [
+                documents[document_index]]
+            return _draft(question, json.dumps(context))
+        return service.Workflow(CorpusIndex.load(CORPUS), read=_histories, generate=model).run(
+            _request(*QUERIES[2][:3]))
 
     first, second = answer(0), answer(1)
-    assert first.facts == second.facts
-    assert first.calculations == second.calculations
-    assert first.interpretation != second.interpretation
+    assert first.narrative_kind == second.narrative_kind == "gemini"
+    assert first.facts == second.facts and first.calculations == second.calculations
+    assert first.interpretation[0].citations != second.interpretation[0].citations
 
 
-@pytest.mark.parametrize("selected", [[2, 1], [1, 1], [0], [3]])
-def test_provider_selects_ids_and_preserves_approved_claims(monkeypatch, selected):
+def test_provider_returns_authored_sentences_without_rendering_them(monkeypatch):
     seen = {}
+    payload = {
+        "sentences": [
+            {"evidence_id": 1, "text": "Over the selected period, EUR/USD rose."},
+            {"evidence_id": 2, "text": "In March 2020, the ECB and other central banks announced a joint effort."},
+        ],
+        "caveat": "The evidence describes what happened, but it does not establish a cause.",
+    }
 
     class Client:
         def close(self):
@@ -437,28 +417,20 @@ def test_provider_selects_ids_and_preserves_approved_claims(monkeypatch, selecte
             def invoke(prompt, *, http_options):
                 seen["messages"] = prompt.to_messages()
                 seen["http"] = http_options
-                return schema(statement_ids=selected)
+                return schema.model_validate(payload)
 
             return RunnableLambda(invoke)
 
     monkeypatch.setenv("GEMINI_API_KEY", sha256(b"synthetic API key fixture").hexdigest())
     monkeypatch.delenv(gemini.MODEL_ENV, raising=False)
     monkeypatch.setattr(gemini, "ChatGoogleGenerativeAI", Chat)
-    statistic = {"text": "Synthetic series change was −1.2345%.", "citations": ["series:eur-usd"]}
-    document = {"text": "Contexto institucional sintetizado.", "citations": ["doc:fixture"]}
-    context = json.dumps({"approved_statements": [statistic, document], "required_statistics": [statistic]})
-    if selected == [2, 1]:
-        output = gemini.invoke_gemini("Intención canónica", context)
-        assert output.model_dump() == {"narrative": [document, statistic]}
-    else:
-        with pytest.raises(ValueError, match="invalid statement IDs"):
-            gemini.invoke_gemini("Intención canónica", context)
+    context = json.dumps({"propositions": [{"evidence_id": 1, "subjects": ["EUR/USD"]}]})
+    assert gemini.invoke_gemini("Canonical intent", context).model_dump() == payload
     assert seen["closed"]
-    assert seen["schema"] is gemini.StatementSelection and seen["method"] == "json_schema"
+    assert seen["schema"] is gemini.GeminiDraft and seen["method"] == "json_schema"
     assert seen["options"]["max_retries"] == 0 and seen["options"]["vertexai"] is False
     assert seen["http"].retry_options.attempts == 1 and seen["http"].timeout == 18_000
-    assert '"required": true' in seen["messages"][-1].content
-    assert "Contexto institucional sintetizado" in seen["messages"][-1].content
+    assert context in seen["messages"][-1].content
 
 
 def test_local_route_validates_origin_body_and_hides_internal_error(monkeypatch):
@@ -617,8 +589,11 @@ def test_historical_matrix_preserves_intent_evidence_and_abstention(key, label, 
     assert result.status == 'answered' and result.graph_steps[-2:] == ['generate', 'finish']
     allowed = {item.id for item in result.evidence}
     assert all(set(claim.citations) <= allowed for claim in result.facts + result.calculations + result.interpretation)
-    assert result.interpretation[0].citations == ['doc:fixture-history:1']
-    assert service._EVENTS[event][1] in calls[-1]
+    assert result.narrative_kind == 'deterministic' and result.interpretation == []
+    assert any(item.id == 'doc:fixture-history:1' for item in result.evidence)
+    assert len(calls) == int(supported)
+    if supported:
+        assert service._EVENTS[event][1] in calls[-1]
 
 
 @pytest.mark.parametrize('event,prefix', HISTORICAL_EVENTS)

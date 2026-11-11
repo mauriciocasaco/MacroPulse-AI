@@ -9,7 +9,7 @@ import json
 import logging
 from pathlib import Path
 import re
-from typing import NamedTuple, TypedDict
+from typing import Literal, NamedTuple, TypedDict
 import unicodedata
 
 from langchain_core.documents import Document
@@ -21,7 +21,7 @@ from .gemini import invoke_gemini, configured_model
 from .models import Claim, Evidence, ResearchRequest, ResearchResponse
 from .retrieval import CorpusIndex, document_evidence, tokens
 from .statistics import Summary, read_statistics, summarize
-from .grounding import validate_narrative, document_statements
+from .grounding import document_propositions, fallback_narrative, movement, permitted_caveats, validate_narrative
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,6 +108,8 @@ class State(TypedDict, total=False):
     evidence: list[Evidence]
     interpretation: list[Claim]
     narrative: list[Claim]
+    narrative_kind: Literal["gemini", "deterministic"]
+    model_id: str | None
     issue: str | None
     sufficient: bool
     abstention_reason: str
@@ -282,8 +284,7 @@ class Workflow:
                                       ["handle_error", "assess_evidence"])
         builder.add_conditional_edges("assess_evidence", lambda s: "generate" if s["sufficient"] else "abstain",
                                       ["generate", "abstain"])
-        builder.add_conditional_edges("generate", lambda s: "handle_error" if s.get("issue") else "finish",
-                                      ["handle_error", "finish"])
+        builder.add_edge("generate", "finish")
         builder.add_edge("finish", END)
         builder.add_edge("abstain", END)
         builder.add_edge("handle_error", END)
@@ -351,29 +352,30 @@ class Workflow:
     def _generate(self, state: State) -> State:
         steps = _step(state, "generate")
         request, plan, summary = state["request"], state["plan"], state["summary"]
-        # Send only canonical intent, public-statistic summaries and approved
-        # corpus summaries. The original question remains local.
+        # Only canonical intent and reviewed public propositions leave the workspace.
         prompt_question = f"{plan.label}, from {request.start} to {request.end}"
         if plan.event:
             prompt_question += f"; historical context: {_EVENTS[plan.event][1]}"
-        approved = [*summary.facts, *summary.calculations, *document_statements(state["documents"])]
+        documents = document_propositions(state["documents"])
+        propositions = [*(movement(change) for change in summary.observed_changes), *documents]
+        caveats = permitted_caveats(bool(plan.event), len(plan.indicators) > 1, summary.correlation)
         context = {
-            "approved_statements": [claim.model_dump() for claim in approved],
-            "required_statistics": [claim.model_dump() for claim in (*summary.facts, *summary.calculations)],
-            "statistics": [claim.model_dump() for claim in (*summary.facts, *summary.calculations)],
-            "documents": [{"id": chunk.id, "title": chunk.metadata["title"], "summary": chunk.page_content[:1100]}
-                          for chunk in state["documents"]],
+            "propositions": [item.prompt(index) for index, item in enumerate(propositions, start=1)],
+            "allowed_closing_sentences": caveats,
         }
-        try:
-            output = self.generate(prompt_question, json.dumps(context, ensure_ascii=False))
-        except Exception:
-            return {"issue": "provider_unavailable", "steps": steps}
-        try:
-            narrative = validate_narrative(output, approved, [*summary.facts, *summary.calculations])
-            interpretation = [claim for claim in narrative if any(ref.startswith("doc:") for ref in claim.citations)]
-            return {"interpretation": interpretation, "narrative": narrative, "steps": steps}
-        except Exception:
-            return {"issue": "draft_rejected", "steps": steps}
+        if documents and len(summary.observed_changes) == len(plan.indicators):
+            try:
+                output = self.generate(prompt_question, json.dumps(context, ensure_ascii=False))
+                narrative = validate_narrative(output, propositions, caveats)
+                model_id = configured_model() if self.generate is invoke_gemini else None
+                interpretation = [claim for claim in narrative[:-1] if claim.citations[0].startswith("doc:")]
+                return {"interpretation": interpretation, "narrative": narrative, "narrative_kind": "gemini",
+                        "model_id": model_id, "steps": steps}
+            except Exception:
+                # Keep provider responses and exception details out of the logs and API.
+                _LOGGER.info("Using deterministic macro summary after generation failure")
+        return {"interpretation": [], "narrative_kind": "deterministic", "steps": steps,
+                "narrative": fallback_narrative(summary.observed_changes, [item.id for item in summary.evidence])}
 
     def _finish(self, state: State) -> State:
         request, summary = state["request"], state["summary"]
@@ -383,7 +385,8 @@ class Workflow:
             facts=summary.facts, calculations=summary.calculations, interpretation=state["interpretation"],
             limitations=[*summary.limitations, *self._event_limitations(state)],
             evidence=state["evidence"], graph_steps=steps, narrative=state["narrative"],
-            model_id=configured_model() if self.generate is invoke_gemini else None,
+            model_id=state.get("model_id"), narrative_kind=state["narrative_kind"],
+            observed_changes=summary.observed_changes,
             indicator_id=request.indicator_id, event_id=request.event_id,
         ), "steps": steps}
 
@@ -400,6 +403,7 @@ class Workflow:
             facts=summary.facts if summary else [], calculations=summary.calculations if summary else [],
             limitations=[message, *(summary.limitations if summary else []), *self._event_limitations(state)],
             evidence=state.get("evidence", []), graph_steps=steps,
+            observed_changes=summary.observed_changes if summary else [],
             indicator_id=request.indicator_id, event_id=request.event_id,
         ), "steps": steps}
 
