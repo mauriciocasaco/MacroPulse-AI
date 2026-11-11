@@ -1,6 +1,6 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role -- A keyboard-operable SVG data plot requires SVG slider semantics; an HTML input cannot contain the plotted marks. */
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
-import { indicatorPresentation, numeric, pointDay, rateSegments, type ChartHistory } from './macro-chart';
+import { indicatorPresentation, unitLabel, numeric, pointDay, rateSegments, type ChartHistory } from './macro-chart';
 export function MacroPlot({ history }: { history: ChartHistory }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -36,6 +36,7 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
   const y = (value: number) => upper === lower ? 103 : 178 - ((value - lower) / (upper - lower)) * 150;
   const format = new Intl.NumberFormat('en', { maximumSignificantDigits: 6 });
   const presentation = indicatorPresentation(history.indicator);
+  const unit = unitLabel(history.indicator.unit, history.indicator.multiplier);
   const linePoints = points.map((row) => `${x(pointDay(row))},${y(Number(row.value))}`).join(' ');
   const label = (day: string) => {
     const date = new Date(`${day}T00:00:00Z`);
@@ -49,7 +50,7 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
   const scale = Math.min(size.width / 720, size.height / 225);
   const offsetX = (size.width - 720 * scale) / 2;
   const offsetY = (size.height - 225 * scale) / 2;
-  const description = (row: typeof points[number]) => `${presentation.label} · ${row.period_raw} · ${row.value} ${history.indicator.unit} · ${row.status_kind}`;
+  const description = (row: typeof points[number]) => `${presentation.label} · ${row.period_raw} · ${row.value} ${unit} · ${row.status_kind}`;
   return <div className="macro-plot-container">
     <p id={helpId} className="sr-only">Hover or touch the chart to inspect an observation. Focus the chart and use Left and Right Arrow keys to move between observations, Home and End to jump, and Escape to dismiss the value.</p>
     <svg ref={svgRef} className="macro-plot" viewBox="0 0 720 225"
@@ -87,7 +88,7 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
     style={{ '--indicator-color': presentation.color } as CSSProperties}
     data-domain-start={first} data-domain-end={last}
     aria-label={`${presentation.label}: ${effective ? 'effective events and verified periods of applicability' : 'official observations by period'}`}>
-    <title>{presentation.label} · {history.indicator.unit}</title>
+    <title>{presentation.label} · {unit}</title>
     {[upper, lower].filter((value, i, all) => all.indexOf(value) === i).map((value) =>
       <g key={value}>
         <line className="macro-gridline" x1="76" x2="678" y1={y(value)} y2={y(value)} />
@@ -122,7 +123,7 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
         transform: y(Number(active.value)) < 85 ? 'translate(-50%, 12px)' : 'translate(-50%, calc(-100% - 12px))',
       } as CSSProperties}>
       <strong>{presentation.label}</strong>
-      <span>{active.period_raw} · {active.value} {history.indicator.unit}</span>
+      <span>{active.period_raw} · {active.value} {unit}</span>
       <span className="sr-only">{active.status_kind}</span>
     </div>}
   </div>;

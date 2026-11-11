@@ -40,3 +40,24 @@ through the actual Worker implementation with a mocked origin. These checks
 are not live ECB, PostgreSQL or Gemini verification. The coordinator must
 perform the required visual/real-public-data check and independent audit.
 No audit score or verdict is asserted by this executor.
+
+## Independent audit round 1 correction
+
+The coordinator relayed the auditor's REJECT (8.575 before rounding) for a
+blocking unit-magnitude defect: the tooltip displayed raw `EUR` although M3
+observations use multiplier 6. The correction extracts the existing readable
+unit mapping into `macro-chart.ts` and shares it between the chart overview,
+tooltip, SVG title, point title and ARIA value text. The M3 decimal remains
+`17612461.010`, paired with `Millions of EUR`; it is not rescaled or rounded.
+The remaining supported units are USD per EUR, % per year, % quarter on
+quarter and % year on year.
+
+Five parameterized regressions verify exact decimal preservation and readable
+units in tooltip and accessible descriptions for every supported indicator.
+The workspace regression now asserts the M3 scaled unit explicitly.
+
+Correction validation from the same frontend directory: `npm run test` exits
+0 with 105 passed, 0 failed, 0 skipped across 6 files; `npm run typecheck`,
+`npm run lint`, `npm run build`, `npm run build:public` and `git diff --check`
+all exit 0. Builds are local and public-demo artifacts only, not deployments.
+The changes are ready for independent round 2; no verdict is asserted here.

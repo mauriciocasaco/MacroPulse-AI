@@ -126,7 +126,7 @@ it('plots monthly observations without filling gaps and preserves source decimal
   expect(screen.queryByRole('table')).toBeNull();
   expect(screen.queryByText(/marked missing|Last captured|View observations/)).toBeNull();
   fireEvent.pointerEnter(svg.querySelector('circle')!);
-  expect(screen.getByRole('tooltip').textContent).toContain('17612461.010 EUR');
+  expect(screen.getByRole('tooltip').textContent).toContain('17612461.010 Millions of EUR');
   expect(screen.getByRole('link', { name: 'ECB statistics' }).getAttribute('href')).toBe('https://data.ecb.europa.eu/');
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });

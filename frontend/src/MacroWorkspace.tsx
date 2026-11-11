@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getMacroIndicators } from './macro-api';
 import { MacroPlot } from './MacroPlot';
-import { loadChartHistory, selectHistory, researchWindow, indicatorPresentation, chartPeriods, type ChartHistory, type ChartPeriod } from './macro-chart';
+import { unitLabel, loadChartHistory, selectHistory, researchWindow, indicatorPresentation, chartPeriods, type ChartHistory, type ChartPeriod } from './macro-chart';
 import { MacroResearch } from './MacroResearch';
 
 const frequencyLabels = {
@@ -10,15 +10,6 @@ const frequencyLabels = {
   quarterly: 'Quarterly',
   effective_date: 'Effective-date events',
 };
-const unitLabels: Record<string, string> = {
-  'USD/EUR': 'USD per EUR', EUR: 'EUR', percent_per_annum: '% per year',
-  percent_qoq: '% quarter on quarter', percent_yoy: '% year on year',
-};
-
-function unitLabel(unit: string, scale: number) {
-  return unit === 'EUR' && scale === 6 ? 'Millions of EUR' : unitLabels[unit] ?? unit;
-}
-
 export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }) {
   const [indicators, setIndicators] = useState<Awaited<ReturnType<typeof getMacroIndicators>>>();
   const [failed, setFailed] = useState(false);

@@ -49,7 +49,7 @@ it('connects real daily readings across weekends with proportional temporal spac
   const xs = dots.map((dot) => Number(dot.getAttribute('cx')));
   expect((xs[1] - xs[0]) / (xs[2] - xs[1])).toBeCloseTo(3);
   expect(svg.querySelector('.macro-line')?.getAttribute('points')?.split(' ')).toHaveLength(3);
-  expect(dots[1].textContent).toContain('2026-06-08 · 1.2 USD/EUR');
+  expect(dots[1].textContent).toContain('2026-06-08 · 1.2 USD per EUR');
 });
 
 it.each([
@@ -248,7 +248,7 @@ it('shows the exact decimal in a colored tooltip for pointer and keyboard intera
   const { container } = render(<MacroPlot history={history(rows)} />);
   const svg = container.querySelector('svg')!;
   fireEvent.pointerEnter(svg.querySelector('circle')!);
-  expect(screen.getByRole('tooltip').textContent).toContain('2026-06-05 \u00b7 1.000000000001 USD/EUR');
+  expect(screen.getByRole('tooltip').textContent).toContain('2026-06-05 \u00b7 1.000000000001 USD per EUR');
   expect(screen.getByRole('tooltip').getAttribute('style')).toContain('#16A34A');
   fireEvent.pointerLeave(svg);
   expect(screen.queryByRole('tooltip')).toBeNull();
@@ -273,7 +273,26 @@ it('keeps keyboard selection valid when changing from a long series to a short s
   rerender(<MacroPlot history={history([point('2026-06-03', '9')])} />);
   const svg = container.querySelector('svg')!;
   expect(svg.getAttribute('aria-valuenow')).toBe('0');
-  expect(screen.getByRole('tooltip').textContent).toContain('9 USD/EUR');
+  expect(screen.getByRole('tooltip').textContent).toContain('9 USD per EUR');
   fireEvent.keyDown(svg, { key: 'ArrowLeft' });
   expect(svg.getAttribute('aria-valuenow')).toBe('0');
+});
+
+it.each([
+  ['m3-stock', 'EUR', 6, 'Millions of EUR'],
+  ['eur-usd', 'USD/EUR', 0, 'USD per EUR'],
+  ['deposit-rate', 'percent_per_annum', 0, '% per year'],
+  ['real-gdp-qoq', 'percent_qoq', 0, '% quarter on quarter'],
+  ['hicp-yoy', 'percent_yoy', 0, '% year on year'],
+] as const)('preserves the source magnitude and readable unit for %s in tooltip and accessible text', (id, unit, multiplier, label) => {
+  const { container } = render(<MacroPlot history={history([point('2026-06-30', '17612461.010')], {
+    indicator: { ...indicator, id, unit, multiplier },
+  })} />);
+  const svg = container.querySelector('svg')!;
+  fireEvent.focus(svg);
+  const exactReading = `17612461.010 ${label}`;
+  expect(screen.getByRole('tooltip').textContent).toContain(exactReading);
+  expect(svg.getAttribute('aria-valuetext')).toContain(exactReading);
+  expect(svg.querySelector('title')?.textContent).toContain(label);
+  expect(svg.querySelector('circle title')?.textContent).toContain(exactReading);
 });

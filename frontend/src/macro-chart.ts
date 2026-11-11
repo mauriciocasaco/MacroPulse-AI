@@ -12,6 +12,14 @@ export const indicatorStyles: Record<string, { label: string; color: string }> =
 export function indicatorPresentation(indicator: MacroIndicator) {
   return indicatorStyles[indicator.id] ?? { label: indicator.title, color: '#2563EB' };
 }
+const unitLabels: Record<string, string> = {
+  'USD/EUR': 'USD per EUR', EUR: 'EUR', percent_per_annum: '% per year',
+  percent_qoq: '% quarter on quarter', percent_yoy: '% year on year',
+};
+export function unitLabel(unit: string, scale: number) {
+  return unit === 'EUR' && scale === 6 ? 'Millions of EUR' : unitLabels[unit] ?? unit;
+}
+
 export type ChartHistory = MacroHistory & { chunks: MacroHistory[] };
 const dayMs = 86_400_000;
 // The public Worker allows fewer than 2,600 days per request. Use its
