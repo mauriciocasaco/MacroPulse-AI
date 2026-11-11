@@ -77,7 +77,7 @@ it.each([
 ].flatMap(([id, label]) => [
   [id, label, 'COVID-19', 'How did the COVID-19 pandemic affect'],
   [id, label, 'Ukraine War', 'How did the war in Ukraine affect'],
-  [id, label, 'Generative AI', 'How did the rise of generative AI and LLMs affect'],
+  [id, label, 'Generative AI Boom', 'How did the rise of generative AI and LLMs affect'],
 ]))('passes the selected indicator to research without submitting: %s / %s / %s', async (id, label, event, prefix) => {
   const fetch = stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
   render(<App macroAiEnabled />);
@@ -88,7 +88,7 @@ it.each([
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
 
-it('submits a customized question with the selected chart period only after Ask', async () => {
+it('submits the event window and chart indicator after Ask LLM Model, independently of chart period', async () => {
   const historyFetch = stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
   const analysis = vi.fn(async (_url: string, init: RequestInit) => Response.json({
     ...JSON.parse(String(init.body)), status: 'insufficient_evidence', facts: [], calculations: [],
@@ -104,12 +104,32 @@ it('submits a customized question with the selected chart period only after Ask'
     target: { value: 'How did the Federal Reserve change interest rates?' },
   });
   expect(analysis).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   await screen.findByText('There is insufficient evidence for an answer.');
   expect(analysis).toHaveBeenCalledTimes(1);
   expect(JSON.parse(String(analysis.mock.calls[0][1].body))).toEqual({
-    question: 'How did the Federal Reserve change interest rates?', start: '2026-03-30', end: '2026-06-30',
+    question: 'How did the Federal Reserve change interest rates?', start: '2020-02-01', end: '2020-12-31',
+    indicator_id: 'eur-usd', event_id: 'covid',
   });
+});
+
+it('keeps the chart, composer and custom question synchronized across selection and period changes', async () => {
+  stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
+  render(<App macroAiEnabled />);
+  await screen.findByLabelText('Research question');
+  fireEvent.click(screen.getByRole('button', { name: 'Eurozone M3' }));
+  expect(screen.getByLabelText('Indicator')).toHaveProperty('value', 'm3-stock');
+  await screen.findByLabelText('Eurozone M3: official observations by period');
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'What changed in M3?' } });
+  fireEvent.click(screen.getByRole('button', { name: '7Y' }));
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value', 'What changed in M3?');
+  fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: 'hicp-yoy' } });
+  expect(screen.getByRole('button', { name: 'Eurozone Inflation' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value', 'What changed in M3?');
+  expect(screen.getByText(/Your custom question is preserved\. Review it for the selected indicator/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Use generated question' }));
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value',
+    'How did the COVID-19 pandemic affect Eurozone Inflation?');
 });
 
 it('plots monthly observations without filling gaps and preserves source decimals and units', async () => {
@@ -118,13 +138,15 @@ it('plots monthly observations without filling gaps and preserves source decimal
     point('2026-06', '2026-06-01', '2026-06-30', '17612461.010'),
   ]);
   render(<App />);
-  expect(await screen.findByRole('heading', { name: 'Macroeconomic evidence explorer' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'AI-Powered Macroeconomic Intelligence' })).toBeTruthy();
   fireEvent.change(await screen.findByLabelText('Indicator'), { target: { value: 'm3-stock' } });
   const svg = await screen.findByLabelText('Eurozone M3: official observations by period');
   expect(svg.querySelectorAll('circle')).toHaveLength(1);
   expect(svg.querySelector('.macro-segment')).toBeNull();
-  expect(screen.getByText(/1 marked missing/)).toBeTruthy();
-  expect(within(screen.getByRole('table')).getByText('17612461.010')).toBeTruthy();
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(screen.queryByText(/marked missing|Last captured|View observations/)).toBeNull();
+  fireEvent.pointerEnter(svg.querySelector('circle')!);
+  expect(screen.getByRole('tooltip').textContent).toContain('17612461.010 Millions of EUR');
   expect(screen.getByRole('link', { name: 'ECB statistics' }).getAttribute('href')).toBe('https://data.ecb.europa.eu/');
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
@@ -136,8 +158,8 @@ it('displays deposit events separately from bounded applicability', async () => 
   const svg = await screen.findByLabelText(/ECB rate: effective events/);
   expect(svg.querySelectorAll('circle')).toHaveLength(1);
   expect(svg.querySelectorAll('.macro-segment')).toHaveLength(2);
-  expect(screen.getByText(/through 2026-06-25/)).toBeTruthy();
-  expect(within(screen.getByRole('table')).getByText('2025-06-11 (prior event)')).toBeTruthy();
+  expect(svg.getAttribute('data-domain-end')).toBe('2026-06-25');
+  expect(screen.queryByRole('table')).toBeNull();
 });
 
 it('shows five friendly names and colors and preserves the selected period across indicators', async () => {
@@ -148,7 +170,7 @@ it('shows five friendly names and colors and preserves the selected period acros
   render(<App />);
   await screen.findByLabelText('EUR/USD rate: official observations by period');
   const periods = within(screen.getByRole('group', { name: 'History period' }));
-  expect(periods.getAllByRole('button').map((button) => button.textContent)).toEqual(['1M', '3M', '6M', '1Y', '3Y', 'MAX']);
+  expect(periods.getAllByRole('button').map((button) => button.textContent)).toEqual(['1M', '3M', '6M', '1Y', '3Y', '7Y']);
   fireEvent.click(periods.getByRole('button', { name: '3M' }));
   const expected = [
     ['eur-usd', 'EUR/USD rate', '#16A34A'], ['m3-stock', 'Eurozone M3', '#2563EB'],
@@ -162,7 +184,8 @@ it('shows five friendly names and colors and preserves the selected period acros
     expect(screen.getByRole('heading', { name: label })).toBeTruthy();
     expect(screen.getByRole('option', { name: label }).getAttribute('value')).toBe(id);
     expect(periods.getByRole('button', { name: '3M' }).getAttribute('aria-pressed')).toBe('true');
-    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(id === 'deposit-rate' ? 3 : 2);
+    expect(svg.querySelectorAll('circle')).toHaveLength(1);
+    expect(screen.queryByRole('table')).toBeNull();
   }
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
@@ -188,19 +211,24 @@ it('recovers a failed history request and changes finite periods without refetch
   expect(fixture.mock.calls).toHaveLength(before);
 });
 
-it('selects MAX and updates the table and chart to the complete history without an analysis call', async () => {
+it('limits the longest preset to seven years and preserves attribution without redundant metadata', async () => {
   const fetch = stubMacroApi([
     point('2010-01-04', '2010-01-04', '2010-01-04', '1.43'),
+    point('2020-01-04', '2020-01-04', '2020-01-04', '1.23'),
     point('2026-06-30', '2026-06-30', '2026-06-30', '1.10'),
   ]);
   render(<App />);
   await screen.findByLabelText('EUR/USD rate: official observations by period');
-  fireEvent.click(screen.getByRole('button', { name: 'MAX' }));
+  fireEvent.click(screen.getByRole('button', { name: '7Y' }));
   const svg = await screen.findByLabelText('EUR/USD rate: official observations by period');
-  expect(svg.getAttribute('data-domain-start')).toBe('2010-01-04');
+  expect(svg.getAttribute('data-domain-start')).toBe('2020-01-04');
   expect(svg.getAttribute('data-domain-end')).toBe('2026-06-30');
   expect(svg.querySelectorAll('circle')).toHaveLength(2);
-  expect(screen.getByRole('button', { name: 'MAX' }).getAttribute('aria-pressed')).toBe('true');
-  expect(within(screen.getByRole('table')).getByText('1.43')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '7Y' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.queryByRole('button', { name: 'MAX' })).toBeNull();
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(screen.queryByText('fixture')).toBeNull();
+  expect(screen.getByRole('link', { name: 'Reuse terms' })).toBeTruthy();
+  expect(screen.getByText('Powered by LLMs, RAG, LangChain and LangGraph.')).toBeTruthy();
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });

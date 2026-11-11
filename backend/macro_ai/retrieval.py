@@ -87,7 +87,8 @@ class CorpusIndex:
                 page_content = " ".join(words[offset:offset + 96])
                 self.chunks.append(Document(
                     page_content=page_content, id=f"doc:{item.id}:{offset // 80 + 1}",
-                    metadata=item.model_dump(exclude={"text", "excerpt"}),
+                    metadata={**item.model_dump(exclude={"text", "excerpt"}),
+                              "approved_sentences": re.split(r"(?<=[.!?])\s+", item.text)},
                 ))
                 if offset + 96 >= len(words):
                     break
@@ -106,21 +107,26 @@ class CorpusIndex:
             raise ValueError("research corpus exceeds size limit")
         return cls(TypeAdapter(list[CorpusDocument]).validate_json(content))
 
-    def retrieve(self, question: str, topics: tuple[str, ...], cutoff: date) -> list[Document]:
-        """Require the indicator topic, then rank by topic overlap and lexical similarity."""
+    def retrieve(self, question: str, topics: tuple[str, ...], cutoff: date, *,
+                 event: str | None = None, onset: date | None = None) -> list[Document]:
+        """Filter permission/topic/time/event eligibility before true cosine ranking."""
         if not topics:
             return []
-        topic_set = set(topics)
         query = self.embeddings.embed_query(f"{question} {' '.join(topics)}")
         ranked = []
         for index, (chunk, vector) in enumerate(zip(self.chunks, self.vectors, strict=True)):
             meta = chunk.metadata
             if meta["published_on"] > cutoff or topics[0] not in meta["topics"]:
                 continue
+            if event and (event not in meta["topics"] or (onset and meta["published_on"] < onset)):
+                continue
             score = sum(left * right for left, right in zip(query, vector, strict=True))
             if score >= 0.025:
-                ranked.append((-len(topic_set.intersection(meta["topics"])), -score, index))
-        return [self.chunks[index] for _, _, index in sorted(ranked)[:MAX_HITS]]
+                ranked.append((-min(1.0, max(0.0, score)), index))
+        return [Document(page_content=self.chunks[index].page_content, id=self.chunks[index].id,
+                         metadata={**self.chunks[index].metadata, "similarity_score": -score,
+                                   "similarity_metric": "cosine"})
+                for score, index in sorted(ranked)[:MAX_HITS]]
 
 
 def document_evidence(document: Document) -> Evidence:
@@ -128,4 +134,6 @@ def document_evidence(document: Document) -> Evidence:
     return Evidence(
         id=document.id, kind="document", title=meta["title"], url=meta["url"],
         attribution=meta["attribution"], published_on=meta["published_on"],
+        rights_url=meta["rights_url"], similarity_score=meta.get("similarity_score"),
+        similarity_metric=meta.get("similarity_metric"),
     )

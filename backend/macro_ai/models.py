@@ -5,13 +5,30 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..macro_data.api import MacroWindow
 
 
+EVENT_WINDOWS = {
+    "covid": (date(2020, 2, 1), date(2020, 12, 31)),
+    "ukraine": (date(2022, 2, 1), date(2024, 2, 29)),
+    "generative-ai": (date(2023, 9, 1), date(2026, 9, 30)),
+}
+IndicatorId = Literal["eur-usd", "m3-stock", "deposit-rate", "real-gdp-qoq", "hicp-yoy"]
+EventId = Literal["covid", "ukraine", "generative-ai"]
+
+
 class ResearchRequest(MacroWindow):
     question: str = Field(min_length=5, max_length=500)
+    indicator_id: IndicatorId | None = None
+    event_id: EventId | None = None
+
+    @model_validator(mode="after")
+    def selected_window(self):
+        if self.event_id and (self.start, self.end) != EVENT_WINDOWS[self.event_id]:
+            raise ValueError("selected event requires its exact historical window")
+        return self
 
     @field_validator("question")
     @classmethod
@@ -31,6 +48,9 @@ class Evidence(BaseModel):
     period_start: date | None = None
     period_end: date | None = None
     published_on: date | None = None
+    rights_url: str | None = None
+    similarity_score: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    similarity_metric: Literal["cosine"] | None = None
 
 
 class Claim(BaseModel):
@@ -40,16 +60,10 @@ class Claim(BaseModel):
     citations: list[str] = Field(min_length=1, max_length=4)
 
 
-class CitationSelection(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    citations: list[str] = Field(min_length=2, max_length=4)
-
-
 class GeminiDraft(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    selections: list[CitationSelection] = Field(min_length=1, max_length=2)
+    narrative: list[Claim] = Field(min_length=1, max_length=12)
 
 
 class ResearchResponse(BaseModel):
@@ -63,18 +77,7 @@ class ResearchResponse(BaseModel):
     limitations: list[str]
     evidence: list[Evidence]
     graph_steps: list[str]
-
-
-def selected_citations(output: object, evidence: list[Evidence]) -> list[tuple[str, ...]]:
-    """Return only validated source selections from the untrusted draft."""
-    draft = output if isinstance(output, GeminiDraft) else GeminiDraft.model_validate(output)
-    kinds = {entry.id: entry.kind for entry in evidence}
-    selections = []
-    for selection in draft.selections:
-        citations = selection.citations
-        if (len(set(citations)) != len(citations)
-                or any(citation not in kinds for citation in citations)
-                or {kinds[citation] for citation in citations} != {"series", "document"}):
-            raise ValueError("invalid model evidence references")
-        selections.append(tuple(citations))
-    return selections
+    narrative: list[Claim] = Field(default_factory=list)
+    model_id: str | None = None
+    indicator_id: IndicatorId | None = None
+    event_id: EventId | None = None

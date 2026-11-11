@@ -1,0 +1,13 @@
+.question-composer { display: grid; gap: 0.8rem; min-width: 0; }
+.question-composer .composer-options { margin: 0; padding: 0; border: 0; min-width: 0; }
+.question-composer legend { margin-bottom: 0.5rem; font-weight: 600; }
+.question-composer .composer-choices, .question-composer .composer-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.question-composer .composer-choices button { white-space: normal; overflow-wrap: anywhere; }
+.question-composer button[aria-pressed="true"] { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
+.question-composer textarea { box-sizing: border-box; width: 100%; min-width: 0; resize: vertical; }
+.question-composer .composer-context { margin: 0; overflow-wrap: anywhere; }
+.question-composer button:focus-visible, .question-composer textarea:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+@media (max-width: 480px) {
+  .question-composer .composer-choices button { flex: 1 1 9rem; }
+  .question-composer .composer-actions button { flex: 1 1 auto; }
+}
