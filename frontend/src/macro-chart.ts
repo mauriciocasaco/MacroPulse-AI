@@ -1,6 +1,6 @@
 import { getMacroHistory, type MacroHistory, type MacroIndicator, type MacroObservation } from './macro-api';
 
-export const chartPeriods = ['1M', '3M', '6M', '1Y', '3Y', 'MAX'] as const;
+export const chartPeriods = ['1M', '3M', '6M', '1Y', '3Y', '7Y'] as const;
 export type ChartPeriod = typeof chartPeriods[number];
 export const indicatorStyles: Record<string, { label: string; color: string }> = {
   'eur-usd': { label: 'EUR/USD rate', color: '#16A34A' },
@@ -34,7 +34,7 @@ export function subtractMonths(day: string, months: number) {
   return iso(date);
 }
 
-export async function loadChartHistory(id: string, full: boolean, signal: AbortSignal): Promise<ChartHistory> {
+export async function loadChartHistory(id: string, signal: AbortSignal): Promise<ChartHistory> {
   const chunks: MacroHistory[] = [];
   let end = iso(new Date());
   while (end >= historyFloor) {
@@ -46,7 +46,7 @@ export async function loadChartHistory(id: string, full: boolean, signal: AbortS
     // when a series has no recent numeric data, even for a short preset.
     const latest = chunks.flatMap((item) => item.observations).filter(numeric)
       .map(pointDay).sort().at(-1) ?? chunks.flatMap((item) => item.anchor && numeric(item.anchor) ? [pointDay(item.anchor)] : []).sort().at(-1);
-    if (!full && latest && start <= subtractMonths(latest, 36)) break;
+    if (latest && start <= subtractMonths(latest, 84)) break;
     end = iso(new Date(Date.parse(start) - dayMs));
   }
   const first = chunks[0];
@@ -69,9 +69,7 @@ export function selectHistory(history: ChartHistory, period: ChartPeriod): Chart
   const verifiedEnd = history.chunks.flatMap((chunk) => chunk.coverage_end ? [chunk.coverage_end] : []).sort().at(-1);
   const end = history.indicator.frequency === 'effective_date' && verifiedEnd
     ? [latestReading, verifiedEnd].sort().at(-1)! : latestReading;
-  const first = readings[0] ?? history.anchor;
-  const start = period === 'MAX' ? (first ? pointDay(first) : history.start)
-    : subtractMonths(end, { '1M': 1, '3M': 3, '6M': 6, '1Y': 12, '3Y': 36 }[period]);
+  const start = subtractMonths(end, { '1M': 1, '3M': 3, '6M': 6, '1Y': 12, '3Y': 36, '7Y': 84 }[period]);
   const observations = history.observations.filter((row) => pointDay(row) >= start && pointDay(row) <= end);
   const prior = [history.anchor, ...history.observations].filter((row): row is MacroObservation => row !== null && pointDay(row) < start).at(-1);
   return { ...history, start, end, observations,
@@ -96,8 +94,7 @@ export function rateSegments(history: ChartHistory) {
   });
 }
 
-// The existing research API also caps a query at 3,660 days. Chart MAX may
-// span more: keep the research call valid and disclose its narrower window.
+// Keep research calls compatible with the existing 3,660-day API bound.
 export function researchWindow(history: MacroHistory) {
   const earliest = iso(new Date(Date.parse(history.end) - 3660 * dayMs));
   return { start: history.start < earliest ? earliest : history.start, end: history.end };

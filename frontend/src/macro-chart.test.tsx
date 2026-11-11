@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import type { MacroHistory, MacroIndicator, MacroObservation } from './macro-api';
@@ -24,7 +24,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 it.each([
   ['1M', '2026-05-30'], ['3M', '2026-03-30'], ['6M', '2025-12-30'],
-  ['1Y', '2025-06-30'], ['3Y', '2023-06-30'], ['MAX', '2020-01-01'],
+  ['1Y', '2025-06-30'], ['3Y', '2023-06-30'], ['7Y', '2019-06-30'],
 ] as const)('anchors %s to the latest numeric reading rather than today', (period, start) => {
   const result = selectHistory(history([point('2020-01-01', '1'), point('2026-06-30', '2'), point('2026-07-01', null)]), period);
   expect(result.start).toBe(start);
@@ -98,25 +98,26 @@ it('does not extend a BCE step over missing values or unverified intervals', () 
   expect(rateSegments(data)).toEqual([]);
 });
 
-it('loads MAX in disjoint API-compatible windows, including data older than ten years', async () => {
+it('loads seven years through API-compatible windows without unbounded history', async () => {
   vi.setSystemTime(new Date('2026-07-01T00:00:00Z'));
   const fetch = vi.fn(async (request: string) => {
     const url = new URL(request, 'http://localhost');
     const start = url.searchParams.get('start')!;
     const end = url.searchParams.get('end')!;
-    const rows = [point('1999-01-04', '1.17'), point('2026-06-30', '1.1')]
+    const rows = [point('2019-06-30', '1.17'), point('2026-06-30', '1.1')]
       .filter((row) => row.period_end >= start && row.period_end <= end);
     return Response.json({ ...history(rows), start, end });
   });
   vi.stubGlobal('fetch', fetch);
-  const result = selectHistory(await loadChartHistory('eur-usd', true, new AbortController().signal), 'MAX');
-  expect(result.observations.map((row) => row.period_raw)).toEqual(['1999-01-04', '2026-06-30']);
-  expect(result.start).toBe('1999-01-04');
+  const result = selectHistory(await loadChartHistory('eur-usd', new AbortController().signal), '7Y');
+  expect(result.observations.map((row) => row.period_raw)).toEqual(['2019-06-30', '2026-06-30']);
+  expect(result.start).toBe('2019-06-30');
   const windows = fetch.mock.calls.map(([request]) => {
     const url = new URL(request, 'http://localhost');
     return [url.searchParams.get('start')!, url.searchParams.get('end')!];
   });
-  expect(windows.at(-1)?.[0]).toBe('1900-01-01');
+  expect(windows).toHaveLength(1);
+  expect(windows[0][0] <= '2019-06-30').toBe(true);
   windows.forEach(([start, end], index) => {
     expect((Date.parse(end) - Date.parse(start)) / 86400000).toBeLessThan(2600);
     if (index) expect(Date.parse(windows[index - 1][0]) - Date.parse(end)).toBe(86400000);
@@ -141,12 +142,12 @@ it('provides 3:1 contrast using the exact data color or its neutral edge on ligh
   }
 });
 
-it('keeps the MAX research range compatible with the unchanged bounded API', () => {
-  const data = history([point('1999-01-04', '1.17'), point('2026-06-30', '1.1')]);
-  const selected = selectHistory(data, 'MAX');
+it('keeps the seven-year research range compatible with the unchanged bounded API', () => {
+  const data = history([point('2019-06-30', '1.17'), point('2026-06-30', '1.1')]);
+  const selected = selectHistory(data, '7Y');
   const research = researchWindow(selected);
-  expect(selected.start).toBe('1999-01-04');
-  expect((Date.parse(research.end) - Date.parse(research.start)) / 86400000).toBe(3660);
+  expect(selected.start).toBe('2019-06-30');
+  expect(research).toEqual({ start: '2019-06-30', end: '2026-06-30' });
   expect(researchWindow(selectHistory(data, '3Y'))).toEqual({ start: '2023-06-30', end: '2026-06-30' });
 });
 
@@ -161,7 +162,7 @@ it('handles all-missing and unverified anchor-only data without inventing plot p
   expect(rendered.container.querySelectorAll('circle, line')).toHaveLength(0);
 });
 
-it('searches older chunks for stale series and loads enough history for the three-year preset', async () => {
+it('searches older chunks for stale series and loads enough history for the seven-year preset', async () => {
   vi.setSystemTime(new Date('2026-07-01T00:00:00Z'));
   const fetch = vi.fn(async (request: string) => {
     const url = new URL(request, 'http://localhost');
@@ -172,7 +173,7 @@ it('searches older chunks for stale series and loads enough history for the thre
     return Response.json({ ...history(rows), start, end });
   });
   vi.stubGlobal('fetch', fetch);
-  const result = selectHistory(await loadChartHistory('eur-usd', false, new AbortController().signal), '3Y');
+  const result = selectHistory(await loadChartHistory('eur-usd', new AbortController().signal), '3Y');
   expect(result.start).toBe('2004-01-01');
   expect(result.end).toBe('2007-01-01');
   expect(result.observations).toHaveLength(2);
@@ -187,7 +188,7 @@ it('stops chunk retrieval when aborted', async () => {
     return Response.json({ ...history([]), start: url.searchParams.get('start'), end: url.searchParams.get('end') });
   });
   vi.stubGlobal('fetch', fetch);
-  await expect(loadChartHistory('eur-usd', true, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+  await expect(loadChartHistory('eur-usd', controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -216,13 +217,13 @@ it('loads all five indicators and six presets through the actual public Worker w
     }), env) : upstream(target));
   vi.setSystemTime(new Date('2026-07-01T00:00:00Z'));
   for (const id of Object.keys(indicatorStyles)) {
-    const loaded = await loadChartHistory(id, true, new AbortController().signal);
-    expect(loaded.observations).toHaveLength(2);
+    const loaded = await loadChartHistory(id, new AbortController().signal);
+    expect(loaded.observations).toHaveLength(1);
     for (const period of chartPeriods) {
       expect(selectHistory(loaded, period).observations.at(-1)?.value).toBe('2');
     }
   }
-  expect(upstream.mock.calls.length).toBeGreaterThan(5);
+  expect(upstream.mock.calls.length).toBe(5);
 });
 
 it('deduplicates monthly source periods that intersect adjacent retrieval windows', async () => {
@@ -237,7 +238,42 @@ it('deduplicates monthly source periods that intersect adjacent retrieval window
     const observations = row.period_end >= start && row.period_start <= end ? [row] : [];
     return Response.json({ ...history(observations), indicator: { ...indicator, id: 'm3-stock', frequency: 'monthly' }, start, end });
   }));
-  const result = await loadChartHistory('m3-stock', true, new AbortController().signal);
+  const result = await loadChartHistory('m3-stock', new AbortController().signal);
   expect(result.observations).toEqual([row]);
   expect(result.chunks.length).toBeGreaterThan(1);
+});
+
+it('shows the exact decimal in a colored tooltip for pointer and keyboard interaction', () => {
+  const rows = [point('2026-06-05', '1.000000000001'), point('2026-06-08', '1.250000000002')];
+  const { container } = render(<MacroPlot history={history(rows)} />);
+  const svg = container.querySelector('svg')!;
+  fireEvent.pointerEnter(svg.querySelector('circle')!);
+  expect(screen.getByRole('tooltip').textContent).toContain('2026-06-05 \u00b7 1.000000000001 USD/EUR');
+  expect(screen.getByRole('tooltip').getAttribute('style')).toContain('#16A34A');
+  fireEvent.pointerLeave(svg);
+  expect(screen.queryByRole('tooltip')).toBeNull();
+  fireEvent.focus(svg);
+  expect(screen.getByRole('tooltip').textContent).toContain('1.250000000002');
+  fireEvent.keyDown(svg, { key: 'ArrowLeft' });
+  expect(screen.getByRole('tooltip').textContent).toContain('1.000000000001');
+  fireEvent.keyDown(svg, { key: 'End' });
+  expect(screen.getByRole('tooltip').textContent).toContain('1.250000000002');
+  fireEvent.keyDown(svg, { key: 'Home' });
+  expect(screen.getByRole('tooltip').textContent).toContain('1.000000000001');
+  fireEvent.keyDown(svg, { key: 'Escape' });
+  expect(screen.queryByRole('tooltip')).toBeNull();
+  expect(svg.getAttribute('aria-describedby')).not.toContain('undefined');
+});
+
+it('keeps keyboard selection valid when changing from a long series to a short series', () => {
+  const { container, rerender } = render(<MacroPlot history={history([
+    point('2026-06-01', '1'), point('2026-06-02', '2'), point('2026-06-03', '3'),
+  ])} />);
+  fireEvent.focus(container.querySelector('svg')!);
+  rerender(<MacroPlot history={history([point('2026-06-03', '9')])} />);
+  const svg = container.querySelector('svg')!;
+  expect(svg.getAttribute('aria-valuenow')).toBe('0');
+  expect(screen.getByRole('tooltip').textContent).toContain('9 USD/EUR');
+  fireEvent.keyDown(svg, { key: 'ArrowLeft' });
+  expect(svg.getAttribute('aria-valuenow')).toBe('0');
 });
