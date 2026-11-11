@@ -1,0 +1,3229 @@
+{
+  "cases": [
+    {
+      "id": "covid-hicp-april-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "claim_id": "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.38262199251480633
+            }
+          ],
+          "latency_samples_ms": [
+            0.08819997310638428,
+            0.04480034112930298,
+            0.03750016912817955
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.8454335927963257
+            }
+          ],
+          "latency_samples_ms": [
+            21.186599973589182,
+            19.02179978787899,
+            18.438699655234814
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "bm25_rank": 1,
+              "bm25_score": 0.38262199251480633,
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "e5_cosine": 0.8454335927963257,
+              "e5_passage": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            }
+          ],
+          "latency_samples_ms": [
+            20.1214998960495,
+            19.894800148904324,
+            18.94909981638193
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0926000066101551,
+            0.0867997296154499,
+            0.07249973714351654
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.23296252259314187
+            }
+          ],
+          "latency_samples_ms": [
+            0.387000385671854,
+            0.3220001235604286,
+            0.3133001737296581
+          ],
+          "m7b_eligible_documents": 1
+        }
+      }
+    },
+    {
+      "id": "covid-hicp-energy",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 8.319394137940636
+            },
+            {
+              "best_passage_id": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "claim_id": "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 7.348383373670711
+            },
+            {
+              "best_passage_id": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 0.16902547885904434
+            }
+          ],
+          "latency_samples_ms": [
+            0.09120022878050804,
+            0.06370013579726219,
+            0.051999930292367935
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "claim_id": "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 0.8492735624313354
+            },
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.8403498530387878
+            },
+            {
+              "best_passage_id": "claim:7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 0.7946813106536865
+            }
+          ],
+          "latency_samples_ms": [
+            17.153600230813026,
+            16.683599911630154,
+            16.476899851113558
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "bm25_rank": 2,
+              "bm25_score": 7.348383373670711,
+              "claim_id": "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "e5_cosine": 0.8492735624313354,
+              "e5_passage": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03252247488101534
+            },
+            {
+              "bm25_passage": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "bm25_rank": 1,
+              "bm25_score": 8.319394137940636,
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "e5_cosine": 0.8403498530387878,
+              "e5_passage": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03252247488101534
+            },
+            {
+              "bm25_passage": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "bm25_rank": 3,
+              "bm25_score": 0.16902547885904434,
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "e5_cosine": 0.7946813106536865,
+              "e5_passage": "claim:7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "e5_rank": 3,
+              "relation": "context",
+              "score": 0.031746031746031744
+            }
+          ],
+          "latency_samples_ms": [
+            18.283599987626076,
+            17.32640014961362,
+            17.441200092434883
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.08179992437362671,
+            0.06560003384947777,
+            0.0629001297056675
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "claim_id": "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 0.3096655158892337
+            },
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.2763305577473846
+            },
+            {
+              "best_passage_id": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 0.044811044871415254
+            }
+          ],
+          "latency_samples_ms": [
+            0.5517001263797283,
+            0.49300026148557663,
+            0.4861997440457344
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "covid-hicp-november",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "claim_id": "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 5.3261464257209905
+            },
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 3.3901204878282614
+            },
+            {
+              "best_passage_id": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 1.7706929264568092
+            }
+          ],
+          "latency_samples_ms": [
+            0.11010002344846725,
+            0.08120015263557434,
+            0.06430037319660187
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "claim:811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "claim_id": "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 0.8905255198478699
+            },
+            {
+              "best_passage_id": "claim:6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "claim_id": "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.8628265857696533
+            },
+            {
+              "best_passage_id": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 0.8225998878479004
+            }
+          ],
+          "latency_samples_ms": [
+            15.5349001288414,
+            16.651200130581856,
+            21.526200231164694
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "bm25_rank": 1,
+              "bm25_score": 5.3261464257209905,
+              "claim_id": "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "e5_cosine": 0.8905255198478699,
+              "e5_passage": "claim:811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "bm25_rank": 2,
+              "bm25_score": 3.3901204878282614,
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "e5_cosine": 0.8628265857696533,
+              "e5_passage": "claim:6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03225806451612903
+            },
+            {
+              "bm25_passage": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "bm25_rank": 3,
+              "bm25_score": 1.7706929264568092,
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "e5_cosine": 0.8225998878479004,
+              "e5_passage": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "e5_rank": 3,
+              "relation": "context",
+              "score": 0.031746031746031744
+            }
+          ],
+          "latency_samples_ms": [
+            16.05940004810691,
+            16.3527000695467,
+            15.706100035458803
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.08430005982518196,
+            0.06570015102624893,
+            0.06249966099858284
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "claim_id": "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 0.36096791522683896
+            },
+            {
+              "best_passage_id": "claim:6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "claim_id": "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.25666142331664676
+            },
+            {
+              "best_passage_id": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 0.08071708672710719
+            }
+          ],
+          "latency_samples_ms": [
+            0.5957996472716331,
+            0.5393000319600105,
+            0.5952999927103519
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "covid-gdp-flash-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "claim_id": "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 1.1488977603784647
+            }
+          ],
+          "latency_samples_ms": [
+            0.07139984518289566,
+            0.03880029544234276,
+            0.03439979627728462
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "claim:3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "claim_id": "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 0.8127437829971313
+            }
+          ],
+          "latency_samples_ms": [
+            23.751200176775455,
+            20.074600353837013,
+            20.41050000116229
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "bm25_rank": 1,
+              "bm25_score": 1.1488977603784647,
+              "claim_id": "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "e5_cosine": 0.8127437829971313,
+              "e5_passage": "claim:3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            }
+          ],
+          "latency_samples_ms": [
+            21.955400239676237,
+            25.894999969750643,
+            25.786499958485365
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.09119976311922073,
+            0.07119961082935333,
+            0.06889970973134041
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "claim_id": "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 0.18886572849856115
+            }
+          ],
+          "latency_samples_ms": [
+            0.457600224763155,
+            0.33750012516975403,
+            0.3181002102792263
+          ],
+          "m7b_eligible_documents": 1
+        }
+      }
+    },
+    {
+      "id": "covid-gdp-q2-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+              "claim_id": "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "score": 0.2994926517118073
+            },
+            {
+              "best_passage_id": "claim:4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "claim_id": "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 0.29390497353867445
+            }
+          ],
+          "latency_samples_ms": [
+            0.07600011304020882,
+            0.04430022090673447,
+            0.039400067180395126
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "claim_id": "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "score": 0.807360053062439
+            },
+            {
+              "best_passage_id": "claim:3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "claim_id": "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 0.7836397290229797
+            }
+          ],
+          "latency_samples_ms": [
+            18.80530035123229,
+            23.32520019263029,
+            23.497100453823805
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+              "bm25_rank": 1,
+              "bm25_score": 0.2994926517118073,
+              "claim_id": "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "e5_cosine": 0.807360053062439,
+              "e5_passage": "summary:f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "claim:4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "bm25_rank": 2,
+              "bm25_score": 0.29390497353867445,
+              "claim_id": "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "e5_cosine": 0.7836397290229797,
+              "e5_passage": "claim:3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03225806451612903
+            }
+          ],
+          "latency_samples_ms": [
+            19.10379994660616,
+            18.347499892115593,
+            18.211900256574154
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "legacy_runtime": {
+          "hits": [
+            {
+              "best_passage_id": "doc:eurostat-gdp-q2-2020:1",
+              "claim_id": null,
+              "document_id": "eurostat-gdp-q2-2020",
+              "score": 0.4320094201546264
+            }
+          ],
+          "latency_samples_ms": [
+            0.14959974214434624,
+            0.10750023648142815,
+            0.09400025010108948
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+              "claim_id": "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "score": 0.12260819862523985
+            },
+            {
+              "best_passage_id": "claim:4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "claim_id": "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 0.116174414230897
+            }
+          ],
+          "latency_samples_ms": [
+            0.5705002695322037,
+            0.5010003224015236,
+            0.4952000454068184
+          ],
+          "m7b_eligible_documents": 2
+        }
+      }
+    },
+    {
+      "id": "covid-gdp-revision",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "claim_id": "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "score": 5.227275419303983
+            },
+            {
+              "best_passage_id": "summary:4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "claim_id": "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 3.7138689586547766
+            }
+          ],
+          "latency_samples_ms": [
+            0.11090002954006195,
+            0.07159961387515068,
+            0.06520003080368042
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "claim_id": "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "score": 0.9066740870475769
+            },
+            {
+              "best_passage_id": "summary:4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "claim_id": "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 0.8842955827713013
+            }
+          ],
+          "latency_samples_ms": [
+            21.4521000161767,
+            22.002900019288063,
+            22.13469985872507
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "bm25_rank": 1,
+              "bm25_score": 5.227275419303983,
+              "claim_id": "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "e5_cosine": 0.9066740870475769,
+              "e5_passage": "summary:f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "bm25_rank": 2,
+              "bm25_score": 3.7138689586547766,
+              "claim_id": "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "e5_cosine": 0.8842955827713013,
+              "e5_passage": "summary:4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03225806451612903
+            }
+          ],
+          "latency_samples_ms": [
+            23.45720026642084,
+            18.99140002205968,
+            19.41889990121126
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "legacy_runtime": {
+          "hits": [
+            {
+              "best_passage_id": "doc:eurostat-gdp-q2-2020:1",
+              "claim_id": null,
+              "document_id": "eurostat-gdp-q2-2020",
+              "score": 0.5709947905513533
+            }
+          ],
+          "latency_samples_ms": [
+            0.15240022912621498,
+            0.12019975110888481,
+            0.09220000356435776
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "claim_id": "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+              "document_id": "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+              "score": 0.46830003789922764
+            },
+            {
+              "best_passage_id": "summary:4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "claim_id": "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+              "document_id": "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+              "score": 0.38307656281632896
+            }
+          ],
+          "latency_samples_ms": [
+            0.5598003044724464,
+            0.98840007558465,
+            0.9542996995151043
+          ],
+          "m7b_eligible_documents": 2
+        }
+      }
+    },
+    {
+      "id": "covid-money-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+              "claim_id": "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+              "document_id": "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b",
+              "score": 0.12946102692583403
+            },
+            {
+              "best_passage_id": "claim:8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+              "claim_id": "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+              "document_id": "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+              "score": 0.12946102692583403
+            }
+          ],
+          "latency_samples_ms": [
+            0.08829962462186813,
+            0.05069980397820473,
+            0.04660012200474739
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+              "claim_id": "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382",
+              "document_id": "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+              "score": 0.8468288779258728
+            },
+            {
+              "best_passage_id": "summary:479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b",
+              "claim_id": "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed",
+              "document_id": "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b",
+              "score": 0.8355414867401123
+            }
+          ],
+          "latency_samples_ms": [
+            22.937200032174587,
+            20.248299930244684,
+            20.318100228905678
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+              "bm25_rank": 1,
+              "bm25_score": 0.12946102692583403,
+              "claim_id": "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed",
+              "document_id": "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b",
+              "e5_cosine": 0.8355414867401123,
+              "e5_passage": "summary:479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b",
+              "e5_rank": 2,
+              "relation": "context",
+              "score": 0.03252247488101534
+            },
+            {
+              "bm25_passage": "claim:8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+              "bm25_rank": 2,
+              "bm25_score": 0.12946102692583403,
+              "claim_id": "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+              "document_id": "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+              "e5_cosine": 0.8468288779258728,
+              "e5_passage": "summary:9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+              "e5_rank": 1,
+              "relation": "context",
+              "score": 0.03252247488101534
+            }
+          ],
+          "latency_samples_ms": [
+            20.797300152480602,
+            21.77299978211522,
+            25.298799853771925
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.11159991845488548,
+            0.07830001413822174,
+            0.07200008258223534
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+              "claim_id": "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+              "document_id": "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+              "score": 0.36305084061251514
+            },
+            {
+              "best_passage_id": "claim:7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+              "claim_id": "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+              "document_id": "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b",
+              "score": 0.3601866624580304
+            }
+          ],
+          "latency_samples_ms": [
+            0.610200222581625,
+            0.46790018677711487,
+            0.5095000378787518
+          ],
+          "m7b_eligible_documents": 2
+        }
+      }
+    },
+    {
+      "id": "ukraine-hicp-oct-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "score": 1.5366176257753343
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": null,
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 1.0319851989907687
+            },
+            {
+              "best_passage_id": "claim:20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+              "claim_id": "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+              "document_id": "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "score": 0.7616212456086077
+            }
+          ],
+          "latency_samples_ms": [
+            0.07480010390281677,
+            0.04200031980872154,
+            0.037400051951408386
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "score": 0.8427090048789978
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.8014413118362427
+            },
+            {
+              "best_passage_id": "summary:e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "claim_id": "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+              "document_id": "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "score": 0.7980852127075195
+            }
+          ],
+          "latency_samples_ms": [
+            20.071400329470634,
+            24.15479999035597,
+            20.20409982651472
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "bm25_rank": 1,
+              "bm25_score": 1.5366176257753343,
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "e5_cosine": 0.8427090048789978,
+              "e5_passage": "summary:995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "bm25_rank": 2,
+              "bm25_score": 1.0319851989907687,
+              "claim_id": "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_cosine": 0.8014413118362427,
+              "e5_passage": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_rank": 2,
+              "relation": "context",
+              "score": 0.03225806451612903
+            },
+            {
+              "bm25_passage": "claim:20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+              "bm25_rank": 3,
+              "bm25_score": 0.7616212456086077,
+              "claim_id": "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+              "document_id": "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "e5_cosine": 0.7980852127075195,
+              "e5_passage": "summary:e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "e5_rank": 3,
+              "relation": "direct",
+              "score": 0.031746031746031744
+            }
+          ],
+          "latency_samples_ms": [
+            23.481699638068676,
+            19.393200054764748,
+            18.615299835801125
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [
+            {
+              "best_passage_id": "doc:ecb-ukraine-march-2022:1",
+              "claim_id": null,
+              "document_id": "ecb-ukraine-march-2022",
+              "score": 0.3581484231085484
+            },
+            {
+              "best_passage_id": "doc:eurostat-hicp-october-2022:1",
+              "claim_id": null,
+              "document_id": "eurostat-hicp-october-2022",
+              "score": 0.31866047080773663
+            }
+          ],
+          "latency_samples_ms": [
+            0.14429958537220955,
+            0.10579964146018028,
+            0.10039983317255974
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "score": 0.15860531572112885
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": null,
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.051075654728134454
+            }
+          ],
+          "latency_samples_ms": [
+            0.6075999699532986,
+            0.5369000136852264,
+            0.5069002509117126
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "ukraine-hicp-food",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "claim_id": "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+              "document_id": "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "score": 8.562170153221379
+            },
+            {
+              "best_passage_id": "summary:995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "score": 2.118627567507414
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 1.3500624447112481
+            }
+          ],
+          "latency_samples_ms": [
+            0.1762998290359974,
+            0.1175999641418457,
+            0.12149987742304802
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "claim_id": "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+              "document_id": "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "score": 0.9252198934555054
+            },
+            {
+              "best_passage_id": "summary:995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "score": 0.8893356919288635
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.8623952865600586
+            }
+          ],
+          "latency_samples_ms": [
+            21.214900072664022,
+            22.998999804258347,
+            24.041600059717894
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "bm25_rank": 1,
+              "bm25_score": 8.562170153221379,
+              "claim_id": "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+              "document_id": "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "e5_cosine": 0.9252198934555054,
+              "e5_passage": "summary:e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "bm25_rank": 2,
+              "bm25_score": 2.118627567507414,
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "e5_cosine": 0.8893356919288635,
+              "e5_passage": "summary:995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03225806451612903
+            },
+            {
+              "bm25_passage": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "bm25_rank": 3,
+              "bm25_score": 1.3500624447112481,
+              "claim_id": "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_cosine": 0.8623952865600586,
+              "e5_passage": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_rank": 3,
+              "relation": "context",
+              "score": 0.031746031746031744
+            }
+          ],
+          "latency_samples_ms": [
+            22.49189978465438,
+            21.23109996318817,
+            22.75589993223548
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [
+            {
+              "best_passage_id": "doc:eurostat-hicp-october-2022:1",
+              "claim_id": null,
+              "document_id": "eurostat-hicp-october-2022",
+              "score": 0.4654144739839563
+            },
+            {
+              "best_passage_id": "doc:ecb-ukraine-march-2022:1",
+              "claim_id": null,
+              "document_id": "ecb-ukraine-march-2022",
+              "score": 0.28037732491213024
+            }
+          ],
+          "latency_samples_ms": [
+            0.14990009367465973,
+            0.10730000212788582,
+            0.0996999442577362
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "claim_id": "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+              "document_id": "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+              "score": 0.4707271762610008
+            },
+            {
+              "best_passage_id": "claim:de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "claim_id": "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+              "document_id": "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+              "score": 0.24202504330822328
+            },
+            {
+              "best_passage_id": "claim:571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+              "claim_id": "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.0984331996603123
+            }
+          ],
+          "latency_samples_ms": [
+            1.2035002000629902,
+            0.7683001458644867,
+            0.5425000563263893
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "ukraine-policy-march-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 3.4449158104673856
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 1.3582025240519555
+            },
+            {
+              "best_passage_id": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 0.8239098161674098
+            }
+          ],
+          "latency_samples_ms": [
+            0.09410036727786064,
+            0.05159992724657059,
+            0.0462997704744339
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 0.8602971434593201
+            },
+            {
+              "best_passage_id": "claim:ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.8465489745140076
+            },
+            {
+              "best_passage_id": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 0.838271975517273
+            }
+          ],
+          "latency_samples_ms": [
+            25.374699849635363,
+            23.04820017889142,
+            20.98059980198741
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "bm25_rank": 1,
+              "bm25_score": 3.4449158104673856,
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "e5_cosine": 0.8602971434593201,
+              "e5_passage": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "bm25_rank": 2,
+              "bm25_score": 1.3582025240519555,
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_cosine": 0.8465489745140076,
+              "e5_passage": "claim:ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03225806451612903
+            },
+            {
+              "bm25_passage": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "bm25_rank": 3,
+              "bm25_score": 0.8239098161674098,
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "e5_cosine": 0.838271975517273,
+              "e5_passage": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "e5_rank": 3,
+              "relation": "direct",
+              "score": 0.031746031746031744
+            }
+          ],
+          "latency_samples_ms": [
+            22.19450008124113,
+            21.405600011348724,
+            24.98740004375577
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.19589997828006744,
+            0.10639987885951996,
+            0.08009979501366615
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 0.25043715784208975
+            },
+            {
+              "best_passage_id": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 0.09633469052664277
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.0709730842763786
+            }
+          ],
+          "latency_samples_ms": [
+            0.7285997271537781,
+            0.8054999634623528,
+            0.951599795371294
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "ukraine-policy-june",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "claim_id": "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 8.863499057277977
+            },
+            {
+              "best_passage_id": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "claim_id": "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 3.8309375455479264
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 3.7040701326550853
+            }
+          ],
+          "latency_samples_ms": [
+            0.15059998258948326,
+            0.12570014223456383,
+            0.11290004476904869
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "claim:cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "claim_id": "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 0.8550959229469299
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.8350135684013367
+            },
+            {
+              "best_passage_id": "claim:447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+              "claim_id": "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 0.8088811039924622
+            }
+          ],
+          "latency_samples_ms": [
+            23.790300358086824,
+            21.785899996757507,
+            24.932200089097023
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "bm25_rank": 1,
+              "bm25_score": 8.863499057277977,
+              "claim_id": "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "e5_cosine": 0.8550959229469299,
+              "e5_passage": "claim:cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "bm25_rank": 2,
+              "bm25_score": 3.8309375455479264,
+              "claim_id": "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "e5_cosine": 0.8088811039924622,
+              "e5_passage": "claim:447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+              "e5_rank": 3,
+              "relation": "direct",
+              "score": 0.03200204813108039
+            },
+            {
+              "bm25_passage": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "bm25_rank": 3,
+              "bm25_score": 3.7040701326550853,
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_cosine": 0.8350135684013367,
+              "e5_passage": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03200204813108039
+            }
+          ],
+          "latency_samples_ms": [
+            26.0262000374496,
+            28.320600278675556,
+            24.783500004559755
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.09380001574754715,
+            0.07050018757581711,
+            0.06850017234683037
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "claim_id": "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 0.394598898490828
+            },
+            {
+              "best_passage_id": "summary:88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.17997967294339462
+            },
+            {
+              "best_passage_id": "summary:4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 0.1676865269245158
+            }
+          ],
+          "latency_samples_ms": [
+            0.6778002716600895,
+            0.5900003015995026,
+            0.6071999669075012
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "ukraine-policy-effective-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 3.0240384259985835
+            },
+            {
+              "best_passage_id": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 1.4175938349839015
+            },
+            {
+              "best_passage_id": "claim:4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 1.40671303325608
+            }
+          ],
+          "latency_samples_ms": [
+            0.08899997919797897,
+            0.05100015550851822,
+            0.04630023613572121
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "claim:ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.8570478558540344
+            },
+            {
+              "best_passage_id": "claim:4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 0.8358399868011475
+            },
+            {
+              "best_passage_id": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 0.8286763429641724
+            }
+          ],
+          "latency_samples_ms": [
+            22.520200349390507,
+            26.007299777120352,
+            26.051499880850315
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "bm25_rank": 1,
+              "bm25_score": 3.0240384259985835,
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "e5_cosine": 0.8570478558540344,
+              "e5_passage": "claim:ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "claim:4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "bm25_rank": 3,
+              "bm25_score": 1.40671303325608,
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "e5_cosine": 0.8358399868011475,
+              "e5_passage": "claim:4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03200204813108039
+            },
+            {
+              "bm25_passage": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "bm25_rank": 2,
+              "bm25_score": 1.4175938349839015,
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "e5_cosine": 0.8286763429641724,
+              "e5_passage": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "e5_rank": 3,
+              "relation": "direct",
+              "score": 0.03200204813108039
+            }
+          ],
+          "latency_samples_ms": [
+            23.697500117123127,
+            23.847900331020355,
+            23.286300245672464
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.10449998080730438,
+            0.07560010999441147,
+            0.08300039917230606
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "claim_id": "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+              "document_id": "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+              "score": 0.2603465375986862
+            },
+            {
+              "best_passage_id": "claim:d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "claim_id": "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+              "document_id": "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+              "score": 0.10136921855859679
+            },
+            {
+              "best_passage_id": "claim:4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "claim_id": "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+              "document_id": "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+              "score": 0.09950298227635149
+            }
+          ],
+          "latency_samples_ms": [
+            0.9240997023880482,
+            1.1808001436293125,
+            0.6419001147150993
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "ukraine-money-vintage",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "claim_id": "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+              "document_id": "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "score": 8.733370062031208
+            },
+            {
+              "best_passage_id": "summary:5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "claim_id": "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+              "document_id": "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "score": 6.695216019948222
+            },
+            {
+              "best_passage_id": "summary:8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "claim_id": "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+              "document_id": "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "score": 6.693111738936174
+            }
+          ],
+          "latency_samples_ms": [
+            0.1034000888466835,
+            0.06829993799328804,
+            0.06280001252889633
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "claim_id": "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+              "document_id": "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "score": 0.8878248929977417
+            },
+            {
+              "best_passage_id": "summary:5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "claim_id": "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+              "document_id": "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "score": 0.8718079924583435
+            },
+            {
+              "best_passage_id": "summary:8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "claim_id": "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+              "document_id": "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "score": 0.8612431883811951
+            }
+          ],
+          "latency_samples_ms": [
+            18.305199686437845,
+            17.84119987860322,
+            20.160499960184097
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "bm25_rank": 1,
+              "bm25_score": 8.733370062031208,
+              "claim_id": "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+              "document_id": "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "e5_cosine": 0.8878248929977417,
+              "e5_passage": "summary:d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "e5_rank": 1,
+              "relation": "context",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "bm25_rank": 2,
+              "bm25_score": 6.695216019948222,
+              "claim_id": "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+              "document_id": "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "e5_cosine": 0.8718079924583435,
+              "e5_passage": "summary:5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "e5_rank": 2,
+              "relation": "context",
+              "score": 0.03225806451612903
+            },
+            {
+              "bm25_passage": "summary:8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "bm25_rank": 3,
+              "bm25_score": 6.693111738936174,
+              "claim_id": "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+              "document_id": "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "e5_cosine": 0.8612431883811951,
+              "e5_passage": "summary:8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "e5_rank": 3,
+              "relation": "context",
+              "score": 0.031746031746031744
+            }
+          ],
+          "latency_samples_ms": [
+            20.620800089091063,
+            19.23760026693344,
+            19.103699829429388
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0912998802959919,
+            0.06929971277713776,
+            0.06680004298686981
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "claim_id": "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+              "document_id": "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+              "score": 0.4504445026240823
+            },
+            {
+              "best_passage_id": "summary:5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "claim_id": "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+              "document_id": "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+              "score": 0.3905216323267316
+            },
+            {
+              "best_passage_id": "summary:8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "claim_id": "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+              "document_id": "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+              "score": 0.38293106830197654
+            }
+          ],
+          "latency_samples_ms": [
+            0.6838999688625336,
+            0.582799781113863,
+            0.5522002466022968
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "genai-task",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "claim_id": "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea",
+              "document_id": "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "score": 7.470612803975503
+            }
+          ],
+          "latency_samples_ms": [
+            0.09640026837587357,
+            0.0483999028801918,
+            0.042700208723545074
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "claim_id": "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea",
+              "document_id": "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "score": 0.9132178425788879
+            }
+          ],
+          "latency_samples_ms": [
+            20.461599808186293,
+            19.357299897819757,
+            18.953700084239244
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "bm25_rank": 1,
+              "bm25_score": 7.470612803975503,
+              "claim_id": "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea",
+              "document_id": "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "e5_cosine": 0.9132178425788879,
+              "e5_passage": "summary:e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "e5_rank": 1,
+              "relation": "proxy",
+              "score": 0.03278688524590164
+            }
+          ],
+          "latency_samples_ms": [
+            21.107499953359365,
+            20.509000401943922,
+            18.51929957047105
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.08579995483160019,
+            0.06730016320943832,
+            0.06539979949593544
+          ],
+          "m7b_eligible_documents": 1
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "claim_id": "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea",
+              "document_id": "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4",
+              "score": 0.3410791227202901
+            }
+          ],
+          "latency_samples_ms": [
+            0.4714997485280037,
+            0.3395997919142246,
+            0.32159965485334396
+          ],
+          "m7b_eligible_documents": 1
+        }
+      }
+    },
+    {
+      "id": "genai-firms-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 1.291230753683929
+            }
+          ],
+          "latency_samples_ms": [
+            0.0704997219145298,
+            0.03700004890561104,
+            0.032499898225069046
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.8642679452896118
+            },
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 0.833458662033081
+            },
+            {
+              "best_passage_id": "summary:d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "score": 0.8216263055801392
+            }
+          ],
+          "latency_samples_ms": [
+            20.699600223451853,
+            20.187600050121546,
+            19.635400269180536
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "bm25_rank": 1,
+              "bm25_score": 1.291230753683929,
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "e5_cosine": 0.8642679452896118,
+              "e5_passage": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "e5_rank": 1,
+              "relation": "proxy",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": null,
+              "bm25_rank": null,
+              "bm25_score": null,
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_cosine": 0.833458662033081,
+              "e5_passage": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_rank": 2,
+              "relation": "proxy",
+              "score": 0.016129032258064516
+            },
+            {
+              "bm25_passage": null,
+              "bm25_rank": null,
+              "bm25_score": null,
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "e5_cosine": 0.8216263055801392,
+              "e5_passage": "summary:d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "e5_rank": 3,
+              "relation": "proxy",
+              "score": 0.015873015873015872
+            }
+          ],
+          "latency_samples_ms": [
+            19.26090009510517,
+            18.13279977068305,
+            17.05540018156171
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.12300023809075356,
+            0.12090010568499565,
+            0.07929978892207146
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.1995548227424418
+            }
+          ],
+          "latency_samples_ms": [
+            0.6772996857762337,
+            0.5724001675844193,
+            0.55720005184412
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "genai-households",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "claim:9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "score": 11.348396635321162
+            },
+            {
+              "best_passage_id": "claim:f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "claim_id": "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 3.548367403351471
+            },
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 2.8410601058529723
+            }
+          ],
+          "latency_samples_ms": [
+            0.166300218552351,
+            0.0850004144012928,
+            0.11639995500445366
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "claim:9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "score": 0.9306803345680237
+            },
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 0.8823704123497009
+            },
+            {
+              "best_passage_id": "summary:f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.8807181119918823
+            }
+          ],
+          "latency_samples_ms": [
+            22.071399725973606,
+            24.601399898529053,
+            21.367100067436695
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "claim:9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "bm25_rank": 1,
+              "bm25_score": 11.348396635321162,
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "e5_cosine": 0.9306803345680237,
+              "e5_passage": "claim:9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "e5_rank": 1,
+              "relation": "proxy",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "bm25_rank": 3,
+              "bm25_score": 2.8410601058529723,
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_cosine": 0.8823704123497009,
+              "e5_passage": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_rank": 2,
+              "relation": "proxy",
+              "score": 0.03200204813108039
+            },
+            {
+              "bm25_passage": "claim:f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "bm25_rank": 2,
+              "bm25_score": 3.548367403351471,
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "e5_cosine": 0.8807181119918823,
+              "e5_passage": "summary:f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "e5_rank": 3,
+              "relation": "proxy",
+              "score": 0.03200204813108039
+            }
+          ],
+          "latency_samples_ms": [
+            20.18019976094365,
+            20.277699921280146,
+            24.467000272125006
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0883997417986393,
+            0.06899982690811157,
+            0.0662999227643013
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "score": 0.5581548996185014
+            },
+            {
+              "best_passage_id": "claim:f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "claim_id": "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.27353472286657
+            },
+            {
+              "best_passage_id": "claim:0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 0.2451436176369999
+            }
+          ],
+          "latency_samples_ms": [
+            0.6466996856033802,
+            0.5931002087891102,
+            0.5586999468505383
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "genai-adoption-es",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 1.9024445291263539
+            },
+            {
+              "best_passage_id": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.5298422813158393
+            }
+          ],
+          "latency_samples_ms": [
+            0.10479986667633057,
+            0.04879990592598915,
+            0.04060007631778717
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 0.8812084197998047
+            },
+            {
+              "best_passage_id": "summary:f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "claim_id": "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.8652896285057068
+            },
+            {
+              "best_passage_id": "summary:d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "score": 0.8374163508415222
+            }
+          ],
+          "latency_samples_ms": [
+            21.09000040218234,
+            23.51139998063445,
+            21.332300268113613
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "bm25_rank": 1,
+              "bm25_score": 1.9024445291263539,
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_cosine": 0.8812084197998047,
+              "e5_passage": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_rank": 1,
+              "relation": "proxy",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "bm25_rank": 2,
+              "bm25_score": 0.5298422813158393,
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "e5_cosine": 0.8652896285057068,
+              "e5_passage": "summary:f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "e5_rank": 2,
+              "relation": "proxy",
+              "score": 0.03225806451612903
+            },
+            {
+              "bm25_passage": null,
+              "bm25_rank": null,
+              "bm25_score": null,
+              "claim_id": "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+              "document_id": "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "e5_cosine": 0.8374163508415222,
+              "e5_passage": "summary:d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+              "e5_rank": 3,
+              "relation": "proxy",
+              "score": 0.015873015873015872
+            }
+          ],
+          "latency_samples_ms": [
+            21.39770006760955,
+            20.84759995341301,
+            19.00119986385107
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.09449990466237068,
+            0.07200008258223534,
+            0.06849970668554306
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 0.14545512321401294
+            },
+            {
+              "best_passage_id": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.06833095310481349
+            }
+          ],
+          "latency_samples_ms": [
+            0.6782002747058868,
+            0.6075003184378147,
+            0.5986001342535019
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    },
+    {
+      "id": "gap-fx-covid",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0038999132812023163,
+            0.0020996667444705963,
+            0.0018998980522155762
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0019995495676994324,
+            0.0018998980522155762,
+            0.0018998980522155762
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.01219986006617546,
+            0.006600283086299896,
+            0.0061998143792152405
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [
+            {
+              "best_passage_id": "doc:ecb-usd-liquidity-march-2020:1",
+              "claim_id": null,
+              "document_id": "ecb-usd-liquidity-march-2020",
+              "score": 0.2587850218393556
+            }
+          ],
+          "latency_samples_ms": [
+            0.10890001431107521,
+            0.08439971134066582,
+            0.09029963985085487
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002600252628326416,
+            0.002100132405757904,
+            0.0017997808754444122
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "gap-fx-ukraine-es",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002800021320581436,
+            0.002100132405757904,
+            0.0018998980522155762
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.00200001522898674,
+            0.001700129359960556,
+            0.00180024653673172
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.00890018418431282,
+            0.004299916326999664,
+            0.00380026176571846
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.07779989391565323,
+            0.06640003994107246,
+            0.06540026515722275
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002100132405757904,
+            0.001900363713502884,
+            0.00180024653673172
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "gap-ai-direct",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002600252628326416,
+            0.001900363713502884,
+            0.001900363713502884
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.00180024653673172,
+            0.0017997808754444122,
+            0.0021997839212417603
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.007200054824352264,
+            0.004400033503770828,
+            0.003700144588947296
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.06970018148422241,
+            0.06610015407204628,
+            0.06569968536496162
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0018998980522155762,
+            0.0018998980522155762,
+            0.0018998980522155762
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "gap-ai-money",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0024996697902679443,
+            0.0018998980522155762,
+            0.002100132405757904
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.00200001522898674,
+            0.002200249582529068,
+            0.0018998980522155762
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.006400048732757568,
+            0.004100147634744644,
+            0.0037997961044311523
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.07269997149705887,
+            0.07720012217760086,
+            0.06570015102624893
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0020996667444705963,
+            0.002100132405757904,
+            0.00200001522898674
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "cutoff-covid-april",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002699904143810272,
+            0.002200249582529068,
+            0.002100132405757904
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0021997839212417603,
+            0.002200249582529068,
+            0.002200249582529068
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0065998174250125885,
+            0.004299916326999664,
+            0.00380026176571846
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.08289981633424759,
+            0.06469991058111191,
+            0.06600003689527512
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0024996697902679443,
+            0.002100132405757904,
+            0.002100132405757904
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "cutoff-ukraine-policy",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0029001384973526,
+            0.002699904143810272,
+            0.00200001522898674
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0021997839212417603,
+            0.002100132405757904,
+            0.002200249582529068
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.006800051778554916,
+            0.004600267857313156,
+            0.00400003045797348
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.08819997310638428,
+            0.07350044324994087,
+            0.06749993190169334
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002500135451555252,
+            0.002400018274784088,
+            0.0021997839212417603
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "cutoff-genai-household",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 3.883476178491969
+            },
+            {
+              "best_passage_id": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.7473372250316354
+            }
+          ],
+          "latency_samples_ms": [
+            0.0926000066101551,
+            0.05330005660653114,
+            0.04830025136470795
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 0.8782389760017395
+            },
+            {
+              "best_passage_id": "summary:f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.8697762489318848
+            }
+          ],
+          "latency_samples_ms": [
+            19.429399631917477,
+            19.376200158149004,
+            19.383300095796585
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "bm25_rank": 1,
+              "bm25_score": 3.883476178491969,
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_cosine": 0.8782389760017395,
+              "e5_passage": "summary:975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "e5_rank": 1,
+              "relation": "proxy",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "claim:28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "bm25_rank": 2,
+              "bm25_score": 0.7473372250316354,
+              "claim_id": "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "e5_cosine": 0.8697762489318848,
+              "e5_passage": "summary:f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "e5_rank": 2,
+              "relation": "proxy",
+              "score": 0.03225806451612903
+            }
+          ],
+          "latency_samples_ms": [
+            23.555300198495388,
+            23.38870009407401,
+            22.371599916368723
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.08570030331611633,
+            0.06579980254173279,
+            0.06450014188885689
+          ],
+          "m7b_eligible_documents": 2
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "claim:0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "claim_id": "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+              "document_id": "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+              "score": 0.2598782573236737
+            },
+            {
+              "best_passage_id": "claim:f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "claim_id": "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+              "document_id": "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+              "score": 0.1605968025255311
+            }
+          ],
+          "latency_samples_ms": [
+            0.5185003392398357,
+            0.47719990834593773,
+            0.4226001910865307
+          ],
+          "m7b_eligible_documents": 2
+        }
+      }
+    },
+    {
+      "id": "geo-usa-hicp",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0030999071896076202,
+            0.00200001522898674,
+            0.00200001522898674
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002100132405757904,
+            0.0018998980522155762,
+            0.0017997808754444122
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.010699965059757233,
+            0.004400033503770828,
+            0.0037997961044311523
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0704997219145298,
+            0.0621001236140728,
+            0.06100023165345192
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002200249582529068,
+            0.0018998980522155762,
+            0.0018998980522155762
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "geo-euro-ai",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0025997869670391083,
+            0.0021997839212417603,
+            0.00200001522898674
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.00200001522898674,
+            0.00200001522898674,
+            0.00180024653673172
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0069998204708099365,
+            0.004500150680541992,
+            0.00380026176571846
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0684000551700592,
+            0.06360001862049103,
+            0.06280001252889633
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.00200001522898674,
+            0.0017997808754444122,
+            0.0018998980522155762
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "event-ukraine-gdp-2020",
+      "runs": {
+        "bm25": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002600252628326416,
+            0.00200001522898674,
+            0.00200001522898674
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "e5": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.0021997839212417603,
+            0.0020996667444705963,
+            0.00200001522898674
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "hybrid": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.00670040026307106,
+            0.004400033503770828,
+            0.003900378942489624
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.07829954847693443,
+            0.06989995017647743,
+            0.06690016016364098
+          ],
+          "m7b_eligible_documents": 0
+        },
+        "tfidf_same_corpus": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.002100132405757904,
+            0.002100132405757904,
+            0.002100132405757904
+          ],
+          "m7b_eligible_documents": 0
+        }
+      }
+    },
+    {
+      "id": "irrelevant-within-scope",
+      "runs": {
+        "bm25": {
+          "hits": [
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 3.6881600534098706
+            },
+            {
+              "best_passage_id": "claim:302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "claim_id": "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 2.680270430834812
+            },
+            {
+              "best_passage_id": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 1.0280414469444474
+            }
+          ],
+          "latency_samples_ms": [
+            0.09059999138116837,
+            0.05810009315609932,
+            0.05150027573108673
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "e5": {
+          "hits": [
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.8448773622512817
+            },
+            {
+              "best_passage_id": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "claim_id": "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 0.8247697949409485
+            },
+            {
+              "best_passage_id": "claim:7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 0.8206220865249634
+            }
+          ],
+          "latency_samples_ms": [
+            16.884000040590763,
+            17.02329982072115,
+            16.750399954617023
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "hybrid": {
+          "hits": [
+            {
+              "bm25_passage": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "bm25_rank": 1,
+              "bm25_score": 3.6881600534098706,
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "e5_cosine": 0.8448773622512817,
+              "e5_passage": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "e5_rank": 1,
+              "relation": "direct",
+              "score": 0.03278688524590164
+            },
+            {
+              "bm25_passage": "claim:302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "bm25_rank": 2,
+              "bm25_score": 2.680270430834812,
+              "claim_id": "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "e5_cosine": 0.8247697949409485,
+              "e5_passage": "summary:bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "e5_rank": 2,
+              "relation": "direct",
+              "score": 0.03225806451612903
+            },
+            {
+              "bm25_passage": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "bm25_rank": 3,
+              "bm25_score": 1.0280414469444474,
+              "claim_id": "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "e5_cosine": 0.8206220865249634,
+              "e5_passage": "claim:7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+              "e5_rank": 3,
+              "relation": "context",
+              "score": 0.031746031746031744
+            }
+          ],
+          "latency_samples_ms": [
+            19.69559956341982,
+            19.766000099480152,
+            17.445599660277367
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "legacy_runtime": {
+          "hits": [],
+          "latency_samples_ms": [
+            0.08379993960261345,
+            0.06639957427978516,
+            0.06480002775788307
+          ],
+          "m7b_eligible_documents": 3
+        },
+        "tfidf_same_corpus": {
+          "hits": [
+            {
+              "best_passage_id": "summary:fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "claim_id": "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+              "document_id": "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+              "score": 0.16694789666675228
+            },
+            {
+              "best_passage_id": "claim:302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "claim_id": "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+              "document_id": "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+              "score": 0.13504714805064127
+            },
+            {
+              "best_passage_id": "summary:faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "claim_id": null,
+              "document_id": "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+              "score": 0.05150284887424352
+            }
+          ],
+          "latency_samples_ms": [
+            0.5856999196112156,
+            0.5344999954104424,
+            0.5141999572515488
+          ],
+          "m7b_eligible_documents": 3
+        }
+      }
+    }
+  ],
+  "corpus_sha256": "8da278254a64e0d8837b6844b292609e87a0add7cbcaed6c18f1aededd065236",
+  "dataset_sha256": "4e982d228dec55bad829a438110280ef6a9a349495eb3d5d5384bd42a470a79c",
+  "environment": {
+    "machine": "AMD64",
+    "python": "3.12.0",
+    "system": "Windows"
+  },
+  "legacy_corpus_sha256": "bc05d610b4d9af5c7967d2410de9250258d7dcea289a226316032c54692e22e7",
+  "metrics": {
+    "bm25": {
+      "by_indicator": {
+        "deposit-rate": {
+          "hit_at_3": 1,
+          "judged_relevant": 3,
+          "precision": 0.3333333333333333,
+          "returned": 9
+        },
+        "eur-usd": {
+          "hit_at_3": null,
+          "judged_relevant": 0,
+          "precision": null,
+          "returned": 0
+        },
+        "hicp-yoy": {
+          "hit_at_3": 1,
+          "judged_relevant": 5,
+          "precision": 0.3125,
+          "returned": 16
+        },
+        "m3-stock": {
+          "hit_at_3": 1,
+          "judged_relevant": 2,
+          "precision": 0.4,
+          "returned": 5
+        },
+        "real-gdp-qoq": {
+          "hit_at_3": 1,
+          "judged_relevant": 7,
+          "precision": 0.5,
+          "returned": 14
+        }
+      },
+      "duplicate_document_hits": 0,
+      "empty_m7b_scope_cases": 9,
+      "empty_m7b_scope_cases_with_hits": 0,
+      "hit_at_1": 0.9411764705882353,
+      "hit_at_3": 1,
+      "hit_at_3_on_all_m7b_positive_questions": 1.0,
+      "hit_at_5": 1,
+      "indicator_filter_precision": 1.0,
+      "judged_document_precision": 0.38636363636363635,
+      "latency_ms": {
+        "median": 0.04745018668472767,
+        "p95": 0.12091489043086764
+      },
+      "mrr": 0.9705882352941176,
+      "no_relevant_cases": 11,
+      "no_relevant_cases_with_hits": 2,
+      "positive_cases_in_this_corpus": 17,
+      "publication_filter_precision": 1.0,
+      "returned_sources": 44,
+      "unanswered_intent_within_m7b_scope_cases": 2,
+      "unanswered_intent_within_m7b_scope_cases_with_hits": 2,
+      "verified_claim_hit_at_3": 0.7058823529411765,
+      "verified_claim_hit_at_5": 0.7058823529411765,
+      "verified_claim_mrr": 0.6764705882352942
+    },
+    "e5": {
+      "by_indicator": {
+        "deposit-rate": {
+          "hit_at_3": 1,
+          "judged_relevant": 3,
+          "precision": 0.3333333333333333,
+          "returned": 9
+        },
+        "eur-usd": {
+          "hit_at_3": null,
+          "judged_relevant": 0,
+          "precision": null,
+          "returned": 0
+        },
+        "hicp-yoy": {
+          "hit_at_3": 1,
+          "judged_relevant": 5,
+          "precision": 0.3125,
+          "returned": 16
+        },
+        "m3-stock": {
+          "hit_at_3": 1,
+          "judged_relevant": 2,
+          "precision": 0.4,
+          "returned": 5
+        },
+        "real-gdp-qoq": {
+          "hit_at_3": 1,
+          "judged_relevant": 7,
+          "precision": 0.4117647058823529,
+          "returned": 17
+        }
+      },
+      "duplicate_document_hits": 0,
+      "empty_m7b_scope_cases": 9,
+      "empty_m7b_scope_cases_with_hits": 0,
+      "hit_at_1": 0.9411764705882353,
+      "hit_at_3": 1,
+      "hit_at_3_on_all_m7b_positive_questions": 1.0,
+      "hit_at_5": 1,
+      "indicator_filter_precision": 1.0,
+      "judged_document_precision": 0.3617021276595745,
+      "latency_ms": {
+        "median": 19.36675002798438,
+        "p95": 24.534409912303087
+      },
+      "mrr": 0.9705882352941176,
+      "no_relevant_cases": 11,
+      "no_relevant_cases_with_hits": 2,
+      "positive_cases_in_this_corpus": 17,
+      "publication_filter_precision": 1.0,
+      "returned_sources": 47,
+      "unanswered_intent_within_m7b_scope_cases": 2,
+      "unanswered_intent_within_m7b_scope_cases_with_hits": 2,
+      "verified_claim_hit_at_3": 0.8235294117647058,
+      "verified_claim_hit_at_5": 0.8235294117647058,
+      "verified_claim_mrr": 0.7941176470588235
+    },
+    "hybrid": {
+      "by_indicator": {
+        "deposit-rate": {
+          "hit_at_3": 1,
+          "judged_relevant": 3,
+          "precision": 0.3333333333333333,
+          "returned": 9
+        },
+        "eur-usd": {
+          "hit_at_3": null,
+          "judged_relevant": 0,
+          "precision": null,
+          "returned": 0
+        },
+        "hicp-yoy": {
+          "hit_at_3": 1,
+          "judged_relevant": 5,
+          "precision": 0.3125,
+          "returned": 16
+        },
+        "m3-stock": {
+          "hit_at_3": 1,
+          "judged_relevant": 2,
+          "precision": 0.4,
+          "returned": 5
+        },
+        "real-gdp-qoq": {
+          "hit_at_3": 1,
+          "judged_relevant": 7,
+          "precision": 0.4117647058823529,
+          "returned": 17
+        }
+      },
+      "duplicate_document_hits": 0,
+      "empty_m7b_scope_cases": 9,
+      "empty_m7b_scope_cases_with_hits": 0,
+      "hit_at_1": 0.8823529411764706,
+      "hit_at_3": 1,
+      "hit_at_3_on_all_m7b_positive_questions": 1.0,
+      "hit_at_5": 1,
+      "indicator_filter_precision": 1.0,
+      "judged_document_precision": 0.3617021276595745,
+      "latency_ms": {
+        "median": 18.996299942955375,
+        "p95": 25.2520898822695
+      },
+      "mrr": 0.9411764705882353,
+      "no_relevant_cases": 11,
+      "no_relevant_cases_with_hits": 2,
+      "positive_cases_in_this_corpus": 17,
+      "publication_filter_precision": 1.0,
+      "returned_sources": 47,
+      "unanswered_intent_within_m7b_scope_cases": 2,
+      "unanswered_intent_within_m7b_scope_cases_with_hits": 2,
+      "verified_claim_hit_at_3": 0.7058823529411765,
+      "verified_claim_hit_at_5": 0.7058823529411765,
+      "verified_claim_mrr": 0.6764705882352942
+    },
+    "legacy_runtime": {
+      "by_indicator": {
+        "deposit-rate": {
+          "hit_at_3": null,
+          "judged_relevant": 0,
+          "precision": null,
+          "returned": 0
+        },
+        "eur-usd": {
+          "hit_at_3": null,
+          "judged_relevant": 0,
+          "precision": 0.0,
+          "returned": 1
+        },
+        "hicp-yoy": {
+          "hit_at_3": 1,
+          "judged_relevant": 1,
+          "precision": 0.25,
+          "returned": 4
+        },
+        "m3-stock": {
+          "hit_at_3": null,
+          "judged_relevant": 0,
+          "precision": null,
+          "returned": 0
+        },
+        "real-gdp-qoq": {
+          "hit_at_3": 1,
+          "judged_relevant": 1,
+          "precision": 0.5,
+          "returned": 2
+        }
+      },
+      "duplicate_document_hits": 0,
+      "empty_m7b_scope_cases": 9,
+      "empty_m7b_scope_cases_with_hits": 1,
+      "hit_at_1": 0.5,
+      "hit_at_3": 1,
+      "hit_at_3_on_all_m7b_positive_questions": 0.11764705882352941,
+      "hit_at_5": null,
+      "indicator_filter_precision": 1.0,
+      "judged_document_precision": 0.2857142857142857,
+      "latency_ms": {
+        "median": 0.07640011608600616,
+        "p95": 0.14110468327999104
+      },
+      "mrr": 0.75,
+      "no_relevant_cases": 11,
+      "no_relevant_cases_with_hits": 1,
+      "positive_cases_in_this_corpus": 2,
+      "publication_filter_precision": 1.0,
+      "returned_sources": 7,
+      "unanswered_intent_within_m7b_scope_cases": 2,
+      "unanswered_intent_within_m7b_scope_cases_with_hits": 0,
+      "verified_claim_hit_at_3": null,
+      "verified_claim_hit_at_5": null,
+      "verified_claim_mrr": null
+    },
+    "tfidf_same_corpus": {
+      "by_indicator": {
+        "deposit-rate": {
+          "hit_at_3": 1,
+          "judged_relevant": 3,
+          "precision": 0.3333333333333333,
+          "returned": 9
+        },
+        "eur-usd": {
+          "hit_at_3": null,
+          "judged_relevant": 0,
+          "precision": null,
+          "returned": 0
+        },
+        "hicp-yoy": {
+          "hit_at_3": 1,
+          "judged_relevant": 5,
+          "precision": 0.3333333333333333,
+          "returned": 15
+        },
+        "m3-stock": {
+          "hit_at_3": 1,
+          "judged_relevant": 2,
+          "precision": 0.4,
+          "returned": 5
+        },
+        "real-gdp-qoq": {
+          "hit_at_3": 1,
+          "judged_relevant": 7,
+          "precision": 0.5,
+          "returned": 14
+        }
+      },
+      "duplicate_document_hits": 0,
+      "empty_m7b_scope_cases": 9,
+      "empty_m7b_scope_cases_with_hits": 0,
+      "hit_at_1": 0.9411764705882353,
+      "hit_at_3": 1,
+      "hit_at_3_on_all_m7b_positive_questions": 1.0,
+      "hit_at_5": 1,
+      "indicator_filter_precision": 1.0,
+      "judged_document_precision": 0.3953488372093023,
+      "latency_ms": {
+        "median": 0.498100183904171,
+        "p95": 0.947474781423807
+      },
+      "mrr": 0.9705882352941176,
+      "no_relevant_cases": 11,
+      "no_relevant_cases_with_hits": 2,
+      "positive_cases_in_this_corpus": 17,
+      "publication_filter_precision": 1.0,
+      "returned_sources": 43,
+      "unanswered_intent_within_m7b_scope_cases": 2,
+      "unanswered_intent_within_m7b_scope_cases_with_hits": 2,
+      "verified_claim_hit_at_3": 0.8823529411764706,
+      "verified_claim_hit_at_5": 0.8823529411764706,
+      "verified_claim_mrr": 0.8529411764705882
+    }
+  },
+  "model": {
+    "cache_files_sha256": {
+      "1_Pooling/config.json": "987f7a67a38fa564c849bb5d277c52ab9088a84368fc0be31a354125aebb12a0",
+      "config.json": "69137736cab8b8903a07fe8afaafdda25aac55415a12a55d1bffa9f581abf959",
+      "model.safetensors": "1a55775f53449dac10a2bcbc312469fac40b96d53198c407081a831f81c98477",
+      "modules.json": "c6e29747481e8b5dd2b58401966aeac910de39092f90cda9a704b1545f902b04",
+      "sentence_bert_config.json": "948201d8329907aae938fa62f9ceeed53f5694dacc2b87b9f3b78b37ee986529",
+      "sentencepiece.bpe.model": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865",
+      "special_tokens_map.json": "d05497f1da52c5e09554c0cd874037a083e1dc1b9cfd48034d1c717f1afc07a7",
+      "tokenizer.json": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39",
+      "tokenizer_config.json": "a1d6bc8734a6f635dc158508bef000f8e2e5a759c7d92f984b2c86e5ff53425b"
+    },
+    "device": "cpu",
+    "dimensions": 384,
+    "format": 1,
+    "model_id": "intfloat/multilingual-e5-small",
+    "packages": {
+      "numpy": "2.5.4",
+      "sentence-transformers": "5.2.0",
+      "tokenizers": "0.23.3",
+      "torch": "2.15.0+cpu",
+      "transformers": "5.22.2"
+    },
+    "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3"
+  },
+  "model_sha256": "69e92b6693c293814c0c68e7a6b917c5d53a04b0f28f901bdfd371f6bcc29629",
+  "parameters": {
+    "bm25_b": 0.75,
+    "bm25_k1": 1.2,
+    "limit": 5,
+    "repeats": 3,
+    "rrf_k": 60
+  },
+  "schema": "m7c-eval-v1"
+}

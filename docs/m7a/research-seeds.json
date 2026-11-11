@@ -1,0 +1,346 @@
+[
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260323_1~1e06784a89.en.html",
+    "institution": "BCE",
+    "mechanism": "La difusión de IA puede elevar la oferta vía productividad; la inversión y el consumo anticipado pueden presionar los precios durante la transición.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario",
+      "HICP": "proxy_o_escenario",
+      "Tasa de depósito BCE": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Implications of AI for monetary policy"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/key/date/2026/html/ecb.sp260306_1~a4943607d7.en.html",
+    "institution": "BCE",
+    "mechanism": "Una mejora de productividad inducida por IA puede reducir las presiones inflacionarias y permitir una postura monetaria menos restrictiva en el escenario descrito.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario",
+      "HICP": "proxy_o_escenario",
+      "Tasa de depósito BCE": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Higher productivity driven by AI may ease monetary policy stance endogenously"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/key/date/2025/html/ecb.sp251124_1~c239fb4a7f.en.html",
+    "institution": "BCE",
+    "mechanism": "El capital complementario, la capacidad informática y la difusión sectorial condicionan que los avances de IA generativa se conviertan en productividad agregada.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "What Europe stands to gain"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/blog/date/2025/html/ecb.blog20250328~60c0a587f7.en.html",
+    "institution": "BCE",
+    "mechanism": "La encuesta empresarial sitúa la adopción como condición para que los ahorros de tiempo lleguen a la producción agregada.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Encuesta Corporate Telephone Survey y sección sobre adopción empresarial"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/blog/date/2025/html/ecb.blog20250325~ed12b0ff35.en.html",
+    "institution": "BCE",
+    "mechanism": "Los centros de datos elevan la demanda de electricidad e infraestructura; los costes de energía condicionan la inversión y el despliegue europeo.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario",
+      "HICP": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Demanda de electricidad e inversión"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/blog/date/2026/html/ecb.blog20260901~8d48e51f14.en.html",
+    "institution": "BCE",
+    "mechanism": "La descomposición no detecta todavía un impulso agregado de demanda por inversión privada atribuible a IA en la zona euro. Conserva un resultado nulo útil.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario",
+      "HICP": "proxy_o_escenario"
+    },
+    "relevance": 5,
+    "evidence_locator": "What about the AI boom?"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/economic-bulletin/focus/2026/html/ecb.ebbox202602_06~c9f485c478.en.html",
+    "institution": "BCE",
+    "mechanism": "La encuesta SAFE separa usos generativos de otras tecnologías y recoge planes de inversión de empresas de la zona euro.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Encuesta SAFE: usos generativos y planes de inversión",
+    "publication_date": "2026-04-02",
+    "parent_url": "https://www.ecb.europa.eu/press/economic-bulletin/html/eb202602.en.html"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.ecb.europa.eu/press/financial-stability-publications/fsr/special/html/ecb.fsrart202405_02~58c3ce5246.en.html",
+    "institution": "BCE",
+    "mechanism": "El trabajo discute escenarios de productividad y cómo la concentración de proveedores de IA puede amplificar riesgos operativos. No mide PIB trimestral ni dinero amplio.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 3,
+    "evidence_locator": "Introducción: escenarios de productividad y crecimiento; sección de riesgos sistémicos"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.bis.org/publications/aer-2024/artificial-intelligence-economy-implications-central-banks",
+    "institution": "BIS",
+    "mechanism": "La IA generativa puede aumentar la oferta vía productividad y alterar demanda y precios vía inversión, consumo y salarios. Escenarios globales.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario",
+      "HICP": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "The impact of AI on the economy"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.bis.org/publications/bulletin-130-ai-and-global-economy-implications-central-banks",
+    "institution": "BIS",
+    "mechanism": "El auge de inversión, financiado cada vez más con deuda, altera demanda, comercio y términos de intercambio. La calibración monetaria depende del equilibrio entre oferta y demanda.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario",
+      "HICP": "proxy_o_escenario",
+      "Tasa de depósito BCE": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Key takeaways y resumen del boletín"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.bis.org/publications/aer-2026/progress-peril",
+    "institution": "BIS",
+    "mechanism": "El auge de inversión en infraestructura de IA sostuvo la demanda mundial, con riesgo de reversión si no se materializan los retornos.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "AI progress and investment boom under pressure"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.bis.org/speeches/20260910-artificial-intelligence-growth-and-financial-stability-challenges-central-banks",
+    "institution": "BIS",
+    "mechanism": "El impacto del gasto en infraestructura de IA depende de la posición en la cadena productiva: inversión, formación de capital y términos de intercambio difieren por economía.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Análisis de inversión y términos de intercambio"
+  },
+  {
+    "event": "genai",
+    "url": "https://www.bis.org/speeches/20260630-global-imbalances-growth-and-stability",
+    "institution": "BIS",
+    "mechanism": "Los flujos de capital hacia activos en dólares y el auge de IA se discuten como riesgo de concentración. No se estima un efecto en el cruce EUR/USD.",
+    "indicators": {
+      "EUR/USD": "canal_indirecto"
+    },
+    "relevance": 3,
+    "evidence_locator": "Sección sobre flujos de capital, dólar y auge de IA"
+  },
+  {
+    "event": "genai",
+    "url": "https://ec.europa.eu/eurostat/web/products-eurostat-news/w/ddn-20240529-2",
+    "institution": "Eurostat",
+    "mechanism": "La encuesta de 2023 da una referencia de difusión temprana de herramientas de IA, incluida generación de lenguaje. Es una medida de adopción, no de producto.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 3,
+    "evidence_locator": "Resultados sobre uso empresarial y tipos de tecnología"
+  },
+  {
+    "event": "genai",
+    "url": "https://ec.europa.eu/eurostat/web/products-eurostat-news/w/ddn-20250123-3",
+    "institution": "Eurostat",
+    "mechanism": "La generación de lenguaje figura entre las tecnologías usadas por las empresas en 2024; la tasa de adopción sirve como insumo para escenarios de productividad.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Desglose por tipo de tecnología y dataset isoc_eb_ai"
+  },
+  {
+    "event": "genai",
+    "url": "https://ec.europa.eu/eurostat/web/products-eurostat-news/w/ddn-20251216-3",
+    "institution": "Eurostat",
+    "mechanism": "El uso declarado de IA generativa por hogares mide la difusión del lado del consumidor, insumo para hipótesis de demanda, sin medir el consumo ni el PIB.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 3,
+    "evidence_locator": "Encuesta de uso TIC por hogares y personas"
+  },
+  {
+    "event": "ukraine",
+    "url": "https://www.ecb.europa.eu/press/annual-reports-financial-statements/annual/html/ecb.ar2022~8ae51d163b.en.html",
+    "institution": "BCE",
+    "mechanism": "El shock de energía y alimentos tras la invasión elevó el HICP y frenó la actividad; el informe distingue la depreciación bilateral y la normalización de la tasa de depósito.",
+    "indicators": {
+      "EUR/USD": "contexto",
+      "HICP": "directa",
+      "PIB real trimestral": "contexto",
+      "Tasa de depósito BCE": "directa",
+      "M3": "contexto"
+    },
+    "relevance": 5,
+    "evidence_locator": "Capítulos 1 y 2: inflación, sector exterior, crédito y decisiones"
+  },
+  {
+    "event": "covid",
+    "url": "https://ec.europa.eu/eurostat/documents/2995521/10294864/2-15052020-AP-EN.pdf/5a7ea909-e708-f3d3-8375-e2510298e1b8",
+    "institution": "Eurostat",
+    "kind": "stat_pdf",
+    "publication_date": "2020-05-15",
+    "title": "GDP down by 3.8% and employment down by 0.2% in the euro area",
+    "mechanism": "Estimación temprana del PIB real desestacionalizado del primer trimestre. Los cierres afectaron al tramo final del trimestre.",
+    "indicators": {
+      "PIB real trimestral": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "PDF, página 1: titular, fecha, análisis y notas del indicador."
+  },
+  {
+    "event": "covid",
+    "url": "https://ec.europa.eu/eurostat/documents/2995521/10545471/2-08092020-AP-EN.pdf/43764613-3547-2e40-7a24-d20c30a20f64",
+    "institution": "Eurostat",
+    "kind": "stat_pdf",
+    "publication_date": "2020-09-08",
+    "title": "GDP down by 11.8% and employment down by 2.9% in the euro area",
+    "mechanism": "El PIB real desestacionalizado se contrajo en el segundo trimestre, marcado por las restricciones; el desglose por gasto identifica los componentes.",
+    "indicators": {
+      "PIB real trimestral": "directa"
+    },
+    "relevance": 3,
+    "evidence_locator": "PDF, página 1: titular, fecha, análisis y notas del indicador."
+  },
+  {
+    "event": "covid",
+    "url": "https://ec.europa.eu/eurostat/documents/2995521/10294852/2-20052020-AP-EN.pdf/4d69f01b-fe9a-c248-2627-cc2059ca2f31",
+    "institution": "Eurostat",
+    "kind": "stat_pdf",
+    "publication_date": "2020-05-20",
+    "title": "Annual inflation down to 0.3% in the euro area",
+    "mechanism": "La contribución de energía redujo la inflación interanual durante el mes de confinamiento generalizado.",
+    "indicators": {
+      "HICP": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "PDF, página 1: titular, fecha, análisis y notas del indicador."
+  },
+  {
+    "event": "covid",
+    "url": "https://ec.europa.eu/eurostat/documents/portlet_file_entry/2995521/2-17122020-AP-EN.pdf/7ba6ca2b-9c05-e756-4722-5e944d43bd82",
+    "institution": "Eurostat",
+    "kind": "stat_pdf",
+    "publication_date": "2020-12-17",
+    "title": "Annual inflation stable at -0.3% in the euro area",
+    "mechanism": "La aportación negativa de energía compensó las contribuciones positivas de alimentos y servicios en noviembre de 2020.",
+    "indicators": {
+      "HICP": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "PDF, página 1: titular, fecha, análisis y notas del indicador."
+  },
+  {
+    "event": "ukraine",
+    "url": "https://ec.europa.eu/eurostat/documents/2995521/15265521/2-17112022-AP-EN.pdf/b6953137-786e-ed9c-5ee2-6812c0f8f07f",
+    "institution": "Eurostat",
+    "kind": "stat_pdf",
+    "publication_date": "2022-11-17",
+    "title": "Annual inflation up to 10.6% in the euro area",
+    "mechanism": "El componente de energía hizo la mayor contribución a la inflación de octubre de 2022; la descomposición no identifica el efecto causal de la guerra.",
+    "indicators": {
+      "HICP": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "PDF, página 1: titular, fecha, análisis y notas del indicador."
+  },
+  {
+    "event": "ukraine",
+    "url": "https://ec.europa.eu/eurostat/documents/2995521/16310161/2-17032023-AP-EN.pdf/abc8d4fa-c8d5-bc3e-8fd1-96bba16e1c8f?t=1678971320128&version=1.0",
+    "institution": "Eurostat",
+    "kind": "stat_pdf",
+    "publication_date": "2023-03-17",
+    "title": "Annual inflation down to 8.5% in the euro area",
+    "mechanism": "Los alimentos pasaron a aportar más al HICP que la energía en febrero de 2023.",
+    "indicators": {
+      "HICP": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "PDF, página 1: titular, fecha, análisis y notas del indicador."
+  },
+  {
+    "event": "ukraine",
+    "url": "https://ec.europa.eu/eurostat/documents/2995521/18055841/2-07122023-AP-EN.pdf",
+    "institution": "Eurostat",
+    "kind": "stat_pdf",
+    "publication_date": "2023-12-07",
+    "title": "GDP down by 0.1% and employment up by 0.2% in the euro area",
+    "mechanism": "El PIB real desestacionalizado del tercer trimestre cayó pese al crecimiento del empleo; el comunicado desglosa el gasto.",
+    "indicators": {
+      "PIB real trimestral": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "PDF, página 1: titular, fecha, análisis y notas del indicador."
+  },
+  {
+    "event": "ukraine",
+    "institution": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/web/products-euro-indicators/w/2-14022024-ap",
+    "mechanism": "Estimación flash de PIB real desestacionalizado del cuarto trimestre; registra estancamiento en la zona euro y no atribuye causalidad a la guerra.",
+    "indicators": {
+      "PIB real trimestral": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "GDP growth in the euro area and EU"
+  },
+  {
+    "event": "ukraine",
+    "institution": "Eurostat",
+    "url": "https://ec.europa.eu/eurostat/web/products-euro-indicators/w/2-17012024-ap",
+    "mechanism": "La publicación registra el repunte del HICP de diciembre y permite contrastar las contribuciones sectoriales tras el shock de energía.",
+    "indicators": {
+      "HICP": "contexto"
+    },
+    "relevance": 3,
+    "evidence_locator": "Contributions to the euro area annual inflation rate"
+  },
+  {
+    "event": "genai",
+    "institution": "BIS",
+    "url": "https://www.bis.org/publications/working-paper-1208-generative-ai-and-labour-productivity-field-experiment-coding",
+    "mechanism": "Un experimento con asistencia generativa para programar estima productividad de tareas. Aporta evidencia micro para contrastar escenarios de PIB.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Results / productividad y heterogeneidad por experiencia"
+  },
+  {
+    "event": "genai",
+    "institution": "Reserva Federal (Junta)",
+    "url": "https://www.federalreserve.gov/newsevents/speech/cook20230922a.htm",
+    "mechanism": "El discurso presenta la productividad potencial de la IA generativa a partir de evidencia de tareas y destaca la adopción y la reasignación laboral. Escenario estadounidense.",
+    "indicators": {
+      "PIB real trimestral": "proxy_o_escenario"
+    },
+    "relevance": 4,
+    "evidence_locator": "Productivity y Choice Behavior"
+  }
+]

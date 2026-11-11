@@ -1,0 +1,1491 @@
+{
+  "0211264c24a8ac4d43b3611cbd0f7c78b4be40c9fb4156f075f8148dc4eaf64d": {
+    "content_locator": "Summary / ¶4",
+    "content_review": "Reports the third-quarter output rebound and discusses renewed restrictions and weakening prospects.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "040afcd7688723905a12b20a9afd9ec9c0d8427a9db62a926f913f55134df804": {
+    "content_locator": "Summary / ¶1",
+    "content_review": "Links trade disruption and energy costs to activity and confidence in the aftermath of the invasion.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "0446f6f10d7782a81f229fbba4fae219c9882b2fc014908377d6c005835e065e": {
+    "content_locator": "Summary / ¶1",
+    "content_review": "Connects pandemic containment to the sharp contraction and discusses the measures intended to preserve bank lending.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "046b807a59cbcef643dfa1480b2013998894b3b39c18e7edd36fa89e0cc40527": {
+    "content_locator": "Discussion of the demand for electricity from data centres",
+    "content_review": "Discusses electricity demand and infrastructure investment associated with AI, rather than observed headline HICP.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "04ed541b48df82cf7b5be4f108565510f1cb3459a1c46f369f57623da7e3b651": {
+    "content_locator": "Monetary developments in the euro area: January 2020 / ¶1",
+    "content_review": "The heading and first bullet confirm that the observation is for January, despite publication in late February.",
+    "reason": "January's monetary observation predates the pandemic shock examined here. Replaced with the March release.",
+    "rights_evidence": "The release itself permits reproduction with source acknowledgement, under Directorate General Communications. Review covers the release's institutional statistics and accompanying prose only; exclude linked annexes, chart assets and press contacts.",
+    "rights_status": "not_needed",
+    "status": "rejected"
+  },
+  "089223c8116e0af5d5e5fd422bd8c44da1f11ca1409ee40eccb21369f3e31737": {
+    "content_locator": "Opening analysis and Chart A",
+    "content_review": "Models a contribution from uncertainty to euro area output; estimates rely on a pre-pandemic model sample.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "0c0644ab1b17b4f79172d9daabd22e8e75729fb6c7cf4c9e4963ee2511b5a852": {
+    "content_locator": "Overview / ¶3",
+    "content_review": "Sets out expectations of slowing or stagnating output; the growth outlook is a projection.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "p1",
+        "qualifiers": "Seasonally adjusted volumes and release vintage.",
+        "source_block_sha256": "42c88893ccc91afd4c72d6e998041a4a72113a41ee584d1107de8211a21d2859",
+        "text": "In the December estimate, euro area real GDP fell 0.1% quarter on quarter in 2023 Q3, while EU GDP was stable.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "p3",
+        "qualifiers": "National accounts contribution in 2023 Q3, not consumption growth itself.",
+        "source_block_sha256": "681d92784eb0852f707f0e02694c62a8076681c96325c2933cf1082c61d12dae",
+        "text": "Household final consumption added 0.2 percentage points to quarter-on-quarter GDP growth in both the euro area and EU.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "The national accounts record modest output weakness with positive consumption contributions in the later war period.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2023-09-30",
+      "start": "2023-07-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "context"
+    },
+    "mechanism": "The national accounts record modest output weakness with positive consumption contributions in the later war period.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "e475a21488104823feb87ab949eba9f340adde72b12d5a3f6fee10c4c51d8e96",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "16baf7b36f8c465b9f12ba5a8407f7dabc09da148cb02501ed5dfa7b0bdc4d89",
+    "rights_evidence": "Eurostat is identified as the issuer on the dateline and the prose/figures are official euro-indicator statistics. The reviewed pages carry no restrictive reproduction notice for these statistics; the reuse notice covers EU editorial and statistical material with attribution and notice of modifications. This review excludes graphics, logos and contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "These are seasonally adjusted national accounts and the December release vintage. Positive consumption contributions are compatible with falling total GDP when other contributions offset them. This statistical release does not attribute aggregate movements to the war or quantify any separate energy shock. Use the aggregate alongside contemporaneous releases on prices.",
+      "observed": "Eurostat estimated that euro area real GDP fell 0.1% quarter on quarter in 2023 Q3, while EU GDP was stable. GDP had risen 0.1% in both areas in the second quarter according to this release. Household final consumption contributed 0.2 percentage points to quarter-on-quarter growth in both areas; government final expenditure also contributed positively.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "32e100ac0d8ecfa15025e2ef6d97eece7ce363cf5c52ec7119d92742c72350eb": {
+    "content_locator": "Contribution and Findings",
+    "content_review": "Field experiment studies productivity in coding teams using a generative model. The sample is not representative of euro area GDP.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The BIS policy permits non-commercial distribution and limited attributed excerpts subject to conditions. No document-specific clearance for the proposed product and later text extraction was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "3ba44c7d1857fb73b92ee4a6c890ad2e76f25eca8612d84c6ace40c2012792e8": {
+    "content_locator": "Higher productivity driven by AI may ease monetary policy stance endogenously",
+    "content_review": "Discusses a possible monetary stance response to productivity gains; no actual AI-induced deposit-rate change.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document identifies a speaker and is not an unsigned institutional release. Specific permission for the proposed corpus use was not established under the ECB's exception for named material.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "3e64d971c01bfecef03b2b30167237cddc164a04643c3cc6a3dc7f9d01fb0bd0": {
+    "content_locator": "1 Introduction / ¶3",
+    "content_review": "Describes the current account's change from surplus to deficit in 2022 relative to euro area GDP.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "4000508f158b4ed85c15dffe507a16413289ef7919bae734dbcfefebfc8b1f68": {
+    "content_locator": "AI and the global economy / ¶3 and following",
+    "content_review": "Discusses concentration and reversal risk in AI infrastructure spending, differentiated by position in the supply chain.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The BIS policy permits non-commercial distribution and limited attributed excerpts subject to conditions. No document-specific clearance for the proposed product and later text extraction was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b": {
+    "claims": [
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: February 2020 / ¶1",
+        "qualifiers": "Published M3 growth rate and same-release comparison; not the M3 stock.",
+        "source_block_sha256": "04f7a00430f62b3e1ad108ae1eedcc4698f5c7cbfc1820d6fc8d60ce5b90bec9",
+        "text": "The ECB reported that euro area M3 grew 5.5% year on year in February 2020, after 5.2% in January 2020.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: February 2020 / ¶2",
+        "qualifiers": "Published component rate or contribution; not a stand-alone estimate of the shock's effect.",
+        "source_block_sha256": "c4adfbd1c9f1d5dfc5200040c72e634b68ec5b6ee23917c8cd187b0942237ac3",
+        "text": "Euro area M1 grew 8.1% year on year in February 2020, compared with 7.9% in January.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Monetary developments in the euro area: February 2020 / ¶1",
+    "content_review": "The ECB's February 2020 money release tracks M3 growth and the behaviour of narrower money during the early pandemic before widespread lockdowns.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2020-02-29",
+      "start": "2020-02-01"
+    },
+    "indicators": {
+      "m3-stock": "context"
+    },
+    "mechanism": "The ECB's February 2020 money release tracks M3 growth and the behaviour of narrower money during the early pandemic before widespread lockdowns.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "bc4d5348dde1d4c6c8f756b05df396d7bf47fda046272d7e4fb4ebf873097266",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "0f8b48a12d9dd0cb9b3d456cdee456f9ed94b91be49914c753dc20a00103655d",
+    "rights_evidence": "The release itself permits reproduction with source acknowledgement, under Directorate General Communications. Review covers the release's institutional statistics and accompanying prose only; exclude linked annexes, chart assets and press contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figures are the annual growth rates reported by the ECB, not M3 levels in millions of euros. Changes to previous-month estimates may reflect revisions. The monetary release gives a descriptive decomposition; it does not establish which movements were caused by the historical event.",
+      "observed": "The ECB reported annual broad money growth of 5.5% in February 2020, compared with 5.2% in January 2020 in the same release. M1, the narrower aggregate including overnight deposits and currency, grew at an annual rate of 8.1%, compared with 7.9% in January. The release records developments in broad money, its main components and lending in the euro area. These data provide a contemporary observation against which the timing of the early pandemic before widespread lockdowns can be compared.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Key ECB interest rates / ¶4",
+        "qualifiers": "Nominal policy rate at the announcement.",
+        "source_block_sha256": "fc3daa631af46a37b4657a86875d0b8e769cab39b412902768fb73fd57296e47",
+        "text": "The ECB kept its deposit facility rate at -0.50% on 10 March 2022.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Asset purchase programme (APP) / ¶2",
+        "qualifiers": "Announced monthly path in the same policy decision, not realised transactions.",
+        "source_block_sha256": "03bb3e3a5836f2af52fb8f669de077501a219ba3670d59f62455602c311a64c6",
+        "text": "The ECB announced an APP purchase schedule of EUR 40 billion in April, EUR 30 billion in May and EUR 20 billion in June.",
+        "type": "projection_or_expectation"
+      }
+    ],
+    "content_locator": "Key ECB interest rates / ¶4",
+    "content_review": "After the invasion the ECB held the deposit rate and recalibrated its asset purchase schedule under heightened uncertainty.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-03-10",
+      "start": "2022-03-10"
+    },
+    "indicators": {
+      "deposit-rate": "direct"
+    },
+    "mechanism": "After the invasion the ECB held the deposit rate and recalibrated its asset purchase schedule under heightened uncertainty.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "df21b37f73d692437c82b647e242dd37636133c9eecee2dea8756b9bedbcf2b7",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "09692731cdc39d41b7dd8232b7f970105bf4355486d3b138e459c89aee25e746",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": "The Governing Council presented the decisions alongside the uncertainty and spillover risks associated with the invasion.",
+      "limitations": "The statement records the policy decision and intended purchase schedule. It does not isolate the effect of the invasion on the deposit rate or show how much of the scheduled purchases was later executed.",
+      "observed": "On 10 March 2022 the ECB kept its deposit facility rate at -0.50%, while the main refinancing and marginal lending rates remained at zero and 0.25%. In the same release, the Council explicitly acknowledged Russia's invasion of Ukraine and revised its APP schedule to EUR 40 billion in April, EUR 30 billion in May and EUR 20 billion in June.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "p1",
+        "qualifiers": "Seasonally adjusted volume; EA19; flash estimate.",
+        "source_block_sha256": "fbddb4e48fffa5a8b5f7a58196ad3dd2be6dd9e5006edf07d3d115e2bb3aceb4",
+        "text": "In its 15 May flash release, Eurostat estimated that euro area real GDP fell 3.8% quarter on quarter in 2020 Q1.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "p1",
+        "qualifiers": "Timing context; does not quantify a causal contribution.",
+        "source_block_sha256": "fbddb4e48fffa5a8b5f7a58196ad3dd2be6dd9e5006edf07d3d115e2bb3aceb4",
+        "text": "Eurostat reported that COVID-19 containment measures started to be widely introduced in March 2020, the final month covered by its first-quarter estimate.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "The first-quarter flash vintage records the first output contraction as restrictions spread during the final month.",
+    "geography": "euro area (EA19)",
+    "historical_period": {
+      "end": "2020-03-31",
+      "start": "2020-01-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "direct"
+    },
+    "mechanism": "The first-quarter flash vintage records the first output contraction as restrictions spread during the final month.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "679261538c61c85f38cff3f793ad7c24354936e8da9f4c18072f91c25d9ae265",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "41d57baf3c8e1f16f5a89030d09bfdd5dfc6b750fe4050d848014e6a329da893",
+    "rights_evidence": "Eurostat is identified as the issuer on the dateline and the prose/figures are official euro-indicator statistics. The reviewed pages carry no restrictive reproduction notice for these statistics; the reuse notice covers EU editorial and statistical material with attribution and notice of modifications. This review excludes graphics, logos and contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The quarter includes two months before widespread European restrictions. The change is a quarterly aggregate and does not isolate the restrictions from other influences. This is the 15 May release vintage; later releases revised the estimates as additional national data became available.",
+      "observed": "Eurostat's flash estimate put seasonally adjusted real GDP 3.8% below the previous quarter in the euro area and 3.3% lower in the EU. The previous quarter had registered increases of 0.1% and 0.2%, respectively. Eurostat reported that containment measures were widely introduced in March, the last month of the quarter. On a year-on-year basis, euro area GDP was 3.2% lower.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "576fa0488541d7f7b78d43ec2c91dd64b84ded4ae21e9c66ee00b5c36df37523": {
+    "content_locator": "Monetary developments in the euro area: January 2022 / ¶1",
+    "content_review": "The February publication describes January broad money growth, before the event start.",
+    "reason": "The monetary observation predates the full-scale invasion. Replaced with the April 2022 release.",
+    "rights_evidence": "The release itself permits reproduction with source acknowledgement, under Directorate General Communications. Review covers the release's institutional statistics and accompanying prose only; exclude linked annexes, chart assets and press contacts.",
+    "rights_status": "not_needed",
+    "status": "rejected"
+  },
+  "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b": {
+    "claims": [
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: February 2022 / ¶1",
+        "qualifiers": "Published M3 growth rate and same-release comparison; not the M3 stock.",
+        "source_block_sha256": "120c8a4ccbc885935c502e9b9e978a6d8d274e594c68fd20fccb2a02d3b36b37",
+        "text": "The ECB reported that euro area M3 grew 6.3% year on year in February 2022, after 6.4% in January 2022.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: February 2022 / ¶2",
+        "qualifiers": "Published component rate or contribution; not a stand-alone estimate of the shock's effect.",
+        "source_block_sha256": "2501e208eadf34560ee33235328e50c2591b5d47ec143f416f83502c951fb81a",
+        "text": "Euro area M1 growth was 9.0% year on year in February 2022, after 9.1% in January.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Monetary developments in the euro area: February 2022 / ¶1",
+    "content_review": "The ECB's February 2022 money release tracks M3 growth and the behaviour of narrower money during Russia's full-scale invasion.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-02-28",
+      "start": "2022-02-01"
+    },
+    "indicators": {
+      "m3-stock": "context"
+    },
+    "mechanism": "The ECB's February 2022 money release tracks M3 growth and the behaviour of narrower money during Russia's full-scale invasion.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "2a610986396f3506e55e4deaef39efc69a29febdf3b53fc504af2c9541f73428",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "4585dcab41f9c053ffb973a35f9fc5b89f8f1df807d8c3e000573660caece19c",
+    "rights_evidence": "The release itself permits reproduction with source acknowledgement, under Directorate General Communications. Review covers the release's institutional statistics and accompanying prose only; exclude linked annexes, chart assets and press contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figures are the annual growth rates reported by the ECB, not M3 levels in millions of euros. Changes to previous-month estimates may reflect revisions. The monetary release gives a descriptive decomposition; it does not establish which movements were caused by the historical event.",
+      "observed": "The ECB reported annual broad money growth of 6.3% in February 2022, compared with 6.4% in January 2022 in the same release. M1 grew 9.0% year on year; that aggregate includes currency and overnight deposits. The observation month contains only the first days after the invasion. The release records developments in broad money, its main components and lending in the euro area. These data provide a contemporary observation against which the timing of Russia's full-scale invasion can be compared.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "6538903e0236f4107487231b03fd8f9919335d27ccf88f431402aa2eae9dd782": {
+    "content_locator": "Economic activity / ¶8",
+    "content_review": "Discusses slowing euro area activity and the purchasing-power channel, alongside supply constraints.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "65d22a4bf80c4fb54eb601470f8f96b795d8c8c0ee97c1d25a0c3af75ead1b22": {
+    "content_locator": "Opening analysis / ¶3–4",
+    "content_review": "Containment and the fall in activity depressed employment expectations and labour input.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "6a4de33a5b4184547fd9b88001142d39f841f9232bf674a816a57ab0b7c7d023": {
+    "content_locator": "AI progress and investment boom under pressure",
+    "content_review": "Discusses global investment in AI infrastructure and downside risk from a possible reversal in investment.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The BIS policy permits non-commercial distribution and limited attributed excerpts subject to conditions. No document-specific clearance for the proposed product and later text extraction was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "70c3f6e174c83951bf509552042c076a499e39c2681f4c7f9e9c1f6f9d67787e": {
+    "content_locator": "Implications of AI for monetary policy",
+    "content_review": "Distinguishes higher productive capacity from investment and consumption effects that can put pressure on prices.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document identifies a speaker and is not an unsigned institutional release. Specific permission for the proposed corpus use was not established under the ECB's exception for named material.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "78eb1de2968d9705fa147db0b25aa7c143a0017169238b46e3b5aabbdc221977": {
+    "content_locator": "Opening analysis / ¶3",
+    "content_review": "Contrasts real consumption of goods and services in the presence of higher energy costs.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "79d3f773c499387d5188dc4f2063cce68b1562c6e5f728ce2dd1aac302b27118": {
+    "content_locator": "1 Introduction / ¶4",
+    "content_review": "Explains how automatic stabilisers cushion household income and activity during pandemic restrictions.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "7b16f59be9db0f345eb0058553e2e4bdad9a85e34bbb5d550a38c9af392fcc11": {
+    "content_locator": "Chapter 1, economic conditions and exchange rates; copyright notice at end",
+    "content_review": "The report documents high inflation, slower growth and euro depreciation versus the US dollar in 2022; the report's own copyright paragraph limits reuse.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "7d118fca1d81d69631e0d5a811ca707bdb6f524e40a6f59dabd4d82f2b0253e6": {
+    "content_locator": "Economic and monetary assessment at the time of the Governing Council meeting of 4 June 2020 / ¶2",
+    "content_review": "Explains the June PEPP expansion and the pandemic-induced deterioration in projected growth and inflation.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "821d970d7f07b19d16f2aa9bc344969346851104e7ec66bb319fbe30b557340a": {
+    "content_locator": "Introduction and macroeconomic implications",
+    "content_review": "Presents supply and demand channels; scenarios and task-level findings cannot be read as observed euro area GDP effects.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The BIS policy permits non-commercial distribution and limited attributed excerpts subject to conditions. No document-specific clearance for the proposed product and later text extraction was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Key ECB interest rates / ¶5",
+        "qualifiers": "The claim is about the observed announcement, with a specified later effective date.",
+        "source_block_sha256": "76589267223f1774ac5357c386f069bf6ec11a1ea443b114565405594e112dba",
+        "text": "On 8 September 2022 the ECB decided to raise its deposit facility rate to 0.75%, effective 14 September.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "hicp-yoy",
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶2",
+        "qualifiers": "Contemporaneous policy diagnosis, not an isolated estimate of the war's effect.",
+        "source_block_sha256": "34a03b59994713c6b01a6079b9bdb42e8cdcf93a25214fcd94ee92ef10cbb8a3",
+        "text": "The ECB cited high energy and food prices, supply bottlenecks and reopening-related demand as drivers of price pressure.",
+        "type": "institutional_interpretation"
+      }
+    ],
+    "content_locator": "Key ECB interest rates / ¶5",
+    "content_review": "The Council frontloaded rate increases amid high inflation, citing both supply pressures and sectoral demand.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-09-08",
+      "start": "2022-08-01"
+    },
+    "indicators": {
+      "deposit-rate": "direct",
+      "hicp-yoy": "context"
+    },
+    "mechanism": "The Council frontloaded rate increases amid high inflation, citing both supply pressures and sectoral demand.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "7855d26915baedcf44d04e4b49866691f4564fc8843b7a836b776de9fae9b60a",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "7ff9ec447e69e22b305ac049958a2ec56fa2182b7e5059e882e8acf8d69fa6f5",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": "The Council described the large increase as frontloading the move toward rates compatible with its medium-term price stability target.",
+      "limitations": "The date of announcement and effective date are distinct. The cited inflation figure is a flash estimate quoted by the ECB. The release does not estimate how much of the rate increase or the inflation figure was attributable to the invasion.",
+      "observed": "On 8 September 2022 the ECB announced an increase of 75 basis points in its three key policy rates. It set the deposit facility rate at 0.75% effective 14 September. The release cited Eurostat's August flash estimate of 9.1% and discussed energy and food prices, bottlenecks and reopening demand.",
+      "projection_or_expectation": "The Council expected further moves based on incoming data, not a fixed path.",
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "8d273311720835b15ffac925dda06e58553c53ac8042bbf970909aa0e1ef3c7d": {
+    "content_locator": "What Europe stands to gain",
+    "content_review": "Frames European AI diffusion in terms of capital, computing capacity and industry-level uptake.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document identifies a speaker and is not an unsigned institutional release. Specific permission for the proposed corpus use was not established under the ECB's exception for named material.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "8e95a34508cd5f1ea2219395892c0da3a1e5d4bffd26bacd3e38b7119c7724a3": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶3",
+        "qualifiers": "Decision date; nominal annual rate.",
+        "source_block_sha256": "483b15b3e3a05a691fa16462d33fa56e4e1ecda0dc075e90c1794dc147d2a79f",
+        "text": "On 29 October 2020 the ECB kept its deposit facility rate at -0.50%.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶1",
+        "qualifiers": "Forward guidance in October, not an actual later policy change.",
+        "source_block_sha256": "60a4c8cfd1e3277c046602f664538754ba1d305d9e13ec26c0e297aeaa726385",
+        "text": "The ECB expected to reassess the outlook using its December projections and recalibrate instruments as appropriate.",
+        "type": "projection_or_expectation"
+      }
+    ],
+    "content_locator": "Monetary policy decisions / ¶3",
+    "content_review": "The ECB kept rates unchanged while signalling a later reassessment of its pandemic response.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2020-10-29",
+      "start": "2020-10-29"
+    },
+    "indicators": {
+      "deposit-rate": "direct"
+    },
+    "mechanism": "The ECB kept rates unchanged while signalling a later reassessment of its pandemic response.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "0938f61e8d71c4746f6c30263e3c58493c0ee850b387a9c67b20512986204fbf",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "cb82b6fccc3462aa42a20d25d5fe485391fae861ddaddcacf6c51d3f3c69ae19",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The mention of the exchange rate does not identify EUR/USD or supply a bilateral observation. The announcement records October decisions and intended review; it is not evidence that a specific December instrument change had already taken place.",
+      "observed": "On 29 October 2020 the Governing Council left the deposit facility rate at -0.50%, the main refinancing rate at zero, and the marginal lending rate at 0.25%. It kept the PEPP envelope at EUR 1.35 trillion and continued the existing purchase and refinancing arrangements. The Council described the balance of risks as tilted down and identified pandemic developments, vaccine prospects and exchange-rate developments as inputs to the next assessment.",
+      "projection_or_expectation": "The Council said the December projections would inform reassessment and any appropriate recalibration.",
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd": {
+    "claims": [
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: April 2022 / ¶1",
+        "qualifiers": "Published M3 growth rate and same-release comparison; not the M3 stock.",
+        "source_block_sha256": "df9eaf3ed196660d6451fca562754e3f0a7184c22b3e7ad095ca42f81fcd564e",
+        "text": "The ECB reported that euro area M3 grew 6.0% year on year in April 2022, after 6.3% in March 2022.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Chart 1 / ¶6",
+        "qualifiers": "Published component rate or contribution; not a stand-alone estimate of the shock's effect.",
+        "source_block_sha256": "3b19863ee3d1462c33311a1939c3372a655ba95ad17fbd1e6dc7ef2221a676b0",
+        "text": "M1 contributed 5.9 percentage points to euro area M3 annual growth in April 2022.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Monetary developments in the euro area: April 2022 / ¶1",
+    "content_review": "The ECB's April 2022 money release tracks M3 growth and the behaviour of narrower money during the period after Russia's full-scale invasion.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-04-30",
+      "start": "2022-04-01"
+    },
+    "indicators": {
+      "m3-stock": "context"
+    },
+    "mechanism": "The ECB's April 2022 money release tracks M3 growth and the behaviour of narrower money during the period after Russia's full-scale invasion.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "replaces": "576fa0488541d7f7b78d43ec2c91dd64b84ded4ae21e9c66ee00b5c36df37523",
+    "reviewed_payload_sha256": "392c8a98252460c0582e66caab2c95490f3e8b83341de8a8377509195f0907d0",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "5f0359642db1ccebe28d7a8cb48adbdfb82f3b9d752c41c76deaef8895a1241d",
+    "rights_evidence": "The release itself permits reproduction with source acknowledgement, under Directorate General Communications. Review covers the release's institutional statistics and accompanying prose only; exclude linked annexes, chart assets and press contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figures are the annual growth rates reported by the ECB, not M3 levels in millions of euros. Changes to previous-month estimates may reflect revisions. The monetary release gives a descriptive decomposition; it does not establish which movements were caused by the historical event.",
+      "observed": "The ECB reported annual broad money growth of 6.0% in April 2022, compared with 6.3% in March 2022 in the same release. M1 supplied 5.9 percentage points of the growth rate, down from 6.3 points in March. Other short-term deposits contributed 0.1 point. The release records developments in broad money, its main components and lending in the euro area. These data provide a contemporary observation against which the timing of the period after Russia's full-scale invasion can be compared.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "93a242327e0037b3e2bbc388720c285ec955af4dce66d101aef2247c6e217647": {
+    "content_locator": "Opening analysis / ¶3–4",
+    "content_review": "Traces immediate oil, coal and gas volatility after the invasion and the channel from supply disruptions.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "8% of EU enterprises used AI technologies in 2023 / ¶1",
+        "qualifiers": "All listed AI categories; early adoption proxy rather than a GDP observation.",
+        "source_block_sha256": "d3504b5add8035abb57571b74e51ff01fb333573033bdccbd745f9437b61befc",
+        "text": "Eurostat reported AI use among 8% of EU enterprises with ten or more employees in 2023.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "8% of EU enterprises used AI technologies in 2023 / ¶5",
+        "qualifiers": "Broader AI category; not a generative AI share.",
+        "source_block_sha256": "31690b19452ad6610a60f9f591a704609083a59cb321a35a81942d4063cc4c51",
+        "text": "The release put use of AI for automated workflows or decision support at 3% of EU enterprises in 2023.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "8% of EU enterprises used AI technologies in 2023 / ¶1",
+    "content_review": "The enterprise survey gives an early adoption baseline, including AI technologies beyond generative systems.",
+    "geography": "European Union (EU27)",
+    "historical_period": {
+      "end": "2023-12-31",
+      "start": "2023-01-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "proxy"
+    },
+    "mechanism": "The enterprise survey gives an early adoption baseline, including AI technologies beyond generative systems.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "8ce5804879e7b1086bd97b577c86bae954ef4b71f124a7024c63a3e6db8ca892",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "1e680a0e9c653dcf0529f6731d777f5b84e68cb8ab86e07c8bd5e8760eb1f8d9",
+    "rights_evidence": "The named publisher and dataset are Eurostat. The reviewed statistics and narrative are Eurostat editorial content, with no conflicting notice for the retained facts. The site's CC BY 4.0 and statistical reuse policy cover that material; exclude stock photographs, chart images, branding and links. The summary is an attributed paraphrase.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The share is not specific to generative AI, and the reference year includes months before the corpus event window. The publication date is in that window. The measure is about reported technology use by enterprises, not task output, productivity or quarterly real GDP. Use this release as an adoption baseline only.",
+      "observed": "Eurostat reported that 8% of EU enterprises with at least ten employees used artificial intelligence technologies in 2023. The release grouped together applications such as text mining, speech recognition, natural language generation and machine learning. It described automated workflows or assistance with decisions as the most used listed application, at 3% of enterprises.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b": {
+    "claims": [
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "Headline year-on-year change; November release vintage.",
+        "source_block_sha256": "521486a668d1ef81b1bc10027d47fca4aecbc92cd9f0d80c7c86f2c732b2cd4a",
+        "text": "Euro area annual HICP inflation reached 10.6% in October 2022, after 9.9% in September.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "Largest index component contribution; not a causal estimate.",
+        "source_block_sha256": "521486a668d1ef81b1bc10027d47fca4aecbc92cd9f0d80c7c86f2c732b2cd4a",
+        "text": "Energy contributed 4.44 percentage points to euro area annual HICP inflation in October 2022.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "Energy was the largest measured contribution to October inflation during the wartime energy shock.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-10-31",
+      "start": "2022-10-01"
+    },
+    "indicators": {
+      "hicp-yoy": "direct"
+    },
+    "mechanism": "Energy was the largest measured contribution to October inflation during the wartime energy shock.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "f7628f9e25097a9c24c9f2dd61adec666b5f259bc9b8150e3eb0de66162f49cb",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "2b6a3205e5dcc75dbc7294fa7b5be07fa64bf431e9ba1211b728dde23b244d97",
+    "rights_evidence": "Eurostat is identified as the issuer on the dateline and the prose/figures are official euro-indicator statistics. The reviewed pages carry no restrictive reproduction notice for these statistics; the reuse notice covers EU editorial and statistical material with attribution and notice of modifications. This review excludes graphics, logos and contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figures are annual rates and index contributions, not the change in October alone. The publication does not isolate the energy-price contribution attributable to the invasion. The reported estimate differs from the October flash vintage published at the end of the reference month.",
+      "observed": "Eurostat's October 2022 release put euro area annual HICP inflation at 10.6%, up from 9.9% in September and 4.1% a year earlier. The EU rate was 11.5%. Energy accounted for 4.44 percentage points of the euro area figure, followed by food, alcohol and tobacco at 2.74 points and services at 1.82 points. The release provides the national and product breakdowns behind the aggregate.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "9e1d56102abdc279a3fe9d3549cd5cb2fa9e2d69fb2d801fbbb85b2df63d9abb": {
+    "content_locator": "The impact of policy measures on financial conditions / ¶5",
+    "content_review": "Describes portfolio rebalancing, market illiquidity and the intended restoration of policy transmission.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877": {
+    "claims": [
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: March 2020 / ¶1",
+        "qualifiers": "Published M3 growth rate and same-release comparison; not the M3 stock.",
+        "source_block_sha256": "8df7ee8542b4c745811216bc1e070c0260115c2d53003c42773286354478e262",
+        "text": "The ECB reported that euro area M3 grew 7.5% year on year in March 2020, after 5.5% in February 2020.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: March 2020 / ¶2",
+        "qualifiers": "Published component rate or contribution; not a stand-alone estimate of the shock's effect.",
+        "source_block_sha256": "6a3e1302eccf74efbb1bb79e3ab46ce12e2b424d9472f8425d5b00ddae5879a0",
+        "text": "Euro area M1 growth rose to 10.3% year on year in March 2020, from 8.1% in February.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Monetary developments in the euro area: March 2020 / ¶1",
+    "content_review": "The ECB's March 2020 money release tracks M3 growth and the behaviour of narrower money during widespread pandemic restrictions.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2020-03-31",
+      "start": "2020-03-01"
+    },
+    "indicators": {
+      "m3-stock": "context"
+    },
+    "mechanism": "The ECB's March 2020 money release tracks M3 growth and the behaviour of narrower money during widespread pandemic restrictions.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "replaces": "04ed541b48df82cf7b5be4f108565510f1cb3459a1c46f369f57623da7e3b651",
+    "reviewed_payload_sha256": "c47b40816a6790820f5ce4f914c76094e8281cd93e3760fa282ccd2f5ce120b7",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "24de8c2055204747fc4ff29fd78ac96169d30d57881c974d870080b806ff8dfd",
+    "rights_evidence": "The release itself permits reproduction with source acknowledgement, under Directorate General Communications. Review covers the release's institutional statistics and accompanying prose only; exclude linked annexes, chart assets and press contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figures are the annual growth rates reported by the ECB, not M3 levels in millions of euros. Changes to previous-month estimates may reflect revisions. The monetary release gives a descriptive decomposition; it does not establish which movements were caused by the historical event.",
+      "observed": "The ECB reported annual broad money growth of 7.5% in March 2020, compared with 5.5% in February 2020 in the same release. Narrow money also accelerated: annual growth in M1 rose to 10.3% from 8.1%, alongside the increase in broad money. The release records developments in broad money, its main components and lending in the euro area. These data provide a contemporary observation against which the timing of widespread pandemic restrictions can be compared.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "a18107b658c41008aab24291616ff77a36b484fea81b8e4782dc8a49ac0fbfa7": {
+    "content_locator": "Monetary policy decisions / ¶2",
+    "content_review": "The release reiterates the unchanged rate and PEPP envelope; it adds refinancing take-up context, not another deposit-rate change.",
+    "reason": "Incremental update of the same deposit rate and PEPP stance; retain the June and October decisions for this slice.",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "not_needed",
+    "status": "rejected"
+  },
+  "a532292f6210678aecac9ae1d0a3de9b9a911f752c802cafa61c2dd32b9eec62": {
+    "content_locator": "Economic activity / ¶6",
+    "content_review": "Describes an expected further slowdown as elevated inflation and uncertainty weigh on activity.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "a6a3f0d32a05cbbce45f8606ac30e2054f357c04cab47586582277b250e3a571": {
+    "content_locator": "Economic and monetary assessment at the time of the Governing Council meeting of 12 March 2020 / ¶2",
+    "content_review": "Early pandemic overview and a downward revision to growth projections; the projection is not realised output.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "b0d78c36f3c0a650c02f18a77ce8f6bd18afe1e156d95c9007f07ea64a3b9066": {
+    "content_locator": "Overview / ¶1",
+    "content_review": "Describes the expected energy, trade and confidence channels after the invasion; a contemporaneous assessment.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The document's own copyright notice restricts reproduction to attributed educational and non-commercial use. The planned corpus distribution has not been established to fit that scope.",
+    "rights_status": "restricted",
+    "status": "needs_review"
+  },
+  "b1ad86839f27922492b464e2c2625d164dfdbb9474f52aa489876bf61821edc7": {
+    "content_locator": "Opening analysis / ¶3–4",
+    "content_review": "Food HICP was already rising before the invasion; the text discusses input pressures intensifying afterwards.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "b3a4499c4a56a12e1420e9239a68f2a673161c78c9b20e26281aac0adaee2646": {
+    "content_locator": "1 Introduction / ¶4",
+    "content_review": "Tracks Chinese output, trade and high-frequency indicators after containment; relevant globally but outside the approved indicator scope.",
+    "reason": "The analysed series are Chinese. The text does not substantively document one of the project's euro-area series.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "rejected"
+  },
+  "b6cd321248a2fe55bc064e3df7e03e00528ec79368803a9b23557599801095e9": {
+    "content_locator": "What about the AI boom?",
+    "content_review": "Tests whether private investment associated with AI has added euro area aggregate demand, and reports no detectable aggregate effect.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "b8e07baa95f5450aa400f329b995c5aa1547b25ee39b6ab97baea17136c6da9a": {
+    "content_locator": "Key ECB interest rates / ¶5",
+    "content_review": "The April release kept all three key rates unchanged and reiterated the conditional conclusion of net purchases.",
+    "reason": "Interim reaffirmation; the March decision and June announcement retain the substantive rate path and schedule changes.",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "not_needed",
+    "status": "rejected"
+  },
+  "ba333c241b2b49d24cd47a07b32413627d217a55428a4fb5e0ade618a45a4247": {
+    "content_locator": "Key takeaways / ¶1",
+    "content_review": "Describes debt-financed investment, trade and productivity scenarios, with uneven aggregate effects.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The BIS policy permits non-commercial distribution and limited attributed excerpts subject to conditions. No document-specific clearance for the proposed product and later text extraction was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "bdde3e5010ad4db9ae716bc89fb8b22a46cefdd2b4cf0ee4478a11cc39e223ac": {
+    "content_locator": "Opening paragraphs and SAFE survey discussion",
+    "content_review": "SAFE survey distinguishes generative tools and records planned AI investment by firms. Plans are not realised investment.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5": {
+    "claims": [
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "Annual rate; not a monthly change.",
+        "source_block_sha256": "74f31173577bc726a8052ae74e1601626f88f9fb928afcce134a0ccf57a7bcab",
+        "text": "Euro area HICP inflation was -0.3% year on year in both October and November 2020 in the December release.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "Index contribution, not the inflation rate of the energy component.",
+        "source_block_sha256": "74f31173577bc726a8052ae74e1601626f88f9fb928afcce134a0ccf57a7bcab",
+        "text": "Energy contributed -0.82 percentage points to euro area annual inflation in November 2020.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "Energy remained a negative contribution to headline inflation late in the first pandemic year.",
+    "geography": "euro area (EA19)",
+    "historical_period": {
+      "end": "2020-11-30",
+      "start": "2020-11-01"
+    },
+    "indicators": {
+      "hicp-yoy": "direct"
+    },
+    "mechanism": "Energy remained a negative contribution to headline inflation late in the first pandemic year.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "b0ce5f85841f21e25c8218c97205908a022523b7a2ce5c75b2452e1ff0a04239",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "b785cf004bf0f4330607886d67c8dff00a1f9bd6832af2518bd3b1eddfbb3696",
+    "rights_evidence": "Eurostat is identified as the issuer on the dateline and the prose/figures are official euro-indicator statistics. The reviewed pages carry no restrictive reproduction notice for these statistics; the reuse notice covers EU editorial and statistical material with attribution and notice of modifications. This review excludes graphics, logos and contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "This is a comparison with the same month of the previous year. Negative headline inflation does not imply that all prices fell. The index breakdown identifies the contribution from energy, not the portion causally due to the pandemic or a particular policy.",
+      "observed": "Eurostat reported euro area headline inflation of -0.3% year on year in November 2020, unchanged from October and below 1.0% one year earlier. Energy made a -0.82 percentage point contribution, exceeding the combined positive contributions of food, alcohol and tobacco and services. The EU headline rate was positive at 0.2%, so the two geographic aggregates did not move to the same level.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "c9eef83f8dc7950b93749836f468f6d6a0dbe4dded7de1aa908f9837677a5869": {
+    "content_locator": "Corporate Telephone Survey discussion",
+    "content_review": "Uses the firm survey to discuss uneven adoption and conditions for productivity gains.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "32.7% of EU people used generative AI tools in 2025 / ¶1",
+        "qualifiers": "EU household ICT survey; adoption proxy only.",
+        "source_block_sha256": "0fd1ec3b361fefa815debcd1670ebaa136aa9d1532e9911dfde2c872993b1f85",
+        "text": "Eurostat reported that 32.7% of people aged 16 to 74 in the EU used generative AI tools in 2025.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "32.7% of EU people used generative AI tools in 2025 / ¶1",
+        "qualifiers": "Purpose categories can overlap; same EU survey population.",
+        "source_block_sha256": "0fd1ec3b361fefa815debcd1670ebaa136aa9d1532e9911dfde2c872993b1f85",
+        "text": "Eurostat reported generative AI use for personal purposes by 25.1% of people, work by 15.1%, and formal education by 9.4%.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "32.7% of EU people used generative AI tools in 2025 / ¶1",
+    "content_review": "Household use of generative tools documents diffusion beyond enterprises and provides context for adoption scenarios.",
+    "geography": "European Union (EU27)",
+    "historical_period": {
+      "end": "2025-12-16",
+      "start": "2025-01-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "proxy"
+    },
+    "mechanism": "Household use of generative tools documents diffusion beyond enterprises and provides context for adoption scenarios.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "replaces": "ef44bb2babc8395f263bdb6eb3df42514fa6f1c04019a1857e4927aa0a1beb7a",
+    "reviewed_payload_sha256": "88fa00458793c76b6d3231915cd8a20de7fd3ee26651d3458c9041be66cc624f",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "2982cf4a29d8e41ff5951b55e0510e90d2ce5fc03b131ea6ff958cc8cd5e5558",
+    "rights_evidence": "The named publisher and dataset are Eurostat. The reviewed statistics and narrative are Eurostat editorial content, with no conflicting notice for the retained facts. The site's CC BY 4.0 and statistical reuse policy cover that material; exclude stock photographs, chart images, branding and links. The summary is an attributed paraphrase.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The survey asks about use in the three months before interview; the dates bound the 2025 reference year up to publication, not fieldwork. Purposes may overlap. Use in the survey is not intensity, expenditure, hours saved or output. This EU household measure does not identify the effect of generative AI on euro area real GDP.",
+      "observed": "Eurostat's 2025 ICT survey found that 32.7% of EU residents aged 16 to 74 had used generative AI tools. The release distinguished use for personal purposes, work and formal education, at 25.1%, 15.1% and 9.4% respectively. It reported use by individuals rather than deployment by enterprises, so it captures another part of diffusion.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f": {
+    "claims": [
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: March 2022 / ¶1",
+        "qualifiers": "Published M3 growth rate and same-release comparison; not the M3 stock.",
+        "source_block_sha256": "33179b931d7c745e8cd26fc9df055786c6c4049e59a80678e29bedc0fa9aa505",
+        "text": "The ECB reported that euro area M3 grew 6.3% year on year in March 2022, after 6.4% in February 2022.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "Monetary developments in the euro area: March 2022 / ¶2",
+        "qualifiers": "Published component rate or contribution; not a stand-alone estimate of the shock's effect.",
+        "source_block_sha256": "ea34617989d25b356be51826e9ca1052c1d5f86d4b5b64b61f837892874e7b3a",
+        "text": "Euro area M1 growth fell to 8.8% year on year in March 2022, from 9.1% in February.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Monetary developments in the euro area: March 2022 / ¶1",
+    "content_review": "The ECB's March 2022 money release tracks M3 growth and the behaviour of narrower money during the first full month following Russia's full-scale invasion.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-03-31",
+      "start": "2022-03-01"
+    },
+    "indicators": {
+      "m3-stock": "context"
+    },
+    "mechanism": "The ECB's March 2022 money release tracks M3 growth and the behaviour of narrower money during the first full month following Russia's full-scale invasion.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "76e2bab65fff96ea28522e5793bb72d8d9daf2bdbebb519e539ae5253ece9046",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "7f22b04150c3cc8d53c656730e623db2a02e80de3f29aac3a95eae98fc6ce351",
+    "rights_evidence": "The release itself permits reproduction with source acknowledgement, under Directorate General Communications. Review covers the release's institutional statistics and accompanying prose only; exclude linked annexes, chart assets and press contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figures are the annual growth rates reported by the ECB, not M3 levels in millions of euros. Changes to previous-month estimates may reflect revisions. The monetary release gives a descriptive decomposition; it does not establish which movements were caused by the historical event.",
+      "observed": "The ECB reported annual broad money growth of 6.3% in March 2022, compared with 6.4% in February 2022 in the same release. The ECB revised its February M3 growth estimate up from 6.3%, and reported that M1 growth eased to 8.8% from 9.1%. The release records developments in broad money, its main components and lending in the euro area. These data provide a contemporary observation against which the timing of the first full month following Russia's full-scale invasion can be compared.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Key ECB interest rates / ¶9",
+        "qualifiers": "Decision at publication.",
+        "source_block_sha256": "7b2bce95a2f4d0e349e30eba7e670821d584b507ddc02b749fc73f3dd1c44299",
+        "text": "The ECB kept its deposit facility rate at -0.50% at the 9 June 2022 meeting.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Key ECB interest rates / ¶9",
+        "qualifiers": "Contemporaneous stated intention; do not substitute it for the actual July decision.",
+        "source_block_sha256": "7b2bce95a2f4d0e349e30eba7e670821d584b507ddc02b749fc73f3dd1c44299",
+        "text": "In its June decision the ECB intended to raise its key policy rates by 25 basis points at the July meeting.",
+        "type": "projection_or_expectation"
+      }
+    ],
+    "content_locator": "Key ECB interest rates / ¶9",
+    "content_review": "The ECB announced a transition from asset purchases toward higher policy rates while leaving the current deposit rate negative.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-06-09",
+      "start": "2022-06-09"
+    },
+    "indicators": {
+      "deposit-rate": "direct"
+    },
+    "mechanism": "The ECB announced a transition from asset purchases toward higher policy rates while leaving the current deposit rate negative.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "0fe8c8a00690e3687a39a99d3bcb9ee571e2c8a157ca328a92af0369010b9ebf",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "39ee4b8c9c3408e49620a4c252a3e7400867d09dc8c49256432c20ab3bbfd89b",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The 25 basis points were a June intention, not an observed July rate change. The September path depended on the updated outlook. This source gives the information available at the June decision, not a measure of the war's causal effect.",
+      "observed": "The ECB's 9 June announcement left the deposit facility rate at -0.50%. The Governing Council outlined the sequencing of withdrawal of monetary accommodation: end net APP purchases before raising rates, then adjust the policy path as the outlook evolves. At the June meeting it said it intended a 25 basis point increase in July and expected a further move in September.",
+      "projection_or_expectation": "The Council also expected another increase in September, with the size conditional on the updated medium-term inflation outlook.",
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "de1077a08fd538c62c14ffe8f9b366b233debb2827197980a89b270f5dfbab95": {
+    "content_locator": "Chart B / ¶9",
+    "content_review": "Sectoral evidence discusses substitution toward imports in energy-intensive industries; a production channel.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "e04e7b6c9aa4a3a95946d137a82c1e7d09661373d77e3dc13a7b3a529d6b22b7": {
+    "content_locator": "Opening analysis / ¶3",
+    "content_review": "The measured variable is the EUR/USD FX swap basis, a dollar-funding spread. It cannot be used as the spot EUR/USD indicator.",
+    "reason": "Relevant content was inspected; permission adequate for the proposed corpus scope is not established.",
+    "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
+    "rights_status": "not_cleared",
+    "status": "needs_review"
+  },
+  "e26d1f26dfc472137c0464a82cf917998fb1369406dbae1cb23e612e131c5372": {
+    "content_locator": "Monetary policy decisions / ¶2",
+    "content_review": "The deposit rate stayed negative and the PEPP envelope was unchanged.",
+    "reason": "Near-duplicate policy snapshot for corpus purposes; the June expansion and October reassessment retain the material changes.",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "not_needed",
+    "status": "rejected"
+  },
+  "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3": {
+    "claims": [
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "Headline annual inflation; March release vintage.",
+        "source_block_sha256": "a7f9a9e9d3bb9b330de87688479b8efb6738129f6c8803efdff9684097616c95",
+        "text": "Euro area HICP inflation eased to 8.5% year on year in February 2023 from 8.6% in January.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "Index contributions; not estimates of a change in the price of a single product.",
+        "source_block_sha256": "a7f9a9e9d3bb9b330de87688479b8efb6738129f6c8803efdff9684097616c95",
+        "text": "Food, alcohol and tobacco contributed 3.10 percentage points to euro area inflation in February, compared with 1.64 points from energy.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "By February 2023, food-related components contributed more to annual inflation than energy.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2023-02-28",
+      "start": "2023-02-01"
+    },
+    "indicators": {
+      "hicp-yoy": "direct"
+    },
+    "mechanism": "By February 2023, food-related components contributed more to annual inflation than energy.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "583c2fd9f2568fd476625c50ca885eb5245b29ad69e8e07dab5ee7f3ab285888",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "51a34ca214b87dd9ae5446bfab6c6ea2d30e85f9bf9d8190536fbd9dfb8f950c",
+    "rights_evidence": "Eurostat is identified as the issuer on the dateline and the prose/figures are official euro-indicator statistics. The reviewed pages carry no restrictive reproduction notice for these statistics; the reuse notice covers EU editorial and statistical material with attribution and notice of modifications. This review excludes graphics, logos and contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figures describe February's index and its composition. A smaller energy contribution than that of food is not proof of a particular pass-through mechanism or a measured effect of the war. The euro area and EU aggregates have different country coverage.",
+      "observed": "Eurostat measured annual euro area HICP inflation of 8.5% in February 2023, down from 8.6% in January and above the 5.9% observed a year before. The EU rate was 9.9%. Food, alcohol and tobacco contributed 3.10 percentage points to the euro area rate, followed by services at 2.02 points, non-energy industrial goods at 1.74 points and energy at 1.64 points.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "e44aa9b5039adf62480fc33f12b2f3769a59f951f733e9e357c89ab6bcfeb094": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶7",
+        "qualifiers": "Decision date; nominal annual rate.",
+        "source_block_sha256": "ef5477822477441fc50ef0a13ef0d4a5b7907977d5126d4524b4b45ac45691a4",
+        "text": "The ECB kept the deposit facility rate at -0.50% at its 30 April meeting.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶2",
+        "qualifiers": "Announced borrowing conditions, not an observed future average or a change in the facility rate.",
+        "source_block_sha256": "44491c533147aa858354dc6bb35f67a42f9e2bc9e93563845ed7bed944a91e1e",
+        "text": "The revised TLTRO III terms set a rate 50 basis points below the average deposit facility rate for counterparties meeting the lending threshold during June 2020 to June 2021.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Monetary policy decisions / ¶7",
+    "content_review": "The ECB used the deposit rate as a benchmark for subsidised term funding while leaving the policy rate unchanged.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2020-04-30",
+      "start": "2020-04-30"
+    },
+    "indicators": {
+      "deposit-rate": "direct"
+    },
+    "mechanism": "The ECB used the deposit rate as a benchmark for subsidised term funding while leaving the policy rate unchanged.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "006c44cbf7251f3d1f6f8784b9427b9300c7f2a7d62943975dd99976c0d97fe2",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "6ac525ad19b643eea8d10dd1c20cc44e460c48f474746b2e76071e0dd6a5e966",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": "The refinancing operations aimed to backstop money-market liquidity and encourage eligible bank lending.",
+      "limitations": "The borrowing terms applied only to eligible counterparties and the specified period. The spread is a rate on refinancing, not a cut in the deposit facility rate. Announced liquidity support does not establish take-up or a realised lending effect.",
+      "observed": "The ECB held the deposit facility rate at -0.50% on 30 April. It eased targeted longer-term refinancing conditions for June 2020 to June 2021: counterparties meeting the lending threshold could borrow at 50 basis points below the average deposit facility rate for the relevant period. The Council also announced seven pandemic emergency longer-term refinancing operations and described the ongoing EUR 750 billion PEPP.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "Generative AI, Productivity, the Labor Market, and Choice Behavior / ¶9",
+        "qualifiers": "The primary evidence here is the Governor's assessment, not the cited experiments.",
+        "source_block_sha256": "00de23372aa791bbd62a15769fc400035d6f76339a56309b1a46e13b655ca1f2",
+        "text": "The Governor characterised the evidence for generative AI productivity gains as patchy, with some positive findings in particular tasks.",
+        "type": "institutional_interpretation"
+      },
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "Generative AI, Productivity, the Labor Market, and Choice Behavior / ¶17",
+        "qualifiers": "Prospective channel, not a measured outcome or policy forecast.",
+        "source_block_sha256": "7e710d7fb36ae1da571060197fc4852576e5331838ed4d25eda9f34b9bcfd730",
+        "text": "The Governor argued that the pace and extent of economic effects would depend on choices by workers, managers and policymakers.",
+        "type": "unconfirmed_hypothesis"
+      }
+    ],
+    "content_locator": "Generative AI, Productivity, the Labor Market, and Choice Behavior / ¶9",
+    "content_review": "Early task-level productivity evidence could scale only if workers and firms adopt tools and reorganise how they work.",
+    "geography": "United States; examples from task-level studies",
+    "historical_period": {
+      "end": "2023-09-22",
+      "start": "2023-09-22"
+    },
+    "indicators": {
+      "real-gdp-qoq": "proxy"
+    },
+    "mechanism": "Early task-level productivity evidence could scale only if workers and firms adopt tools and reorganise how they work.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "2d63ef55dc1ee8b4edb15e53e50603764b980d4164f4556ea30c2007ba51ab61",
+    "reviewed_policy_sha256": "5af655a7d676594fab926e989be3743d866f8f053f34b6195c1e5428c6dd71cd",
+    "reviewed_text_sha256": "169225e1d9ec5ec3c890b533a1c0342f2ca7ec0885308adbbdcc28cc0f0b288c",
+    "rights_evidence": "The text is an official Board-hosted address by a sitting Governor. The Board's notice places its material in the public domain unless otherwise identified. No contrary notice applies to the speech narrative; citations and content from cited studies are excluded from extraction or redistribution.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": "The Governor considered task-level gains promising but warned against extrapolating them mechanically to the economy.",
+      "limitations": "This is an official speech and an early synthesis, not the primary publication of the cited experiments or an official Board forecast. The cited evidence concerns specific tasks; the speech supplies no estimate of euro area real GDP, the adoption path or an aggregate quarterly effect.",
+      "observed": "In her September 2023 address, a Federal Reserve Governor discussed generative AI as a potentially general-purpose technology. The address cited early productivity studies in tasks including coding, customer service and translation, while emphasising that empirical evidence was still uneven. The Governor distinguished the technology's capabilities from choices made by workers, firms and policymakers.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": "Adoption and complementary decisions could determine how, or whether, the gains appear in aggregate output."
+    }
+  },
+  "ec0c40f95ee24b928ae7978d5044e66e8d9324eb41086f9ca0c30b3916acf488": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶6",
+        "qualifiers": "Nominal policy rate; decision date.",
+        "source_block_sha256": "d888565cae9c2417f064a2612429f3b6243c54f4997edf5553ed40fec302f754",
+        "text": "On 12 March 2020 the ECB left the deposit facility rate at -0.50%.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶2",
+        "qualifiers": "Pricing for the announced liquidity operations; not the deposit rate itself.",
+        "source_block_sha256": "c4e3fe18d7838a0e81000f93df98ed9f8e400841844828b147c078a47bea4bf5",
+        "text": "The ECB announced temporary LTROs priced at the average deposit facility rate.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Monetary policy decisions / ¶6",
+    "content_review": "An unchanged negative deposit rate was paired with targeted bank liquidity and asset purchases at the start of the pandemic response.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2020-03-12",
+      "start": "2020-03-12"
+    },
+    "indicators": {
+      "deposit-rate": "direct"
+    },
+    "mechanism": "An unchanged negative deposit rate was paired with targeted bank liquidity and asset purchases at the start of the pandemic response.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "ce0d13ec38c1e9df6e1d3b6e71ab9560ac594841b5cfc35f9a9375a247f3cbda",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "9c795d88a1a10cf689788e0e63093173376cb8167c691b7e56e85d64e7aa847f",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": "The Council presented the refinancing measures as a liquidity backstop and support for lending to firms affected by the pandemic.",
+      "limitations": "This is the decision as announced, before the separate announcement of the pandemic purchase programme. An envelope is spending capacity, not realised purchases. The release does not measure the subsequent response of bank credit or output.",
+      "observed": "At its 12 March meeting, the ECB Governing Council left the deposit facility rate at -0.50%, the main refinancing rate at 0.00%, and the marginal lending rate at 0.25%. It announced temporary longer-term refinancing operations at a rate tied to the average deposit rate, more favourable terms for targeted loans and an additional EUR 120 billion purchase envelope through year end.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "ef44bb2babc8395f263bdb6eb3df42514fa6f1c04019a1857e4927aa0a1beb7a": {
+    "content_locator": "Discussion of the US dollar and one-way capital flows",
+    "content_review": "The speech discusses global imbalances and concentrations in US dollar asset flows. It offers no identifiable bilateral euro-dollar evidence.",
+    "reason": "The reference to US dollar capital flows does not measure EUR/USD or establish an AI effect on the pair. Replaced by a direct generative-AI adoption source.",
+    "rights_evidence": "The BIS policy permits non-commercial distribution and limited attributed excerpts subject to conditions. No document-specific clearance for the proposed product and later text extraction was established.",
+    "rights_status": "not_cleared",
+    "status": "rejected"
+  },
+  "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "p1",
+        "qualifiers": "Seasonally adjusted volume; historical release vintage.",
+        "source_block_sha256": "66345326bc2e096b789ac1f211a831b4228843fd107e89efb935ec10cdcce836",
+        "text": "Euro area real GDP fell 11.8% quarter on quarter in 2020 Q2 according to Eurostat's September estimate.",
+        "type": "observed"
+      },
+      {
+        "historical_period": {
+          "end": "2020-03-31",
+          "start": "2020-01-01"
+        },
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "p1",
+        "qualifiers": "Revised prior-quarter estimate; distinct from the May flash estimate.",
+        "source_block_sha256": "66345326bc2e096b789ac1f211a831b4228843fd107e89efb935ec10cdcce836",
+        "text": "The same September release estimated euro area real GDP growth at -3.7% in 2020 Q1.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "The national accounts measure the depth of the contraction during a quarter of widespread restrictions.",
+    "geography": "euro area (EA19)",
+    "historical_period": {
+      "end": "2020-06-30",
+      "start": "2020-04-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "direct"
+    },
+    "mechanism": "The national accounts measure the depth of the contraction during a quarter of widespread restrictions.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "28296785811a377d2a247d6e49fc2734a139ce2af25748a6f47777c52cfee96b",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "98b887aa44306b7eb22db28282d918b73a81b60c7bc46c7fd37ddb6a89bf5c0c",
+    "rights_evidence": "Eurostat is identified as the issuer on the dateline and the prose/figures are official euro-indicator statistics. The reviewed pages carry no restrictive reproduction notice for these statistics; the reuse notice covers EU editorial and statistical material with attribution and notice of modifications. This review excludes graphics, logos and contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The first-quarter figure differs from earlier flash releases because the vintage changed. The comparison is quarterly real GDP, not a yearly or annualised rate. The release documents the economic contraction in context, without a counterfactual for what output would have been without restrictions.",
+      "observed": "In the 8 September release, Eurostat estimated that seasonally adjusted GDP fell by 11.8% in the euro area and 11.4% in the EU in the second quarter of 2020, relative to the first quarter. Most Member States still had COVID-19 containment measures during the quarter. Eurostat called the contractions the largest in the series starting in 1995. Its estimate of the preceding euro area quarter was then -3.7%.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "Usage of AI technologies increasing in EU enterprises / ¶1",
+        "qualifiers": "EU enterprise adoption survey, all AI categories; GDP link is a proxy.",
+        "source_block_sha256": "1d8da94937d31f0e08b274279edce1803d0401a30d2b09006effde840fe5c223",
+        "text": "AI use among EU enterprises with ten or more employees was 13.5% in 2024, up from 8.0% in 2023.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "Usage of AI technologies increasing in EU enterprises / ¶4",
+        "qualifiers": "Specific technology adoption in Eurostat survey; no measured GDP effect.",
+        "source_block_sha256": "87bba14975564d0006374d5aabd9a8eac323d923a3cea723e4f375931389dbd7",
+        "text": "Natural language generation was used by 5.4% of EU enterprises in 2024, up 3.3 percentage points from 2023.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Usage of AI technologies increasing in EU enterprises / ¶1",
+    "content_review": "Enterprise adoption of language generation provides an input to productivity scenarios, rather than a measure of output.",
+    "geography": "European Union (EU27)",
+    "historical_period": {
+      "end": "2024-12-31",
+      "start": "2024-01-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "proxy"
+    },
+    "mechanism": "Enterprise adoption of language generation provides an input to productivity scenarios, rather than a measure of output.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "137e568bc48785df9c6ac91e522122bf91927414be48ef7ffaea0f5c735103a1",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "3ec39fda88e9a0fb4cda0964fdb4c18a26c7f32be118d6c5b785571817db8504",
+    "rights_evidence": "The named publisher and dataset are Eurostat. The reviewed statistics and narrative are Eurostat editorial content, with no conflicting notice for the retained facts. The site's CC BY 4.0 and statistical reuse policy cover that material; exclude stock photographs, chart images, branding and links. The summary is an attributed paraphrase.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "This is reported technology use among enterprises in the survey scope, not a measure of intensity, total investment or productivity. The headline combines AI technologies beyond generation. Neither the EU adoption share nor the language-generation share measures quarterly euro area real GDP or identifies an effect on it.",
+      "observed": "Eurostat reported that 13.5% of EU enterprises with at least ten employees used AI in 2024, compared with 8.0% in 2023. It distinguished written-language analysis from generation: 6.9% used text mining and 5.4% used tools to generate written or spoken language. The latter category grew by 3.3 percentage points compared with 2023.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0": {
+    "claims": [
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "EA19 headline annual rate; release vintage.",
+        "source_block_sha256": "b8054eadffa7c0f332e4f1886f73ceec0a5231098ccd773675c58f97d99e9d3f",
+        "text": "Euro area HICP inflation was 0.3% year on year in April 2020, down from 0.7% in March.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "hicp-yoy"
+        ],
+        "locator": "p1",
+        "qualifiers": "Accounting contribution in percentage points, not energy inflation.",
+        "source_block_sha256": "b8054eadffa7c0f332e4f1886f73ceec0a5231098ccd773675c58f97d99e9d3f",
+        "text": "Energy contributed -0.97 percentage points to euro area annual HICP inflation in April 2020.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "Energy prices made a negative accounting contribution to annual HICP during the first broad lockdown month.",
+    "geography": "euro area (EA19)",
+    "historical_period": {
+      "end": "2020-04-30",
+      "start": "2020-04-01"
+    },
+    "indicators": {
+      "hicp-yoy": "direct"
+    },
+    "mechanism": "Energy prices made a negative accounting contribution to annual HICP during the first broad lockdown month.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "9df1400eba2d046bfbc8f19264c1179f1e8254aaea005e6e087c623382e558bb",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "cea9e3cb24959aa1848de90e9ef808175b2d50735b60bb2f67d4e18ff99e69bc",
+    "rights_evidence": "Eurostat is identified as the issuer on the dateline and the prose/figures are official euro-indicator statistics. The reviewed pages carry no restrictive reproduction notice for these statistics; the reuse notice covers EU editorial and statistical material with attribution and notice of modifications. This review excludes graphics, logos and contacts.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "These rates compare price levels with the same month a year earlier; they are not April monthly changes. The component decomposition describes contributions within the index. It does not establish which share of the movement was caused by the pandemic or by policy.",
+      "observed": "The euro area annual inflation rate fell from 0.7% in March to 0.3% in April 2020. Eurostat described April as a month of containment measures across countries. Energy contributed -0.97 percentage points to euro area inflation, while food, alcohol and tobacco contributed +0.67 points and services +0.52 points. The EU aggregate was 0.7%, compared with 1.2% in March.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶7",
+        "qualifiers": "Nominal annual policy rate.",
+        "source_block_sha256": "ef5477822477441fc50ef0a13ef0d4a5b7907977d5126d4524b4b45ac45691a4",
+        "text": "The deposit facility rate remained at -0.50% at the ECB decision of 4 June 2020.",
+        "type": "observed"
+      },
+      {
+        "indicators": [
+          "hicp-yoy",
+          "deposit-rate"
+        ],
+        "locator": "Monetary policy decisions / ¶2",
+        "qualifiers": "Stated rationale based on projections, not a measured impact on prices.",
+        "source_block_sha256": "604186ab50cc30c269527985272b49a446f69b2bd97ae86d32ab9df3f14eae14",
+        "text": "The Governing Council linked its EUR 600 billion PEPP expansion to a pandemic-related downward revision in its inflation outlook.",
+        "type": "institutional_interpretation"
+      }
+    ],
+    "content_locator": "Monetary policy decisions / ¶7",
+    "content_review": "In response to a weaker pandemic inflation outlook, the ECB expanded asset purchases while leaving the deposit rate unchanged.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2020-06-04",
+      "start": "2020-06-04"
+    },
+    "indicators": {
+      "deposit-rate": "direct",
+      "hicp-yoy": "context"
+    },
+    "mechanism": "In response to a weaker pandemic inflation outlook, the ECB expanded asset purchases while leaving the deposit rate unchanged.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "26afc9a6adf07b95976cf6eab35e9ce61b29371c97d9fefdc612849d529a537d",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "91685cb6d28069effea69a238effc4e95252dcde286553484f9feb141ce0a237",
+    "rights_evidence": "This unsigned Governing Council decision is issued as institutional information on the ECB site. The decision prose carries no document-specific prohibition or named author; this review excludes linked material, imagery and the original document. Attribute the ECB and identify paraphrases.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": "The Council described the larger envelope as a response to a weaker projected inflation path and as support for financing conditions for households and businesses.",
+      "limitations": "The release is a policy decision and rationale, not the statistical source for observed HICP. Purchase envelopes and intended dates should not be read as completed transactions or guaranteed effects on financing conditions.",
+      "observed": "The ECB kept its deposit facility rate at -0.50% on 4 June 2020. The Governing Council raised the PEPP envelope by EUR 600 billion to EUR 1.35 trillion and extended the intended horizon for net purchases to at least the end of June 2021, subject to its assessment of the crisis. It also announced a reinvestment horizon for maturing principal payments.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "fb9fa7f0c0058f8dbfc8c0ec4d0dbde0d0844a071be701fe2d9f04706fec75d2": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "Summary / ¶1",
+        "qualifiers": "Seasonally adjusted flash estimate; do not substitute later revisions.",
+        "source_block_sha256": "e0aa235de45b5dbab497babdd9a0ef4a281958e71918af301ebb931264ccdb14",
+        "text": "Eurostat estimated flat quarter-on-quarter euro area real GDP in 2023 Q4 and 0.1% growth in the EU.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Summary / ¶1",
+    "content_review": "Eurostat's later-war flash estimate records a quarter of flat output in the euro area.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2023-12-31",
+      "start": "2023-10-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "context"
+    },
+    "mechanism": "Eurostat's later-war flash estimate records a quarter of flat output in the euro area.",
+    "reason": "The reviewed material supports the listed evidence, and the stated reuse terms cover the retained derivative material.",
+    "reviewed_payload_sha256": "288a8f3245c2e2c69bfcbaa600dbe63b8de411d74d9027665cd172c96e3d0635",
+    "reviewed_policy_sha256": "cc836e69932298e993e46361faaac4ec39703833d3ccb2f152fa271f6b0c985d",
+    "reviewed_text_sha256": "e0aa235de45b5dbab497babdd9a0ef4a281958e71918af301ebb931264ccdb14",
+    "rights_evidence": "The named publisher and dataset are Eurostat. The reviewed statistics and narrative are Eurostat editorial content, with no conflicting notice for the retained facts. The site's CC BY 4.0 and statistical reuse policy cover that material; exclude stock photographs, chart images, branding and links. The summary is an attributed paraphrase.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "These are flash estimates and a particular data vintage. The EU and euro area are distinct aggregates. The release records subdued output at the end of 2023, but does not decompose causes or test the economic effect of the war. Publication followed the quarter under review.",
+      "observed": "Eurostat's 14 February 2024 flash release reported that seasonally adjusted real GDP was unchanged in the euro area in 2023 Q4 relative to Q3. The EU aggregate increased by 0.1%. The same release placed the previous quarter's GDP growth at -0.1% in both aggregates. The headline also recorded an increase of 0.3% in euro area employment.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  }
+}

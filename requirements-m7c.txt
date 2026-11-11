@@ -1,0 +1,9 @@
+# Install the CPU PyTorch version in docs/m7c/README.md before these dependencies.
+numpy==2.5.4
+psycopg[binary]==3.3.8
+pydantic==2.12.5
+sentence-transformers==5.2.0
+transformers==5.22.2
+tokenizers==0.23.3
+# Used by the benchmark to run the existing lexical baseline.
+langchain-core==1.7.7

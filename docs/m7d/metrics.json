@@ -1,0 +1,3354 @@
+{
+  "schema_version": "m7d-eval-v1",
+  "dataset_kind": "regression",
+  "dataset_sha256": "4e982d228dec55bad829a438110280ef6a9a349495eb3d5d5384bd42a470a79c",
+  "corpus_sha256": "8da278254a64e0d8837b6844b292609e87a0add7cbcaed6c18f1aededd065236",
+  "cases": [
+    {
+      "id": "covid-hicp-april-es",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+      ],
+      "relevant_documents": [
+        "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.42190030217170715,
+            0.10789977386593819,
+            0.0800001434981823
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            4.00950014591217,
+            0.3603999502956867,
+            0.33429963514208794
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            16.852099914103746,
+            16.7220002040267,
+            17.959400080144405
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            19.38410010188818,
+            18.158599734306335,
+            17.2325000166893
+          ]
+        }
+      }
+    },
+    {
+      "id": "covid-hicp-energy",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557"
+      ],
+      "relevant_documents": [
+        "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.21029962226748466,
+            0.1154998317360878,
+            0.10030018165707588
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": [],
+          "status": "partial",
+          "limitations": [
+            "ambiguous_period_or_vintage",
+            "incomplete_predicate_coverage"
+          ],
+          "latency_ms": [
+            1.1646999046206474,
+            0.313399825245142,
+            0.28929999098181725
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            16.711300238966942,
+            16.25770004466176,
+            16.28440013155341
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+          ],
+          "grounding_claim_ids": [],
+          "status": "partial",
+          "limitations": [
+            "ambiguous_period_or_vintage",
+            "incomplete_predicate_coverage"
+          ],
+          "latency_ms": [
+            16.617000102996826,
+            16.771300230175257,
+            18.116299994289875
+          ]
+        }
+      }
+    },
+    {
+      "id": "covid-hicp-november",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+        "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+      ],
+      "relevant_documents": [
+        "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+      ],
+      "required_claim_groups": [
+        [
+          "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3"
+        ],
+        [
+          "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+        ]
+      ],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1692003570497036,
+            0.11060014367103577,
+            0.10569998994469643
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+          ],
+          "grounding_claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.48530008643865585,
+            0.4135998897254467,
+            0.40580006316304207
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            16.596500296145678,
+            16.403899993747473,
+            15.733600128442049
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+          ],
+          "grounding_claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            16.555499751120806,
+            22.525399923324585,
+            16.80239988490939
+          ]
+        }
+      }
+    },
+    {
+      "id": "covid-gdp-flash-es",
+      "indicator": "real-gdp-qoq",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66"
+      ],
+      "relevant_documents": [
+        "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.14230003580451012,
+            0.08620042353868484,
+            0.07569976150989532
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.9645000100135803,
+            0.35949982702732086,
+            0.33079972490668297
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            19.6968000382185,
+            17.339199781417847,
+            17.81019987538457
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            17.65379961580038,
+            17.960399854928255,
+            17.037400044500828
+          ]
+        }
+      }
+    },
+    {
+      "id": "covid-gdp-q2-es",
+      "indicator": "real-gdp-qoq",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b"
+      ],
+      "relevant_documents": [
+        "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1750001683831215,
+            0.10559987276792526,
+            0.09750016033649445
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+          ],
+          "grounding_claim_ids": [
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.4011997953057289,
+            0.3383001312613487,
+            0.327100045979023
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            18.15399993211031,
+            18.120499793440104,
+            17.579599749296904
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+          ],
+          "grounding_claim_ids": [
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            19.68230027705431,
+            28.206000104546547,
+            18.70370004326105
+          ]
+        }
+      }
+    },
+    {
+      "id": "covid-gdp-revision",
+      "indicator": "real-gdp-qoq",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+      ],
+      "relevant_documents": [
+        "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.15959981828927994,
+            0.10649999603629112,
+            0.09590014815330505
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+          ],
+          "grounding_claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.42370008304715157,
+            0.35690004006028175,
+            0.3269999288022518
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            17.634000163525343,
+            19.389099907130003,
+            21.60129975527525
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+          ],
+          "grounding_claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            18.997800070792437,
+            17.683000303804874,
+            17.562500201165676
+          ]
+        }
+      }
+    },
+    {
+      "id": "covid-money-es",
+      "indicator": "m3-stock",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be"
+      ],
+      "relevant_documents": [
+        "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+            "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+            "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed",
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+            "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1722997985780239,
+            0.10540010407567024,
+            0.0996999442577362
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877"
+          ],
+          "grounding_claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            0.41479989886283875,
+            0.34849997609853745,
+            0.30479999259114265
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382",
+            "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+            "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+            "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            18.55440018698573,
+            20.171200390905142,
+            22.37580018118024
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877"
+          ],
+          "grounding_claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            19.204700365662575,
+            18.880000337958336,
+            22.66580006107688
+          ]
+        }
+      }
+    },
+    {
+      "id": "ukraine-hicp-oct-es",
+      "indicator": "hicp-yoy",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b"
+      ],
+      "relevant_documents": [
+        "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1860000193119049,
+            0.11780019849538803,
+            0.16769999638199806
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b"
+          ],
+          "grounding_claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.9657000191509724,
+            0.3478000871837139,
+            0.31639961525797844
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            20.013699773699045,
+            20.74379986152053,
+            17.84460013732314
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b"
+          ],
+          "grounding_claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            17.672499641776085,
+            18.111799843609333,
+            17.557799816131592
+          ]
+        }
+      }
+    },
+    {
+      "id": "ukraine-hicp-food",
+      "indicator": "hicp-yoy",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40"
+      ],
+      "relevant_documents": [
+        "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.174699816852808,
+            0.10979967191815376,
+            0.09830016642808914
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3"
+          ],
+          "grounding_claim_ids": [
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.4112999886274338,
+            0.336300116032362,
+            0.314200296998024
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            16.13010000437498,
+            16.80890005081892,
+            22.198599763214588
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3"
+          ],
+          "grounding_claim_ids": [
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            15.64719993621111,
+            16.146100126206875,
+            16.151499934494495
+          ]
+        }
+      }
+    },
+    {
+      "id": "ukraine-policy-march-es",
+      "indicator": "deposit-rate",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b"
+      ],
+      "relevant_documents": [
+        "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.22289995104074478,
+            0.12949993833899498,
+            0.10670023038983345
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b"
+          ],
+          "document_ids": [
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": [
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.7404000498354435,
+            0.3407001495361328,
+            0.3049997612833977
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            18.598400056362152,
+            18.869100138545036,
+            18.627699930220842
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b"
+          ],
+          "document_ids": [
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": [
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            18.719499930739403,
+            18.31809990108013,
+            19.19130003079772
+          ]
+        }
+      }
+    },
+    {
+      "id": "ukraine-policy-june",
+      "indicator": "deposit-rate",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+      ],
+      "relevant_documents": [
+        "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.17400039359927177,
+            0.11460017412900925,
+            0.10149972513318062
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.34609995782375336,
+            0.286799855530262,
+            0.2706996165215969
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            20.620299968868494,
+            15.938499942421913,
+            16.2283000536263
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            16.445899847894907,
+            17.338600009679794,
+            16.219299752265215
+          ]
+        }
+      }
+    },
+    {
+      "id": "ukraine-policy-effective-es",
+      "indicator": "deposit-rate",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91"
+      ],
+      "relevant_documents": [
+        "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.2000001259148121,
+            0.11580018326640129,
+            0.1055002212524414
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91"
+          ],
+          "document_ids": [
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": [
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.5634999834001064,
+            0.3248997963964939,
+            0.29159989207983017
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "document_ids": [
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45",
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            17.233700025826693,
+            17.019399907439947,
+            16.651500016450882
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91"
+          ],
+          "document_ids": [
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": [
+            "ac18bffc85ecf0869854767b00eabdd7448872066e6758cc1f253628cc64bf91"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            17.260100226849318,
+            17.148000188171864,
+            17.42449961602688
+          ]
+        }
+      }
+    },
+    {
+      "id": "ukraine-money-vintage",
+      "indicator": "m3-stock",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c"
+      ],
+      "relevant_documents": [
+        "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+            "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+            "d21b70625a8039e63ba95dde756097ea2b9e093ed97e4ac8cd2d298b28e25aca",
+            "50408fe637cebd31ea6eac51b026f31d0f8dfb946e2f493c8e31c94797b55f1f"
+          ],
+          "document_ids": [
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+            "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1775999553501606,
+            0.1154998317360878,
+            0.10440032929182053
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c"
+          ],
+          "document_ids": [
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f"
+          ],
+          "grounding_claim_ids": [
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            0.5004000850021839,
+            0.30850013718008995,
+            0.2845004200935364
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+            "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+            "8bca65a420f646bf48e02fb8724e0a832ea0544201a17cfe51959b210f8d4096",
+            "d21b70625a8039e63ba95dde756097ea2b9e093ed97e4ac8cd2d298b28e25aca"
+          ],
+          "document_ids": [
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+            "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b",
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            15.754500404000282,
+            15.721500385552645,
+            18.512600101530552
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c"
+          ],
+          "document_ids": [
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f"
+          ],
+          "grounding_claim_ids": [
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            15.56310011073947,
+            15.734100248664618,
+            15.749599784612656
+          ]
+        }
+      }
+    },
+    {
+      "id": "genai-task",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea"
+      ],
+      "relevant_documents": [
+        "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea",
+            "00b21b4f3ad7683447a0ae2ce4daf1ced4febb9e90216ce97b8e72281eb1afef"
+          ],
+          "document_ids": [
+            "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.13029994443058968,
+            0.08379993960261345,
+            0.07280008867383003
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea"
+          ],
+          "document_ids": [
+            "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+          ],
+          "grounding_claim_ids": [
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            1.010499894618988,
+            0.29559992253780365,
+            0.27960026636719704
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea",
+            "00b21b4f3ad7683447a0ae2ce4daf1ced4febb9e90216ce97b8e72281eb1afef"
+          ],
+          "document_ids": [
+            "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            17.239299602806568,
+            17.447699792683125,
+            16.43039984628558
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea"
+          ],
+          "document_ids": [
+            "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+          ],
+          "grounding_claim_ids": [
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            17.735499888658524,
+            18.861500080674887,
+            16.80520037189126
+          ]
+        }
+      }
+    },
+    {
+      "id": "genai-firms-es",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+      ],
+      "relevant_documents": [
+        "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.17609959468245506,
+            0.11239992454648018,
+            0.1020999625325203
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            1.8104002811014652,
+            0.33980002626776695,
+            0.3170003183186054
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            15.799600165337324,
+            15.914400108158588,
+            15.93510014936328
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            16.39349991455674,
+            18.33870029076934,
+            18.918300047516823
+          ]
+        }
+      }
+    },
+    {
+      "id": "genai-households",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba"
+      ],
+      "relevant_documents": [
+        "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.2033999189734459,
+            0.14120014384388924,
+            0.1134001649916172
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+          ],
+          "grounding_claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            0.5669998936355114,
+            0.3738999366760254,
+            0.306200236082077
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            18.896199762821198,
+            16.713100019842386,
+            18.253600224852562
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+          ],
+          "grounding_claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            19.274100195616484,
+            21.976500283926725,
+            20.326599944382906
+          ]
+        }
+      }
+    },
+    {
+      "id": "genai-adoption-es",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+      ],
+      "relevant_documents": [
+        "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7"
+          ],
+          "document_ids": [
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.17020013183355331,
+            0.11389981955289841,
+            0.10359985753893852
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.6111999973654747,
+            0.2770000137388706,
+            0.24789990857243538
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            15.908400062471628,
+            18.00849987193942,
+            15.418799594044685
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.5752998404204845,
+            0.3070998936891556,
+            0.24429988116025925
+          ]
+        }
+      }
+    },
+    {
+      "id": "gap-fx-covid",
+      "indicator": "eur-usd",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.010099727660417557,
+            0.006899703294038773,
+            0.0056996941566467285
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "causal_identification_unavailable"
+          ],
+          "latency_ms": [
+            0.2892003394663334,
+            0.11349981650710106,
+            0.1004999503493309
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.009400304406881332,
+            0.006500165909528732,
+            0.005899928510189056
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "causal_identification_unavailable"
+          ],
+          "latency_ms": [
+            0.0975998118519783,
+            0.09300000965595245,
+            0.09099999442696571
+          ]
+        }
+      }
+    },
+    {
+      "id": "gap-fx-ukraine-es",
+      "indicator": "eur-usd",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.007699709385633469,
+            0.006400048732757568,
+            0.0056996941566467285
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.13810023665428162,
+            0.11729961261153221,
+            0.11399993672966957
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.008399598300457,
+            0.006100162863731384,
+            0.005600042641162872
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.11359993368387222,
+            0.11140014976263046,
+            0.11079991236329079
+          ]
+        }
+      }
+    },
+    {
+      "id": "gap-ai-direct",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.0074999406933784485,
+            0.005899928510189056,
+            0.005600042641162872
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.10190019384026527,
+            0.08999975398182869,
+            0.08649984374642372
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.0070999376475811005,
+            0.005900394171476364,
+            0.005500391125679016
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.08859997615218163,
+            0.08730031549930573,
+            0.08659996092319489
+          ]
+        }
+      }
+    },
+    {
+      "id": "gap-ai-money",
+      "indicator": "m3-stock",
+      "event": "genai",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.00800006091594696,
+            0.006200280040502548,
+            0.005600042641162872
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.09569991379976273,
+            0.08889986202120781,
+            0.08690031245350838
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.0073998235166072845,
+            0.005999580025672913,
+            0.0056996941566467285
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.08849985897541046,
+            0.0854996033012867,
+            0.08539995178580284
+          ]
+        }
+      }
+    },
+    {
+      "id": "cutoff-covid-april",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.007299706339836121,
+            0.0061998143792152405,
+            0.00600004568696022
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.16580009832978249,
+            0.14039967209100723,
+            0.1372997649013996
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.00909995287656784,
+            0.006200280040502548,
+            0.0058002769947052
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.13749999925494194,
+            0.1379000023007393,
+            0.135000329464674
+          ]
+        }
+      }
+    },
+    {
+      "id": "cutoff-ukraine-policy",
+      "indicator": "deposit-rate",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.0069998204708099365,
+            0.0061998143792152405,
+            0.005700159817934036
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.1400001347064972,
+            0.13380032032728195,
+            0.13360008597373962
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.008699949830770493,
+            0.006400048732757568,
+            0.005899928510189056
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.13330020010471344,
+            0.1321001909673214,
+            0.13070041313767433
+          ]
+        }
+      }
+    },
+    {
+      "id": "cutoff-genai-household",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269"
+          ],
+          "document_ids": [
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.14560017734766006,
+            0.10399986058473587,
+            0.0896998681128025
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.5212998948991299,
+            0.2520997077226639,
+            0.2351999282836914
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            15.602900180965662,
+            15.7665996812284,
+            15.494799707084894
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.3486000932753086,
+            0.2547004260122776,
+            0.24269986897706985
+          ]
+        }
+      }
+    },
+    {
+      "id": "geo-usa-hicp",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.009400304406881332,
+            0.006800051778554916,
+            0.005899928510189056
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.14010025188326836,
+            0.12640003114938736,
+            0.1234002411365509
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.007700175046920776,
+            0.006400048732757568,
+            0.005700159817934036
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.12319954112172127,
+            0.12119999155402184,
+            0.11999998241662979
+          ]
+        }
+      }
+    },
+    {
+      "id": "geo-euro-ai",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.008600298315286636,
+            0.0061998143792152405,
+            0.005600042641162872
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.11460017412900925,
+            0.1034000888466835,
+            0.10020006448030472
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.007600057870149612,
+            0.006200280040502548,
+            0.005600042641162872
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.09999983012676239,
+            0.09880028665065765,
+            0.09700004011392593
+          ]
+        }
+      }
+    },
+    {
+      "id": "event-ukraine-gdp-2020",
+      "indicator": "real-gdp-qoq",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.00800006091594696,
+            0.006300397217273712,
+            0.005899928510189056
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.21830014884471893,
+            0.1954999752342701,
+            0.18879957497119904
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.008999835699796677,
+            0.0064997002482414246,
+            0.0057998113334178925
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.18650013953447342,
+            0.1842002384364605,
+            0.18379976972937584
+          ]
+        }
+      }
+    },
+    {
+      "id": "irrelevant-within-scope",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.15940004959702492,
+            0.11199992150068283,
+            0.10039983317255974
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.15040021389722824,
+            0.13240007683634758,
+            0.12410013005137444
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            15.646399930119514,
+            15.630899928510189,
+            16.267200000584126
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.23090001195669174,
+            0.14219991862773895,
+            0.14079967513680458
+          ]
+        }
+      }
+    }
+  ],
+  "metrics": {
+    "rank_lexical": {
+      "cases": 28,
+      "positive_cases": 17,
+      "negative_or_partial_cases": 11,
+      "claim_hit_at_1": 0.8235294117647058,
+      "claim_hit_at_3": 1,
+      "document_hit_at_1": 0.9411764705882353,
+      "document_hit_at_3": 1,
+      "claims_returned": 82,
+      "claims_relevant": 18,
+      "claim_precision": 0.21951219512195122,
+      "grounding_claim_precision": null,
+      "cases_without_relevant_claims": 11,
+      "cases_without_relevant_claims_with_hits": 2,
+      "false_answers": null,
+      "false_abstentions": null,
+      "status_matches": null,
+      "status_confusion": null,
+      "multi_claim_cases": 1,
+      "multi_claim_cases_with_all_groups": 1,
+      "latency_ms": {
+        "median": 0.1037998590618372,
+        "p95": 0.197900109924376
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.5714285714285714,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8571428571428571,
+          "document_hit_at_3": 1,
+          "claims_returned": 31,
+          "claims_relevant": 8,
+          "claim_precision": 0.25806451612903225,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.10039983317255974,
+            "p95": 0.18911994993686676
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 21,
+          "claims_relevant": 4,
+          "claim_precision": 0.19047619047619047,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.0958999153226614,
+            "p95": 0.1752146752551198
+          }
+        },
+        "ukraine": {
+          "cases": 9,
+          "positive_cases": 6,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 30,
+          "claims_relevant": 6,
+          "claim_precision": 0.2,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.10670023038983345,
+            "p95": 0.19580009393393993
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 15,
+          "claims_relevant": 3,
+          "claim_precision": 0.2,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.11065020225942135,
+            "p95": 0.2103050472214818
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.0066498760133981705,
+            "p95": 0.009499723091721535
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 0.6,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8,
+          "document_hit_at_3": 1,
+          "claims_returned": 27,
+          "claims_relevant": 6,
+          "claim_precision": 0.2222222222222222,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.10884972289204597,
+            "p95": 0.2066546818241477
+          }
+        },
+        "m3-stock": {
+          "cases": 3,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 9,
+          "claims_relevant": 2,
+          "claim_precision": 0.2222222222222222,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.10440032929182053,
+            "p95": 0.17547989264130592
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.8571428571428571,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 31,
+          "claims_relevant": 7,
+          "claim_precision": 0.22580645161290322,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.1020999625325203,
+            "p95": 0.17543993890285492
+          }
+        }
+      }
+    },
+    "gate_lexical": {
+      "cases": 28,
+      "positive_cases": 17,
+      "negative_or_partial_cases": 11,
+      "claim_hit_at_1": 0.8823529411764706,
+      "claim_hit_at_3": 0.9411764705882353,
+      "document_hit_at_1": 0.8823529411764706,
+      "document_hit_at_3": 0.9411764705882353,
+      "claims_returned": 18,
+      "claims_relevant": 17,
+      "claim_precision": 0.9444444444444444,
+      "grounding_claim_precision": 1.0,
+      "cases_without_relevant_claims": 11,
+      "cases_without_relevant_claims_with_hits": 0,
+      "false_answers": 0,
+      "false_abstentions": 2,
+      "status_matches": 26,
+      "status_confusion": {
+        "sufficient -> sufficient": 15,
+        "sufficient -> partial": 1,
+        "sufficient -> insufficient": 1,
+        "insufficient -> insufficient": 11
+      },
+      "multi_claim_cases": 1,
+      "multi_claim_cases_with_all_groups": 1,
+      "latency_ms": {
+        "median": 0.30489987693727016,
+        "p95": 0.9655200177803636
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.8571428571428571,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8571428571428571,
+          "document_hit_at_3": 1,
+          "claims_returned": 9,
+          "claims_relevant": 8,
+          "claim_precision": 0.8888888888888888,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 10,
+          "status_confusion": {
+            "sufficient -> sufficient": 6,
+            "sufficient -> partial": 1,
+            "insufficient -> insufficient": 4
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.327100045979023,
+            "p95": 1.0445799678564072
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 0.75,
+          "document_hit_at_1": 0.75,
+          "document_hit_at_3": 0.75,
+          "claims_returned": 3,
+          "claims_relevant": 3,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 7,
+          "status_confusion": {
+            "sufficient -> sufficient": 3,
+            "sufficient -> insufficient": 1,
+            "insufficient -> insufficient": 4
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.26454986073076725,
+            "p95": 0.950604910030961
+          }
+        },
+        "ukraine": {
+          "cases": 9,
+          "positive_cases": 6,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 6,
+          "claims_relevant": 6,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 9,
+          "status_confusion": {
+            "sufficient -> sufficient": 6,
+            "insufficient -> insufficient": 3
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.3049997612833977,
+            "p95": 0.6873300299048424
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 3,
+          "claims_relevant": 3,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> sufficient": 3,
+            "insufficient -> insufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.2982998266816139,
+            "p95": 0.6431050132960081
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 2,
+          "status_confusion": {
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.11564977467060089,
+            "p95": 0.25142531376332045
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 0.8,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8,
+          "document_hit_at_3": 1,
+          "claims_returned": 7,
+          "claims_relevant": 6,
+          "claim_precision": 0.8571428571428571,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 7,
+          "status_confusion": {
+            "sufficient -> sufficient": 4,
+            "sufficient -> partial": 1,
+            "insufficient -> insufficient": 3
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.3152999561280012,
+            "p95": 1.1348499218001962
+          }
+        },
+        "m3-stock": {
+          "cases": 3,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 2,
+          "claims_relevant": 2,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 3,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.30479999259114265,
+            "p95": 0.46616001054644585
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.8571428571428571,
+          "claim_hit_at_3": 0.8571428571428571,
+          "document_hit_at_1": 0.8571428571428571,
+          "document_hit_at_3": 0.8571428571428571,
+          "claims_returned": 6,
+          "claims_relevant": 6,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 10,
+          "status_confusion": {
+            "sufficient -> sufficient": 6,
+            "sufficient -> insufficient": 1,
+            "insufficient -> insufficient": 4
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.3170003183186054,
+            "p95": 0.9828999638557434
+          }
+        }
+      }
+    },
+    "rank_e5": {
+      "cases": 28,
+      "positive_cases": 17,
+      "negative_or_partial_cases": 11,
+      "claim_hit_at_1": 0.8235294117647058,
+      "claim_hit_at_3": 1,
+      "document_hit_at_1": 0.8823529411764706,
+      "document_hit_at_3": 1,
+      "claims_returned": 82,
+      "claims_relevant": 18,
+      "claim_precision": 0.21951219512195122,
+      "grounding_claim_precision": null,
+      "cases_without_relevant_claims": 11,
+      "cases_without_relevant_claims_with_hits": 2,
+      "false_answers": null,
+      "false_abstentions": null,
+      "status_matches": null,
+      "status_confusion": null,
+      "multi_claim_cases": 1,
+      "multi_claim_cases_with_all_groups": 1,
+      "latency_ms": {
+        "median": 16.17920002900064,
+        "p95": 20.55293503217399
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.8571428571428571,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 31,
+          "claims_relevant": 8,
+          "claim_precision": 0.25806451612903225,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 16.596500296145678,
+            "p95": 20.743240136653185
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.75,
+          "document_hit_at_3": 1,
+          "claims_returned": 21,
+          "claims_relevant": 4,
+          "claim_precision": 0.19047619047619047,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 15.68474993109703,
+            "p95": 18.21683517191559
+          }
+        },
+        "ukraine": {
+          "cases": 9,
+          "positive_cases": 6,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 0.8333333333333334,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8333333333333334,
+          "document_hit_at_3": 1,
+          "claims_returned": 30,
+          "claims_relevant": 6,
+          "claim_precision": 0.2,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 16.2283000536263,
+            "p95": 20.70674989372492
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 0.6666666666666666,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.6666666666666666,
+          "document_hit_at_3": 1,
+          "claims_returned": 15,
+          "claims_relevant": 3,
+          "claim_precision": 0.2,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 16.835449961945415,
+            "p95": 19.657140062190592
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.006300164386630058,
+            "p95": 0.00915012788027525
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 27,
+          "claims_relevant": 6,
+          "claim_precision": 0.2222222222222222,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 16.27580006606877,
+            "p95": 20.634284848347306
+          }
+        },
+        "m3-stock": {
+          "cases": 3,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 9,
+          "claims_relevant": 2,
+          "claim_precision": 0.2222222222222222,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 15.754500404000282,
+            "p95": 21.4939602650702
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.7142857142857143,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8571428571428571,
+          "document_hit_at_3": 1,
+          "claims_returned": 31,
+          "claims_relevant": 7,
+          "claim_precision": 0.22580645161290322,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 1,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 15.93510014936328,
+            "p95": 19.5121799595654
+          }
+        }
+      }
+    },
+    "gate_e5": {
+      "cases": 28,
+      "positive_cases": 17,
+      "negative_or_partial_cases": 11,
+      "claim_hit_at_1": 0.9411764705882353,
+      "claim_hit_at_3": 0.9411764705882353,
+      "document_hit_at_1": 0.9411764705882353,
+      "document_hit_at_3": 0.9411764705882353,
+      "claims_returned": 18,
+      "claims_relevant": 17,
+      "claim_precision": 0.9444444444444444,
+      "grounding_claim_precision": 1.0,
+      "cases_without_relevant_claims": 11,
+      "cases_without_relevant_claims_with_hits": 0,
+      "false_answers": 0,
+      "false_abstentions": 2,
+      "status_matches": 26,
+      "status_confusion": {
+        "sufficient -> sufficient": 15,
+        "sufficient -> partial": 1,
+        "sufficient -> insufficient": 1,
+        "insufficient -> insufficient": 11
+      },
+      "multi_claim_cases": 1,
+      "multi_claim_cases_with_all_groups": 1,
+      "latency_ms": {
+        "median": 16.185399843379855,
+        "p95": 20.229954994283617
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 9,
+          "claims_relevant": 8,
+          "claim_precision": 0.8888888888888888,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 10,
+          "status_confusion": {
+            "sufficient -> sufficient": 6,
+            "sufficient -> partial": 1,
+            "insufficient -> insufficient": 4
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 17.037400044500828,
+            "p95": 22.581559978425503
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 0.75,
+          "document_hit_at_1": 0.75,
+          "document_hit_at_3": 0.75,
+          "claims_returned": 3,
+          "claims_relevant": 3,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 7,
+          "status_confusion": {
+            "sufficient -> sufficient": 3,
+            "sufficient -> insufficient": 1,
+            "insufficient -> insufficient": 4
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.2809001598507166,
+            "p95": 20.168724982067943
+          }
+        },
+        "ukraine": {
+          "cases": 9,
+          "positive_cases": 6,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 6,
+          "claims_relevant": 6,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 9,
+          "status_confusion": {
+            "sufficient -> sufficient": 6,
+            "insufficient -> insufficient": 3
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 16.146100126206875,
+            "p95": 18.59907992184162
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 3,
+          "claims_relevant": 3,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> sufficient": 3,
+            "insufficient -> insufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 17.20405020751059,
+            "p95": 18.931809975765646
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 2,
+          "status_confusion": {
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.10419986210763454,
+            "p95": 0.11304998770356178
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 3,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 7,
+          "claims_relevant": 6,
+          "claim_precision": 0.8571428571428571,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 3,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 7,
+          "status_confusion": {
+            "sufficient -> sufficient": 4,
+            "sufficient -> partial": 1,
+            "insufficient -> insufficient": 3
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 16.35349984280765,
+            "p95": 19.200275046750903
+          }
+        },
+        "m3-stock": {
+          "cases": 3,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 1,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 2,
+          "claims_relevant": 2,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 1,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 3,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 15.734100248664618,
+            "p95": 21.281360182911158
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 11,
+          "positive_cases": 7,
+          "negative_or_partial_cases": 4,
+          "claim_hit_at_1": 0.8571428571428571,
+          "claim_hit_at_3": 0.8571428571428571,
+          "document_hit_at_1": 0.8571428571428571,
+          "document_hit_at_3": 0.8571428571428571,
+          "claims_returned": 6,
+          "claims_relevant": 6,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 1,
+          "status_matches": 10,
+          "status_confusion": {
+            "sufficient -> sufficient": 6,
+            "sufficient -> insufficient": 1,
+            "insufficient -> insufficient": 4
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 16.80520037189126,
+            "p95": 20.986560080200434
+          }
+        }
+      }
+    }
+  },
+  "repeats": 3,
+  "environment": {
+    "python": "3.12.0",
+    "system": "Windows",
+    "machine": "AMD64"
+  },
+  "e5_model": {
+    "model_id": "intfloat/multilingual-e5-small",
+    "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+    "dimensions": 384,
+    "device": "cpu",
+    "cache_files_sha256": {
+      "model.safetensors": "1a55775f53449dac10a2bcbc312469fac40b96d53198c407081a831f81c98477",
+      "config.json": "69137736cab8b8903a07fe8afaafdda25aac55415a12a55d1bffa9f581abf959",
+      "modules.json": "c6e29747481e8b5dd2b58401966aeac910de39092f90cda9a704b1545f902b04",
+      "1_Pooling/config.json": "987f7a67a38fa564c849bb5d277c52ab9088a84368fc0be31a354125aebb12a0",
+      "sentence_bert_config.json": "948201d8329907aae938fa62f9ceeed53f5694dacc2b87b9f3b78b37ee986529",
+      "sentencepiece.bpe.model": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865",
+      "special_tokens_map.json": "d05497f1da52c5e09554c0cd874037a083e1dc1b9cfd48034d1c717f1afc07a7",
+      "tokenizer_config.json": "a1d6bc8734a6f635dc158508bef000f8e2e5a759c7d92f984b2c86e5ff53425b",
+      "tokenizer.json": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39"
+    },
+    "packages": {
+      "torch": "2.15.0+cpu",
+      "transformers": "5.22.2",
+      "sentence-transformers": "5.2.0",
+      "tokenizers": "0.23.3",
+      "numpy": "2.5.4"
+    },
+    "format": 1
+  },
+  "e5_sha256": "69e92b6693c293814c0c68e7a6b917c5d53a04b0f28f901bdfd371f6bcc29629"
+}

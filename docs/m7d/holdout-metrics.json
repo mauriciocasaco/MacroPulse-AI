@@ -1,0 +1,3795 @@
+{
+  "schema_version": "m7d-eval-v1",
+  "dataset_kind": "holdout",
+  "dataset_sha256": "de73e50428c1f9d08a805cbdd88ff3e8f1e87148d208520056b8e8f6666b2158",
+  "corpus_sha256": "8da278254a64e0d8837b6844b292609e87a0add7cbcaed6c18f1aededd065236",
+  "cases": [
+    {
+      "id": "holdout-apr-rate-release",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+      ],
+      "relevant_documents": [
+        "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.4683998413383961,
+            0.18989993259310722,
+            0.09409990161657333
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            3.648699726909399,
+            0.3788997419178486,
+            0.35559991374611855
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            23.14809989184141,
+            22.647699806839228,
+            22.101799957454205
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            22.96510012820363,
+            22.779999766498804,
+            21.471799816936255
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-nov-release-pair",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+        "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+      ],
+      "relevant_documents": [
+        "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+      ],
+      "required_claim_groups": [
+        [
+          "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3"
+        ],
+        [
+          "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+        ]
+      ],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.23250002413988113,
+            0.14639971777796745,
+            0.1155002973973751
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+          ],
+          "grounding_claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.4317001439630985,
+            0.3812997601926327,
+            0.3720000386238098
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            21.40799956396222,
+            21.398100070655346,
+            27.457700110971928
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+          ],
+          "grounding_claim_ids": [
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            22.48919988051057,
+            25.857300031930208,
+            29.055200051516294
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-q1-two-vintages",
+      "indicator": "real-gdp-qoq",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+        "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+      ],
+      "relevant_documents": [
+        "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+        "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+      ],
+      "required_claim_groups": [
+        [
+          "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66"
+        ],
+        [
+          "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+        ]
+      ],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1917998306453228,
+            0.13619987294077873,
+            0.10829977691173553
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.5793999880552292,
+            0.28750021010637283,
+            0.2596997655928135
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            24.398899637162685,
+            22.312599699944258,
+            26.07950009405613
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.6019999273121357,
+            0.46239979565143585,
+            0.44800015166401863
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-m3-component",
+      "indicator": "m3-stock",
+      "event": "covid",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382"
+      ],
+      "relevant_documents": [
+        "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382",
+            "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed",
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+            "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+            "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.30519999563694,
+            0.19980035722255707,
+            0.1750001683831215
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877"
+          ],
+          "grounding_claim_ids": [
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            0.2850000746548176,
+            0.24480000138282776,
+            0.2529001794755459
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382",
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+            "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+            "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+            "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            23.54560000821948,
+            24.63170001283288,
+            23.226900026202202
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877"
+          ],
+          "grounding_claim_ids": [
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            22.536099888384342,
+            23.180199787020683,
+            22.142000030726194
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-m3-apr-rate",
+      "indicator": "m3-stock",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede"
+      ],
+      "relevant_documents": [
+        "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+            "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+            "50408fe637cebd31ea6eac51b026f31d0f8dfb946e2f493c8e31c94797b55f1f",
+            "8bca65a420f646bf48e02fb8724e0a832ea0544201a17cfe51959b210f8d4096"
+          ],
+          "document_ids": [
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+            "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1909998245537281,
+            0.13280007988214493,
+            0.10730000212788582
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede"
+          ],
+          "document_ids": [
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd"
+          ],
+          "grounding_claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            0.33769989386200905,
+            0.2724002115428448,
+            0.23650005459785461
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+            "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+            "50408fe637cebd31ea6eac51b026f31d0f8dfb946e2f493c8e31c94797b55f1f",
+            "8bca65a420f646bf48e02fb8724e0a832ea0544201a17cfe51959b210f8d4096"
+          ],
+          "document_ids": [
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+            "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            20.584899932146072,
+            24.925699923187494,
+            21.00570034235716
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede"
+          ],
+          "document_ids": [
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd"
+          ],
+          "grounding_claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            22.66569994390011,
+            24.85659997910261,
+            20.735799800604582
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-q3-consumption-contribution",
+      "indicator": "real-gdp-qoq",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+      ],
+      "relevant_documents": [
+        "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d",
+            "953d0aea4b320be6d4e5fa8ea2fd4602f2e26d4c71d8fc6190c7f83e990a8880"
+          ],
+          "document_ids": [
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.16689999029040337,
+            0.09580003097653389,
+            0.07809977978467941
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "document_ids": [
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": [
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            0.2894001081585884,
+            0.24610012769699097,
+            0.22929999977350235
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d",
+            "953d0aea4b320be6d4e5fa8ea2fd4602f2e26d4c71d8fc6190c7f83e990a8880"
+          ],
+          "document_ids": [
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            24.134000297635794,
+            22.703200113028288,
+            22.865300066769123
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "document_ids": [
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": [
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "context_for_indicator"
+          ],
+          "latency_ms": [
+            26.1630997993052,
+            22.139300126582384,
+            22.62740023434162
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-decision-june-level",
+      "indicator": "deposit-rate",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb"
+      ],
+      "relevant_documents": [
+        "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b",
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.20040012896060944,
+            0.1313001848757267,
+            0.09430013597011566
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": [
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.7297997362911701,
+            0.29399991035461426,
+            0.25850022211670876
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            21.469200029969215,
+            20.921200048178434,
+            21.496200002729893
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": [
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            22.91939966380596,
+            23.970200214534998,
+            20.841900259256363
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-expectation-july",
+      "indicator": "deposit-rate",
+      "event": "ukraine",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+      ],
+      "relevant_documents": [
+        "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.18199998885393143,
+            0.1155002973973751,
+            0.09529991075396538
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.31010014936327934,
+            0.3068000078201294,
+            0.2553998492658138
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            21.34780026972294,
+            20.797899924218655,
+            20.89159982278943
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244"
+          ],
+          "grounding_claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            21.716199815273285,
+            20.953699946403503,
+            22.77460042387247
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-sector-work",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7"
+      ],
+      "relevant_documents": [
+        "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.20739994943141937,
+            0.14350004494190216,
+            0.1449999399483204
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.6931000389158726,
+            0.17069978639483452,
+            0.1329001970589161
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            21.235600113868713,
+            23.094700183719397,
+            23.15460005775094
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.22929999977350235,
+            0.1496998593211174,
+            0.13100029900670052
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-workflow-use",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+      ],
+      "relevant_documents": [
+        "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.17150025814771652,
+            0.11300016194581985,
+            0.09489990770816803
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": [
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            0.4599001258611679,
+            0.25589996948838234,
+            0.2210000529885292
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            19.05670017004013,
+            18.13019998371601,
+            17.85370009019971
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": [
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            18.015500158071518,
+            19.279000349342823,
+            19.023099914193153
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-fed-hypothesis",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "sufficient",
+      "relevant_claims": [
+        "00b21b4f3ad7683447a0ae2ce4daf1ced4febb9e90216ce97b8e72281eb1afef"
+      ],
+      "relevant_documents": [
+        "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "00b21b4f3ad7683447a0ae2ce4daf1ced4febb9e90216ce97b8e72281eb1afef",
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea"
+          ],
+          "document_ids": [
+            "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.17109978944063187,
+            0.09939959272742271,
+            0.08510006591677666
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.19380031153559685,
+            0.1593995839357376,
+            0.16909977421164513
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "00b21b4f3ad7683447a0ae2ce4daf1ced4febb9e90216ce97b8e72281eb1afef",
+            "248d3f4d7d3162e50b6a6acc23926d5489186362aca0c0f5e32fc603740a3fea"
+          ],
+          "document_ids": [
+            "e7b7973f56ebe3e9f031d7146e4d6cb1ccaa9bc8edbfd7c722b7ca927b879db4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            27.067599818110466,
+            29.088499955832958,
+            26.930099818855524
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.22119982168078423,
+            0.15929993242025375,
+            0.14870008453726768
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-transport-tickets",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1805000938475132,
+            0.14669960364699364,
+            0.10910024866461754
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.13069994747638702,
+            0.09200023487210274,
+            0.08410029113292694
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            23.253799881786108,
+            24.43360025063157,
+            21.986300125718117
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.1650000922381878,
+            0.10289996862411499,
+            0.09230012074112892
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-oct-monthly",
+      "indicator": "hicp-yoy",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1626000739634037,
+            0.10909978300333023,
+            0.09170034900307655
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.12930016964673996,
+            0.10360032320022583,
+            0.11689960956573486
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            20.694099832326174,
+            21.020200103521347,
+            20.758900325745344
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.19069993868470192,
+            0.11330004781484604,
+            0.10319985449314117
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-energy-rate",
+      "indicator": "hicp-yoy",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c",
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.18250010907649994,
+            0.193099956959486,
+            0.1246999017894268
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.20910007879137993,
+            0.19800011068582535,
+            0.1534000039100647
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            20.790299866348505,
+            27.521700132638216,
+            20.54840000346303
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.25040004402399063,
+            0.17239991575479507,
+            0.1709996722638607
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-m3-level",
+      "indicator": "m3-stock",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+            "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+            "50408fe637cebd31ea6eac51b026f31d0f8dfb946e2f493c8e31c94797b55f1f",
+            "8bca65a420f646bf48e02fb8724e0a832ea0544201a17cfe51959b210f8d4096"
+          ],
+          "document_ids": [
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+            "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.17480039969086647,
+            0.12320000678300858,
+            0.10990025475621223
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.1550000160932541,
+            0.1368001103401184,
+            0.1312997192144394
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "6d3c380505e56aaf44b4076dfa83b540fd85bc5108f1b7ff1fe14824556fcede",
+            "fd4ca759f8389a98ed0f03754c48779c91c94bb5fea619cc9294bd209c47572c",
+            "c381e42fa36ee50ac326480cf91ffa56a7ab30b936bfdc8f4cff6f0f95c99e67",
+            "50408fe637cebd31ea6eac51b026f31d0f8dfb946e2f493c8e31c94797b55f1f",
+            "8bca65a420f646bf48e02fb8724e0a832ea0544201a17cfe51959b210f8d4096"
+          ],
+          "document_ids": [
+            "8f057f6aefe18837d703e68a2bcbef4d9ff5bf8ac44cdea592289ae79fef34dd",
+            "d7fade3401395bc5b991b2a6a615e09496de13e40e5a5df9ef4810e012d1ef7f",
+            "5bd46303c35ccf91f54e7643492e9aa43d77f9bb4be34cb11588431df573816b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            18.909799866378307,
+            19.031899981200695,
+            19.710099790245295
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.22819964215159416,
+            0.15120021998882294,
+            0.1441999338567257
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-m3-reference-absent",
+      "indicator": "m3-stock",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+            "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382",
+            "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+            "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.16320031136274338,
+            0.11729961261153221,
+            0.09780004620552063
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.40979962795972824,
+            0.2892003394663334,
+            0.26560015976428986
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "8fb1ff0d81f58b339e9582f567d3c30b3fd20ed38993a72d0f83e9130fac40be",
+            "7e760e86b83b3ecff32740a9475f832a73861716591a3c4c839980782d79059a",
+            "c3600fb2629ba38573d623028b958f1cdbce351c334688070e9086bb881d9382",
+            "329c3e5f07a7e35b04feefdb9eec2e285e1389583569bcae6f309df7134571ed"
+          ],
+          "document_ids": [
+            "9f0bb528fc4a6c5f69fdcae73b0e5ebdf9432b08a5f6915ed03eeed124444877",
+            "479cbf347bd9d723c7743e751de0a6a280758bf45e9bd1d8055f5b61ce1b5d1b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            20.930500235408545,
+            20.03580005839467,
+            22.442199755460024
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.24800002574920654,
+            0.17069978639483452,
+            0.14949962496757507
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-q1-vintage-unavailable",
+      "indicator": "real-gdp-qoq",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.15740003436803818,
+            0.09620003402233124,
+            0.07859990000724792
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.2071000635623932,
+            0.16909977421164513,
+            0.15449989587068558
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            25.683999992907047,
+            22.536200005561113,
+            20.551900379359722
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.27330033481121063,
+            0.1675998792052269,
+            0.17910031601786613
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-q3-vintage-conflict",
+      "indicator": "real-gdp-qoq",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "473030657aa502c969c3245e8b6ed8529b76fe2ade8f50fb3e1a3b1f7ae94a70",
+            "953d0aea4b320be6d4e5fa8ea2fd4602f2e26d4c71d8fc6190c7f83e990a8880",
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "document_ids": [
+            "fb9fa7f0c0058f8dbfc8c0ec4d0dbde0d0844a071be701fe2d9f04706fec75d2",
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.15629967674613,
+            0.11319993063807487,
+            0.08720019832253456
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.1730998046696186,
+            0.13740034773945808,
+            0.13299984857439995
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "473030657aa502c969c3245e8b6ed8529b76fe2ade8f50fb3e1a3b1f7ae94a70",
+            "953d0aea4b320be6d4e5fa8ea2fd4602f2e26d4c71d8fc6190c7f83e990a8880",
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "document_ids": [
+            "fb9fa7f0c0058f8dbfc8c0ec4d0dbde0d0844a071be701fe2d9f04706fec75d2",
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            20.177199970930815,
+            18.95119994878769,
+            18.81279982626438
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.24910038337111473,
+            0.18909992650151253,
+            0.16169995069503784
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-rate-actual-july",
+      "indicator": "deposit-rate",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.17659971490502357,
+            0.13220030814409256,
+            0.099200289696455
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.19899988546967506,
+            0.1634000800549984,
+            0.18400000408291817
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "cd3c3700af4a1e1f259baeb5ab7ed8f5474626d1578cd20ef1b3f339f77ea959",
+            "4fa0eda2797b9d41ebd9bb1bd907200c64a314c5834bd547d13d3466ecb2667b",
+            "d1cdb39210702c94ad16bfe008b1b6290331d8aae145710b16d2e4b3c8dc93fb",
+            "447aa4da6d1748c4e23e06644e325a9f628ef9a39c3ff99b49ab2796f0d1c33b"
+          ],
+          "document_ids": [
+            "d905ac172c9d5c5a37669e0db1b12cf1d80eb6ea08b75740e23806380ac00244",
+            "4ac9e4faece214bef0f61fade12b4eaf19c2fd46fa810eab9b002e1c17c06e45"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            22.138800006359816,
+            21.449499763548374,
+            19.943800289183855
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.24880003184080124,
+            0.19749999046325684,
+            0.16529997810721397
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-lending-rate",
+      "indicator": "deposit-rate",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "9af89e0312a997e02524fb17a7a8876a994ad4e40032bd294085355ebbea76e0",
+            "98c89814038e60d7b9db75613f2caeba5c7fe40ea81d5c5b17d474c697275ffa",
+            "91b2f32f6fca186c8c178811370a5adcfc64d16307cd75bad2f4e25c5fc922c3",
+            "36e98e9fffd206ff22ff97c6bcb7e8a69f49d0467a878bf75750cef9c65a41be",
+            "4b1416d807cf9b76544cb58e8d56d260dddbf2abc035f1dd33eed76e7056d589"
+          ],
+          "document_ids": [
+            "8e95a34508cd5f1ea2219395892c0da3a1e5d4bffd26bacd3e38b7119c7724a3",
+            "ec0c40f95ee24b928ae7978d5044e66e8d9324eb41086f9ca0c30b3916acf488",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+            "e44aa9b5039adf62480fc33f12b2f3769a59f951f733e9e357c89ab6bcfeb094"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.19619986414909363,
+            0.16489997506141663,
+            0.12360000982880592
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.1460001803934574,
+            0.12180022895336151,
+            0.1079002395272255
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "9af89e0312a997e02524fb17a7a8876a994ad4e40032bd294085355ebbea76e0",
+            "98c89814038e60d7b9db75613f2caeba5c7fe40ea81d5c5b17d474c697275ffa",
+            "91b2f32f6fca186c8c178811370a5adcfc64d16307cd75bad2f4e25c5fc922c3",
+            "36e98e9fffd206ff22ff97c6bcb7e8a69f49d0467a878bf75750cef9c65a41be",
+            "4b1416d807cf9b76544cb58e8d56d260dddbf2abc035f1dd33eed76e7056d589"
+          ],
+          "document_ids": [
+            "8e95a34508cd5f1ea2219395892c0da3a1e5d4bffd26bacd3e38b7119c7724a3",
+            "ec0c40f95ee24b928ae7978d5044e66e8d9324eb41086f9ca0c30b3916acf488",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+            "e44aa9b5039adf62480fc33f12b2f3769a59f951f733e9e357c89ab6bcfeb094"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            22.007999941706657,
+            19.513200037181377,
+            19.445199985057116
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.17669983208179474,
+            0.10939966887235641,
+            0.09830016642808914
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-geo-member-state",
+      "indicator": "hicp-yoy",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.15449989587068558,
+            0.112100038677454,
+            0.10119983926415443
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.05010003224015236,
+            0.038499943912029266,
+            0.03589969128370285
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            16.960199922323227,
+            16.852700151503086,
+            16.150299925357103
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.085500068962574,
+            0.041999854147434235,
+            0.037099700421094894
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-households-denominator",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.16199983656406403,
+            0.11750031262636185,
+            0.12109987437725067
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.25850022211670876,
+            0.11439993977546692,
+            0.09980006143450737
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+          ],
+          "document_ids": [
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            23.373200092464685,
+            19.92230024188757,
+            20.108200144022703
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.1776004210114479,
+            0.10859966278076172,
+            0.0950000248849392
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-firm-share-vs-count",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1441999338567257,
+            0.1026000827550888,
+            0.08990010246634483
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            0.24849968031048775,
+            0.2246997319161892,
+            0.22240029647946358
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            17.64139998704195,
+            17.93739991262555,
+            24.165600072592497
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            21.542899776250124,
+            18.64330004900694,
+            17.545999959111214
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-fx-spot-vs-swaps",
+      "indicator": "eur-usd",
+      "event": "covid",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.01690024510025978,
+            0.0069998204708099365,
+            0.005899928510189056
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.33750012516975403,
+            0.1379000023007393,
+            0.12859981507062912
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.010699965059757233,
+            0.00690016895532608,
+            0.005900394171476364
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.12069987133145332,
+            0.12060021981596947,
+            0.11579971760511398
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-fx-basis-only",
+      "indicator": "eur-usd",
+      "event": "ukraine",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.008100178092718124,
+            0.0061998143792152405,
+            0.005700159817934036
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.10859966278076172,
+            0.09989971294999123,
+            0.09589968249201775
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.008699949830770493,
+            0.006899703294038773,
+            0.0061998143792152405
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "unsupported_question"
+          ],
+          "latency_ms": [
+            0.11300016194581985,
+            0.10230019688606262,
+            0.10039983317255974
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-proxy-gdp-level",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "insufficient",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.19449973478913307,
+            0.12640003114938736,
+            0.10890001431107521
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.15959981828927994,
+            0.13410020619630814,
+            0.1683998852968216
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            21.790900267660618,
+            22.000900004059076,
+            25.506400037556887
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.23789983242750168,
+            0.15769992023706436,
+            0.1300000585615635
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-causal-energy",
+      "indicator": "hicp-yoy",
+      "event": "ukraine",
+      "expected_sufficiency": "unsupported_causal",
+      "relevant_claims": [
+        "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+        "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b"
+      ],
+      "relevant_documents": [
+        "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.2254997380077839,
+            0.13899989426136017,
+            0.11270027607679367
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "causal_identification_unavailable"
+          ],
+          "latency_ms": [
+            0.21289987489581108,
+            0.20940043032169342,
+            0.18909992650151253
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "bac0cd8c63035a99a633bf6e7a4dad39b28833be3dd54d00cf7199bcf6d77182",
+            "de216c1643a9940b6e6d7cc59ab687f2c301d1803856e73a72d05d97c8aeb53b",
+            "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba",
+            "20ed23fa29fe444de1add3a2f29f495f3e7a3ffe7f5608a7dadd7079e78e2c40",
+            "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
+          ],
+          "document_ids": [
+            "995e1d0bb4182b4d52ff28c580450787470134874028013827b72fcef062372b",
+            "e30ff1068116127b40f90901d1a6a4dc021ae1dda522444b484891ef174eaea3",
+            "88cde63e583455762fd9339317a17212018838b44b2ffdb14b6d568c0176b08c"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            25.209099985659122,
+            28.50500028580427,
+            23.954200092703104
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "causal_identification_unavailable"
+          ],
+          "latency_ms": [
+            0.3181002102792263,
+            0.20530028268694878,
+            0.18400000408291817
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-causal-lockdown-output",
+      "indicator": "real-gdp-qoq",
+      "event": "covid",
+      "expected_sufficiency": "unsupported_causal",
+      "relevant_claims": [
+        "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+        "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+        "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+      ],
+      "relevant_documents": [
+        "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+        "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1650000922381878,
+            0.11580018326640129,
+            0.09799981489777565
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66"
+          ],
+          "document_ids": [
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3",
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309"
+          ],
+          "grounding_claim_ids": [],
+          "status": "unsupported_causal",
+          "limitations": [
+            "causal_identification_unavailable"
+          ],
+          "latency_ms": [
+            0.2767997793853283,
+            0.2632997930049896,
+            0.24399999529123306
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b",
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44",
+            "3e71c9412402b237fa6dfb9ffb2f8be0387d5fc07648ab4c45d3c61213e67b1d"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            21.17449976503849,
+            21.307799965143204,
+            25.8070002309978
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "4c790ded12f3e443cfa607e0d54a598a6741abb26640a6c7c9b54ff1b1eb4b66",
+            "3f49bc6fc90e55c37b7225546d170a0dad1b4cf7133ade009fd1ff88b8d3aa44"
+          ],
+          "document_ids": [
+            "4f59aaa724c43257c0e6e67778471a404f856e5c3d79010edca7cee19aa7e309",
+            "f645fbb3600fd1d4414ea8a851ebd7d2f3ac033b3fa17b20f1057632c83e6ed3"
+          ],
+          "grounding_claim_ids": [],
+          "status": "unsupported_causal",
+          "limitations": [
+            "causal_identification_unavailable"
+          ],
+          "latency_ms": [
+            20.83349972963333,
+            20.211399998515844,
+            22.142599802464247
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-causal-ai-gdp",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "unsupported_causal",
+      "relevant_claims": [],
+      "relevant_documents": [],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.3514997661113739,
+            0.2629002556204796,
+            0.2210000529885292
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [],
+          "status": "unsupported_causal",
+          "limitations": [
+            "causal_identification_unavailable",
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            0.6431001238524914,
+            0.5645002238452435,
+            0.5074995569884777
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7",
+            "9afc88282b15901a1864a7fc448621edd59d82b1b8faeac9c9f5e6f4496786ba",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            24.539700243622065,
+            22.71579997614026,
+            20.95569996163249
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [],
+          "status": "unsupported_causal",
+          "limitations": [
+            "causal_identification_unavailable",
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            26.782600209116936,
+            22.559199947863817,
+            21.018399856984615
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-partial-nov-components",
+      "indicator": "hicp-yoy",
+      "event": "covid",
+      "expected_sufficiency": "partial",
+      "relevant_claims": [
+        "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+      ],
+      "relevant_documents": [
+        "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3"
+          ],
+          "document_ids": [
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b",
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.22150017321109772,
+            0.22990023717284203,
+            0.17010001465678215
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+          ],
+          "grounding_claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            0.5077002570033073,
+            0.45640021562576294,
+            0.2977997064590454
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+            "6c61bcdd73282f947eeaf0cece35c23d6b474dfb7c787efff2117294a2f2a557",
+            "302248ff62c599609b728faf7684171d23f8e3479c5d570c13fd49ffb4fcbea3",
+            "0b9a695d27f56c958bce19d925eda4ba811c49f93edce49a51e824ae3d87dc1c",
+            "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5",
+            "fa5a1c2182e3c6f642467f844b46d62ed3f1a058cd43e20dba3e18aaf699e4b0",
+            "faaeb90d2292a33c1604dca101fb1f894d1a0bdfebaabcfca85f84d28871f63b"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            24.423900060355663,
+            24.104199837893248,
+            24.224699940532446
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "document_ids": [
+            "bec7ad346179dd7dfdbb53642e742f255ce6331cc6141c6c3728d5bcf262d5b5"
+          ],
+          "grounding_claim_ids": [
+            "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9"
+          ],
+          "status": "sufficient",
+          "limitations": [],
+          "latency_ms": [
+            25.675599928945303,
+            25.85249999538064,
+            24.792800191789865
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-partial-gdp-two-quarters",
+      "indicator": "real-gdp-qoq",
+      "event": "ukraine",
+      "expected_sufficiency": "partial",
+      "relevant_claims": [
+        "953d0aea4b320be6d4e5fa8ea2fd4602f2e26d4c71d8fc6190c7f83e990a8880"
+      ],
+      "relevant_documents": [
+        "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "953d0aea4b320be6d4e5fa8ea2fd4602f2e26d4c71d8fc6190c7f83e990a8880",
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "document_ids": [
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.148099847137928,
+            0.09169988334178925,
+            0.07600011304020882
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.21849991753697395,
+            0.16380008310079575,
+            0.14879973605275154
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "953d0aea4b320be6d4e5fa8ea2fd4602f2e26d4c71d8fc6190c7f83e990a8880",
+            "14c56e743a34abfc944abc1b7801ab07d69c3091f35d25dbd65d214cf8873c6d"
+          ],
+          "document_ids": [
+            "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            26.443100068718195,
+            20.63839975744486,
+            20.5723000690341
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [],
+          "document_ids": [],
+          "grounding_claim_ids": [],
+          "status": "insufficient",
+          "limitations": [
+            "no_approved_claim_matches"
+          ],
+          "latency_ms": [
+            0.24770013988018036,
+            0.18540024757385254,
+            0.1531001180410385
+          ]
+        }
+      }
+    },
+    {
+      "id": "holdout-partial-firms-generative",
+      "indicator": "real-gdp-qoq",
+      "event": "genai",
+      "expected_sufficiency": "partial",
+      "relevant_claims": [
+        "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+      ],
+      "relevant_documents": [
+        "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+      ],
+      "required_claim_groups": [],
+      "runs": {
+        "rank_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            0.1713000237941742,
+            0.11719996109604836,
+            0.11559994891285896
+          ]
+        },
+        "gate_lexical": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            0.2779001370072365,
+            0.3583999350667,
+            0.3332998603582382
+          ]
+        },
+        "rank_e5": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb",
+            "f3e6022fd9a054bb6a0d745dde675b50081cd82f206939eade449de5882a7269",
+            "0ca2b65806ed7a6a59bc7832d237edd011414eb30131dee79e8393fb50dedcd9",
+            "70d4342a060a99b598fe7099d0fcc5cf94e4e04798de344d02aa1625a22ec869"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4",
+            "975b54def536af4dfeaa307c921970f424d63fe98abfcaa2748a5bd9df549df9"
+          ],
+          "grounding_claim_ids": null,
+          "status": null,
+          "limitations": null,
+          "latency_ms": [
+            22.584499791264534,
+            21.216500084847212,
+            26.495099999010563
+          ]
+        },
+        "gate_e5": {
+          "claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "document_ids": [
+            "f9064f23ebe6d2fcc5f3da514ce1dda6de14cf6063e043e40e6f28c92f2ac5c4"
+          ],
+          "grounding_claim_ids": [
+            "28997dcc3c8903acded5844afe60e9e53676b7f00d0fb348ae511f68993d63eb"
+          ],
+          "status": "sufficient",
+          "limitations": [
+            "proxy_for_indicator"
+          ],
+          "latency_ms": [
+            22.493399679660797,
+            21.501900162547827,
+            21.763999946415424
+          ]
+        }
+      }
+    }
+  ],
+  "metrics": {
+    "rank_lexical": {
+      "cases": 32,
+      "positive_cases": 11,
+      "negative_or_partial_cases": 21,
+      "claim_hit_at_1": 0.8125,
+      "claim_hit_at_3": 1,
+      "document_hit_at_1": 0.9375,
+      "document_hit_at_3": 1,
+      "claims_returned": 121,
+      "claims_relevant": 21,
+      "claim_precision": 0.17355371900826447,
+      "grounding_claim_precision": null,
+      "cases_without_relevant_claims": 16,
+      "cases_without_relevant_claims_with_hits": 14,
+      "false_answers": null,
+      "false_abstentions": null,
+      "status_matches": null,
+      "status_confusion": null,
+      "multi_claim_cases": 2,
+      "multi_claim_cases_with_all_groups": 2,
+      "latency_ms": {
+        "median": 0.12885010801255703,
+        "p95": 0.2305501839146018
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 7,
+          "claim_hit_at_1": 0.6666666666666666,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8333333333333334,
+          "document_hit_at_3": 1,
+          "claims_returned": 40,
+          "claims_relevant": 10,
+          "claim_precision": 0.25,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 5,
+          "cases_without_relevant_claims_with_hits": 4,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 2,
+          "multi_claim_cases_with_all_groups": 2,
+          "latency_ms": {
+            "median": 0.14669960364699364,
+            "p95": 0.2615800127387047
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 5,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 34,
+          "claims_relevant": 4,
+          "claim_precision": 0.11764705882352941,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 4,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.13495003804564476,
+            "p95": 0.256615225225687
+          }
+        },
+        "ukraine": {
+          "cases": 13,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 47,
+          "claims_relevant": 7,
+          "claim_precision": 0.14893617021276595,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 7,
+          "cases_without_relevant_claims_with_hits": 6,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.1155002973973751,
+            "p95": 0.19382997415959835
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 17,
+          "claims_relevant": 2,
+          "claim_precision": 0.11764705882352941,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.13175024650990963,
+            "p95": 0.19808998331427574
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.0065998174250125885,
+            "p95": 0.014700228348374367
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 6,
+          "claim_hit_at_1": 0.5,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.75,
+          "document_hit_at_3": 1,
+          "claims_returned": 35,
+          "claims_relevant": 6,
+          "claim_precision": 0.17142857142857143,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 4,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.1505997497588396,
+            "p95": 0.23211005609482527
+          }
+        },
+        "m3-stock": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 18,
+          "claims_relevant": 2,
+          "claim_precision": 0.1111111111111111,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.14800019562244415,
+            "p95": 0.2472301945090294
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 14,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 0.875,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 51,
+          "claims_relevant": 11,
+          "claim_precision": 0.21568627450980393,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 6,
+          "cases_without_relevant_claims_with_hits": 6,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.11930009350180626,
+            "p95": 0.2203200478106737
+          }
+        }
+      }
+    },
+    "gate_lexical": {
+      "cases": 32,
+      "positive_cases": 11,
+      "negative_or_partial_cases": 21,
+      "claim_hit_at_1": 0.6875,
+      "claim_hit_at_3": 0.6875,
+      "document_hit_at_1": 0.6875,
+      "document_hit_at_3": 0.6875,
+      "claims_returned": 16,
+      "claims_relevant": 13,
+      "claim_precision": 0.8125,
+      "grounding_claim_precision": 0.9166666666666666,
+      "cases_without_relevant_claims": 16,
+      "cases_without_relevant_claims_with_hits": 2,
+      "false_answers": 3,
+      "false_abstentions": 3,
+      "status_matches": 24,
+      "status_confusion": {
+        "sufficient -> sufficient": 8,
+        "sufficient -> insufficient": 3,
+        "insufficient -> insufficient": 14,
+        "insufficient -> sufficient": 1,
+        "unsupported_causal -> insufficient": 1,
+        "unsupported_causal -> unsupported_causal": 2,
+        "partial -> sufficient": 2,
+        "partial -> insufficient": 1
+      },
+      "multi_claim_cases": 2,
+      "multi_claim_cases_with_all_groups": 1,
+      "latency_ms": {
+        "median": 0.21974998526275158,
+        "p95": 0.5682251648977399
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 7,
+          "claim_hit_at_1": 0.8333333333333334,
+          "claim_hit_at_3": 0.8333333333333334,
+          "document_hit_at_1": 0.8333333333333334,
+          "document_hit_at_3": 0.8333333333333334,
+          "claims_returned": 7,
+          "claims_relevant": 7,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 5,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 1,
+          "false_abstentions": 1,
+          "status_matches": 9,
+          "status_confusion": {
+            "sufficient -> sufficient": 3,
+            "sufficient -> insufficient": 1,
+            "insufficient -> insufficient": 5,
+            "unsupported_causal -> unsupported_causal": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 2,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.26560015976428986,
+            "p95": 0.5363801494240761
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 5,
+          "claim_hit_at_1": 0.5,
+          "claim_hit_at_3": 0.5,
+          "document_hit_at_1": 0.5,
+          "document_hit_at_3": 0.5,
+          "claims_returned": 5,
+          "claims_relevant": 2,
+          "claim_precision": 0.4,
+          "grounding_claim_precision": 0.6666666666666666,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": 2,
+          "false_abstentions": 2,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> insufficient": 2,
+            "sufficient -> sufficient": 1,
+            "insufficient -> insufficient": 2,
+            "insufficient -> sufficient": 1,
+            "unsupported_causal -> unsupported_causal": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.22355001419782639,
+            "p95": 0.6313101388514042
+          }
+        },
+        "ukraine": {
+          "cases": 13,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 0.6666666666666666,
+          "claim_hit_at_3": 0.6666666666666666,
+          "document_hit_at_1": 0.6666666666666666,
+          "document_hit_at_3": 0.6666666666666666,
+          "claims_returned": 4,
+          "claims_relevant": 4,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 7,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 11,
+          "status_confusion": {
+            "sufficient -> sufficient": 4,
+            "insufficient -> insufficient": 7,
+            "unsupported_causal -> insufficient": 1,
+            "partial -> insufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.18400000408291817,
+            "p95": 0.3128601238131523
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 2,
+          "claims_relevant": 2,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.22719986736774445,
+            "p95": 0.4989649634808302
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 2,
+          "status_confusion": {
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.11859973892569542,
+            "p95": 0.28760009445250034
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 6,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 0.75,
+          "document_hit_at_1": 0.75,
+          "document_hit_at_3": 0.75,
+          "claims_returned": 4,
+          "claims_relevant": 4,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 1,
+          "false_abstentions": 0,
+          "status_matches": 6,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 4,
+            "unsupported_causal -> insufficient": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.20355009473860264,
+            "p95": 0.5000052507966757
+          }
+        },
+        "m3-stock": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 2,
+          "claims_relevant": 2,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.25925016961991787,
+            "p95": 0.3701447742059827
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 14,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 0.5,
+          "claim_hit_at_3": 0.5,
+          "document_hit_at_1": 0.5,
+          "document_hit_at_3": 0.5,
+          "claims_returned": 8,
+          "claims_relevant": 5,
+          "claim_precision": 0.625,
+          "grounding_claim_precision": 0.75,
+          "cases_without_relevant_claims": 6,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": 2,
+          "false_abstentions": 3,
+          "status_matches": 8,
+          "status_confusion": {
+            "sufficient -> insufficient": 3,
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 4,
+            "insufficient -> sufficient": 1,
+            "unsupported_causal -> unsupported_causal": 2,
+            "partial -> insufficient": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.22355001419782639,
+            "p95": 0.5786549998447299
+          }
+        }
+      }
+    },
+    "rank_e5": {
+      "cases": 32,
+      "positive_cases": 11,
+      "negative_or_partial_cases": 21,
+      "claim_hit_at_1": 0.875,
+      "claim_hit_at_3": 1,
+      "document_hit_at_1": 0.9375,
+      "document_hit_at_3": 1,
+      "claims_returned": 121,
+      "claims_relevant": 21,
+      "claim_precision": 0.17355371900826447,
+      "grounding_claim_precision": null,
+      "cases_without_relevant_claims": 16,
+      "cases_without_relevant_claims_with_hits": 14,
+      "false_answers": null,
+      "false_abstentions": null,
+      "status_matches": null,
+      "status_confusion": null,
+      "multi_claim_cases": 2,
+      "multi_claim_cases_with_all_groups": 2,
+      "latency_ms": {
+        "median": 21.428749663755298,
+        "p95": 26.96447481866926
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 7,
+          "claim_hit_at_1": 0.8333333333333334,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.8333333333333334,
+          "document_hit_at_3": 1,
+          "claims_returned": 40,
+          "claims_relevant": 10,
+          "claim_precision": 0.25,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 5,
+          "cases_without_relevant_claims_with_hits": 4,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 2,
+          "multi_claim_cases_with_all_groups": 2,
+          "latency_ms": {
+            "median": 22.442199755460024,
+            "p95": 25.916000176221132
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 5,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 34,
+          "claims_relevant": 4,
+          "claim_precision": 0.11764705882352941,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 4,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 22.292699897661805,
+            "p95": 27.046974818222225
+          }
+        },
+        "ukraine": {
+          "cases": 13,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 47,
+          "claims_relevant": 7,
+          "claim_precision": 0.14893617021276595,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 7,
+          "cases_without_relevant_claims_with_hits": 6,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 20.790299866348505,
+            "p95": 26.550960075110197
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 17,
+          "claims_relevant": 2,
+          "claim_precision": 0.11764705882352941,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 21.134500158950686,
+            "p95": 22.06685997080058
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.0068999361246824265,
+            "p95": 0.010199961252510548
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 6,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 0.75,
+          "document_hit_at_3": 1,
+          "claims_returned": 35,
+          "claims_relevant": 6,
+          "claim_precision": 0.17142857142857143,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 4,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 22.374749882146716,
+            "p95": 27.512100129388273
+          }
+        },
+        "m3-stock": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 18,
+          "claims_relevant": 2,
+          "claim_precision": 0.1111111111111111,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 20.96810028888285,
+            "p95": 24.763999972492456
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 14,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 0.875,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 51,
+          "claims_relevant": 11,
+          "claim_precision": 0.21568627450980393,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 6,
+          "cases_without_relevant_claims_with_hits": 6,
+          "false_answers": null,
+          "false_abstentions": null,
+          "status_matches": null,
+          "status_confusion": null,
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 22.424399852752686,
+            "p95": 26.908349827863276
+          }
+        }
+      }
+    },
+    "gate_e5": {
+      "cases": 32,
+      "positive_cases": 11,
+      "negative_or_partial_cases": 21,
+      "claim_hit_at_1": 0.6875,
+      "claim_hit_at_3": 0.6875,
+      "document_hit_at_1": 0.6875,
+      "document_hit_at_3": 0.6875,
+      "claims_returned": 16,
+      "claims_relevant": 13,
+      "claim_precision": 0.8125,
+      "grounding_claim_precision": 0.9166666666666666,
+      "cases_without_relevant_claims": 16,
+      "cases_without_relevant_claims_with_hits": 2,
+      "false_answers": 3,
+      "false_abstentions": 3,
+      "status_matches": 24,
+      "status_confusion": {
+        "sufficient -> sufficient": 8,
+        "sufficient -> insufficient": 3,
+        "insufficient -> insufficient": 14,
+        "insufficient -> sufficient": 1,
+        "unsupported_causal -> insufficient": 1,
+        "unsupported_causal -> unsupported_causal": 2,
+        "partial -> sufficient": 2,
+        "partial -> insufficient": 1
+      },
+      "multi_claim_cases": 2,
+      "multi_claim_cases_with_all_groups": 1,
+      "latency_ms": {
+        "median": 0.24785008281469345,
+        "p95": 25.719824945554137
+      },
+      "by_event": {
+        "covid": {
+          "cases": 11,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 7,
+          "claim_hit_at_1": 0.8333333333333334,
+          "claim_hit_at_3": 0.8333333333333334,
+          "document_hit_at_1": 0.8333333333333334,
+          "document_hit_at_3": 0.8333333333333334,
+          "claims_returned": 7,
+          "claims_relevant": 7,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 5,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 1,
+          "false_abstentions": 1,
+          "status_matches": 9,
+          "status_confusion": {
+            "sufficient -> sufficient": 3,
+            "sufficient -> insufficient": 1,
+            "insufficient -> insufficient": 5,
+            "unsupported_causal -> unsupported_causal": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 2,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.46239979565143585,
+            "p95": 25.854420010000467
+          }
+        },
+        "genai": {
+          "cases": 8,
+          "positive_cases": 3,
+          "negative_or_partial_cases": 5,
+          "claim_hit_at_1": 0.5,
+          "claim_hit_at_3": 0.5,
+          "document_hit_at_1": 0.5,
+          "document_hit_at_3": 0.5,
+          "claims_returned": 5,
+          "claims_relevant": 2,
+          "claim_precision": 0.4,
+          "grounding_claim_precision": 0.6666666666666666,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": 2,
+          "false_abstentions": 2,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> insufficient": 2,
+            "sufficient -> sufficient": 1,
+            "insufficient -> insufficient": 2,
+            "insufficient -> sufficient": 1,
+            "unsupported_causal -> unsupported_causal": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 8.891949895769358,
+            "p95": 22.549329907633364
+          }
+        },
+        "ukraine": {
+          "cases": 13,
+          "positive_cases": 4,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 0.6666666666666666,
+          "claim_hit_at_3": 0.6666666666666666,
+          "document_hit_at_1": 0.6666666666666666,
+          "document_hit_at_3": 0.6666666666666666,
+          "claims_returned": 4,
+          "claims_relevant": 4,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 7,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 11,
+          "status_confusion": {
+            "sufficient -> sufficient": 4,
+            "insufficient -> insufficient": 7,
+            "unsupported_causal -> insufficient": 1,
+            "partial -> insufficient": 1
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.19749999046325684,
+            "p95": 24.05884019099176
+          }
+        }
+      },
+      "by_indicator": {
+        "deposit-rate": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 2,
+          "claims_relevant": 2,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 10.545350145548582,
+            "p95": 23.392259911634028
+          }
+        },
+        "eur-usd": {
+          "cases": 2,
+          "positive_cases": 0,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": null,
+          "claim_hit_at_3": null,
+          "document_hit_at_1": null,
+          "document_hit_at_3": null,
+          "claims_returned": 0,
+          "claims_relevant": 0,
+          "claim_precision": null,
+          "grounding_claim_precision": null,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 2,
+          "status_confusion": {
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.11439993977546692,
+            "p95": 0.12067495845258236
+          }
+        },
+        "hicp-yoy": {
+          "cases": 8,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 6,
+          "claim_hit_at_1": 0.75,
+          "claim_hit_at_3": 0.75,
+          "document_hit_at_1": 0.75,
+          "document_hit_at_3": 0.75,
+          "claims_returned": 4,
+          "claims_relevant": 4,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 4,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 1,
+          "false_abstentions": 0,
+          "status_matches": 6,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 4,
+            "unsupported_causal -> insufficient": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 1,
+          "latency_ms": {
+            "median": 0.19800011068582535,
+            "p95": 25.856580026447773
+          }
+        },
+        "m3-stock": {
+          "cases": 4,
+          "positive_cases": 2,
+          "negative_or_partial_cases": 2,
+          "claim_hit_at_1": 1,
+          "claim_hit_at_3": 1,
+          "document_hit_at_1": 1,
+          "document_hit_at_3": 1,
+          "claims_returned": 2,
+          "claims_relevant": 2,
+          "claim_precision": 1.0,
+          "grounding_claim_precision": 1.0,
+          "cases_without_relevant_claims": 2,
+          "cases_without_relevant_claims_with_hits": 0,
+          "false_answers": 0,
+          "false_abstentions": 0,
+          "status_matches": 4,
+          "status_confusion": {
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 2
+          },
+          "multi_claim_cases": 0,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 10.491899913176894,
+            "p95": 23.93457987345755
+          }
+        },
+        "real-gdp-qoq": {
+          "cases": 14,
+          "positive_cases": 5,
+          "negative_or_partial_cases": 9,
+          "claim_hit_at_1": 0.5,
+          "claim_hit_at_3": 0.5,
+          "document_hit_at_1": 0.5,
+          "document_hit_at_3": 0.5,
+          "claims_returned": 8,
+          "claims_relevant": 5,
+          "claim_precision": 0.625,
+          "grounding_claim_precision": 0.75,
+          "cases_without_relevant_claims": 6,
+          "cases_without_relevant_claims_with_hits": 2,
+          "false_answers": 2,
+          "false_abstentions": 3,
+          "status_matches": 8,
+          "status_confusion": {
+            "sufficient -> insufficient": 3,
+            "sufficient -> sufficient": 2,
+            "insufficient -> insufficient": 4,
+            "insufficient -> sufficient": 1,
+            "unsupported_causal -> unsupported_causal": 2,
+            "partial -> insufficient": 1,
+            "partial -> sufficient": 1
+          },
+          "multi_claim_cases": 1,
+          "multi_claim_cases_with_all_groups": 0,
+          "latency_ms": {
+            "median": 0.36065024323761463,
+            "p95": 22.62399022001773
+          }
+        }
+      }
+    }
+  },
+  "repeats": 3,
+  "environment": {
+    "python": "3.12.0",
+    "system": "Windows",
+    "machine": "AMD64"
+  },
+  "e5_model": {
+    "model_id": "intfloat/multilingual-e5-small",
+    "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+    "dimensions": 384,
+    "device": "cpu",
+    "cache_files_sha256": {
+      "model.safetensors": "1a55775f53449dac10a2bcbc312469fac40b96d53198c407081a831f81c98477",
+      "config.json": "69137736cab8b8903a07fe8afaafdda25aac55415a12a55d1bffa9f581abf959",
+      "modules.json": "c6e29747481e8b5dd2b58401966aeac910de39092f90cda9a704b1545f902b04",
+      "1_Pooling/config.json": "987f7a67a38fa564c849bb5d277c52ab9088a84368fc0be31a354125aebb12a0",
+      "sentence_bert_config.json": "948201d8329907aae938fa62f9ceeed53f5694dacc2b87b9f3b78b37ee986529",
+      "sentencepiece.bpe.model": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865",
+      "special_tokens_map.json": "d05497f1da52c5e09554c0cd874037a083e1dc1b9cfd48034d1c717f1afc07a7",
+      "tokenizer_config.json": "a1d6bc8734a6f635dc158508bef000f8e2e5a759c7d92f984b2c86e5ff53425b",
+      "tokenizer.json": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39"
+    },
+    "packages": {
+      "torch": "2.15.0+cpu",
+      "transformers": "5.22.2",
+      "sentence-transformers": "5.2.0",
+      "tokenizers": "0.23.3",
+      "numpy": "2.5.4"
+    },
+    "format": 1
+  },
+  "e5_sha256": "69e92b6693c293814c0c68e7a6b917c5d53a04b0f28f901bdfd371f6bcc29629"
+}
