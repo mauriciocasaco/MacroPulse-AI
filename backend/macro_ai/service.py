@@ -17,10 +17,11 @@ from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 
 from ..macro_data.api import MacroHistory
-from .gemini import invoke_gemini
-from .models import Claim, Evidence, ResearchRequest, ResearchResponse, selected_citations
+from .gemini import invoke_gemini, configured_model
+from .models import Claim, Evidence, ResearchRequest, ResearchResponse
 from .retrieval import CorpusIndex, document_evidence, tokens
 from .statistics import Summary, read_statistics, summarize
+from .grounding import validate_narrative, document_statements
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,9 +31,9 @@ _HISTORICAL_QUESTIONS = re.compile(
     r"affect (?P<indicator>[^?]+)\??", re.IGNORECASE,
 )
 _EVENTS = {
-    "covid": (date(2020, 1, 1), "COVID-19"),
-    "ukraine": (date(2022, 2, 24), "guerra de Ucrania"),
-    "generative-ai": (date(2022, 11, 30), "auge de IA generativa y LLMs"),
+    "covid": (date(2020, 2, 1), "COVID-19"),
+    "ukraine": (date(2022, 2, 1), "Ukraine War"),
+    "generative-ai": (date(2023, 9, 1), "Generative AI Boom"),
 }
 
 
@@ -106,6 +107,7 @@ class State(TypedDict, total=False):
     documents: list[Document]
     evidence: list[Evidence]
     interpretation: list[Claim]
+    narrative: list[Claim]
     issue: str | None
     sufficient: bool
     abstention_reason: str
@@ -221,63 +223,36 @@ def _interpret(question: str) -> Plan | None:
     plans = []
     if ({"eur", "usd"} <= words or "eurusd" in words
             or ("dolar" in words and "euro" in words) or ("dollar" in words and "euro" in words)):
-        plans.append(Plan("Evolución del EUR/USD", ("fx", "covid") if covid else ("fx",), ("eur-usd",)))
+        plans.append(Plan("EUR/USD evolution", ("fx", "covid") if covid else ("fx",), ("eur-usd",)))
     money = bool(_M3.search(phrase))
     if money and not _scope_supported(
         phrase, _M3, prefix=frozenset({"saldo", "stock"}), suffix=frozenset({"stock"}),
     ):
         return None
     if money and inflation:
-        plans.append(Plan("Relación descriptiva del saldo de M3 y el IAPC", ("money", "inflation"),
+        plans.append(Plan("Descriptive relationship between M3 stock and HICP", ("money", "inflation"),
                           ("m3-stock", "hicp-yoy")))
     elif money:
-        plans.append(Plan("Evolución del saldo de M3", ("money",), ("m3-stock",)))
+        plans.append(Plan("M3 stock evolution", ("money",), ("m3-stock",)))
     elif inflation:
         topics = ("inflation", "ukraine") if words & {"ucrania", "ukraine", "guerra", "war"} else ("inflation",)
-        plans.append(Plan("Evolución de la inflación general IAPC", topics, ("hicp-yoy",)))
+        plans.append(Plan("Headline HICP inflation evolution", topics, ("hicp-yoy",)))
     if _GDP.search(phrase):
         if not _scope_supported(phrase, _GDP, prefix=frozenset({"real"}), suffix=frozenset({"real"})):
             return None
-        plans.append(Plan("Crecimiento intertrimestral del PIB real", ("gdp", "covid") if covid else ("gdp",),
+        plans.append(Plan("Quarter-on-quarter real GDP growth", ("gdp", "covid") if covid else ("gdp",),
                           ("real-gdp-qoq",)))
     rate_phrase = _rate_phrase(normalized)
     if _RATES.search(rate_phrase):
         if not _rate_query_supported(rate_phrase):
             return None
-        plans.append(Plan("Evolución de la tasa de facilidad de depósito", ("rates",), ("deposit-rate",)))
+        plans.append(Plan("Deposit facility rate evolution", ("rates",), ("deposit-rate",)))
     return plans[0] if len(plans) == 1 else None
 
 
 def _step(state: State, name: str) -> list[str]:
     return [*state.get("steps", []), name]
 
-
-def _render_interpretation(
-    selections: list[tuple[str, ...]], evidence: list[Evidence], documents: list[Document],
-) -> list[Claim]:
-    by_id = {item.id: item for item in evidence}
-    summaries = {document.id: document.page_content for document in documents}
-    claims = []
-    seen = set()
-    for selection in selections:
-        for citation in selection:
-            if citation not in summaries or citation in seen:
-                continue
-            seen.add(citation)
-            source = by_id[citation]
-            heading = f"Contexto documental publicado el {source.published_on}. "
-            summary = ""
-            for sentence in re.split(r"(?<=[.!?])\s+", summaries[citation]):
-                if not sentence.endswith((".", "!", "?")):
-                    break
-                combined = f"{summary} {sentence}".strip()
-                if len(heading) + len(combined) > 600:
-                    break
-                summary = combined
-            if not summary:
-                summary = "Consulta el documento en la fuente indicada."
-            claims.append(Claim(text=heading + summary, citations=[citation]))
-    return claims
 
 
 class Workflow:
@@ -327,14 +302,22 @@ class Workflow:
         steps = _step(state, "interpret")
         if not _dates_fit(request):
             return {"plan": None, "steps": steps,
-                    "abstention_reason": "La fecha indicada en la pregunta no coincide con la ventana solicitada."}
+                    "abstention_reason": "The date in the question conflicts with the requested window."}
         plan = _interpret(request.question)
         event = _historical_event(request.question)
+        if request.indicator_id and (plan is None or plan.indicators != (request.indicator_id,)):
+            return {"plan": None, "steps": steps,
+                    "abstention_reason": "The question does not match the selected indicator or supported scope."}
+        if request.event_id:
+            if event and event != request.event_id:
+                return {"plan": None, "steps": steps,
+                        "abstention_reason": "The question conflicts with the selected historical event."}
+            event = request.event_id
         if plan and event:
             plan = plan._replace(topics=tuple(dict.fromkeys((*plan.topics, event))), event=event)
             if request.end < _EVENTS[event][0]:
                 return {"plan": None, "steps": steps,
-                        "abstention_reason": "La ventana seleccionada termina antes del evento histórico consultado."}
+                        "abstention_reason": "The selected window ends before the historical event."}
         return {"plan": plan, "steps": steps}
 
     def _select(self, state: State) -> State:
@@ -353,11 +336,8 @@ class Workflow:
         steps = _step(state, "retrieve_documents")
         plan, request = state["plan"], state["request"]
         try:
-            documents = self.corpus.retrieve(request.question, plan.topics, request.end)
-            if plan.event:
-                documents = [chunk for chunk in documents
-                             if plan.event in chunk.metadata['topics']
-                             and chunk.metadata['published_on'] >= _EVENTS[plan.event][0]]
+            documents = self.corpus.retrieve(request.question, plan.topics, request.end,
+                                             event=plan.event, onset=_EVENTS[plan.event][0] if plan.event else None)
             return {"documents": documents, "steps": steps}
         except Exception:
             return {"issue": "retrieval_unavailable", "steps": steps}
@@ -373,10 +353,13 @@ class Workflow:
         request, plan, summary = state["request"], state["plan"], state["summary"]
         # Send only canonical intent, public-statistic summaries and approved
         # corpus summaries. The original question remains local.
-        prompt_question = f"{plan.label}, entre {request.start} y {request.end}"
+        prompt_question = f"{plan.label}, from {request.start} to {request.end}"
         if plan.event:
-            prompt_question += f"; contexto histórico: {_EVENTS[plan.event][1]}"
+            prompt_question += f"; historical context: {_EVENTS[plan.event][1]}"
+        approved = [*summary.facts, *summary.calculations, *document_statements(state["documents"])]
         context = {
+            "approved_statements": [claim.model_dump() for claim in approved],
+            "required_statistics": [claim.model_dump() for claim in (*summary.facts, *summary.calculations)],
             "statistics": [claim.model_dump() for claim in (*summary.facts, *summary.calculations)],
             "documents": [{"id": chunk.id, "title": chunk.metadata["title"], "summary": chunk.page_content[:1100]}
                           for chunk in state["documents"]],
@@ -386,9 +369,9 @@ class Workflow:
         except Exception:
             return {"issue": "provider_unavailable", "steps": steps}
         try:
-            selections = selected_citations(output, state["evidence"])
-            interpretation = _render_interpretation(selections, state["evidence"], state["documents"])
-            return {"interpretation": interpretation, "steps": steps}
+            narrative = validate_narrative(output, approved, [*summary.facts, *summary.calculations])
+            interpretation = [claim for claim in narrative if any(ref.startswith("doc:") for ref in claim.citations)]
+            return {"interpretation": interpretation, "narrative": narrative, "steps": steps}
         except Exception:
             return {"issue": "draft_rejected", "steps": steps}
 
@@ -399,7 +382,9 @@ class Workflow:
             status="answered", question=request.question, start=request.start, end=request.end,
             facts=summary.facts, calculations=summary.calculations, interpretation=state["interpretation"],
             limitations=[*summary.limitations, *self._event_limitations(state)],
-            evidence=state["evidence"], graph_steps=steps,
+            evidence=state["evidence"], graph_steps=steps, narrative=state["narrative"],
+            model_id=configured_model() if self.generate is invoke_gemini else None,
+            indicator_id=request.indicator_id, event_id=request.event_id,
         ), "steps": steps}
 
     def _abstain(self, state: State) -> State:
@@ -407,14 +392,15 @@ class Workflow:
         summary = state.get("summary")
         steps = _step(state, "abstain")
         message = state.get("abstention_reason") or (
-            "La pregunta queda fuera del catálogo de indicadores." if state.get("plan") is None
-            else "La ventana requiere más observaciones válidas o contexto documental verificable."
+            "The question is outside the supported indicator catalog." if state.get("plan") is None
+            else "The window requires more valid observations or verifiable institutional context."
         )
         return {"result": ResearchResponse(
             status="insufficient_evidence", question=request.question, start=request.start, end=request.end,
             facts=summary.facts if summary else [], calculations=summary.calculations if summary else [],
             limitations=[message, *(summary.limitations if summary else []), *self._event_limitations(state)],
             evidence=state.get("evidence", []), graph_steps=steps,
+            indicator_id=request.indicator_id, event_id=request.event_id,
         ), "steps": steps}
 
     @staticmethod
@@ -423,11 +409,11 @@ class Workflow:
         if not plan or not plan.event:
             return []
         onset, label = _EVENTS[plan.event]
-        notes = [f"Referencia temporal de {label}: desde {onset}. Se conserva la ventana seleccionada; "
-                 "los cambios observados y el contexto documental no identifican un efecto causal."]
+        notes = [f"Historical reference for {label}: from {onset}. Observed changes and institutional context "
+                 "do not identify a causal effect."]
         if not state.get('documents'):
-            notes.append("El corpus revisado no contiene evidencia documental suficiente para este indicador y evento; "
-                         "no se generan hipótesis ni se amplía el corpus automáticamente.")
+            notes.append("The reviewed corpus contains insufficient institutional evidence for this indicator and event; "
+                         "no hypotheses or documents are invented and the corpus is not expanded automatically.")
         return notes
 
     def _error(self, state: State) -> State:
