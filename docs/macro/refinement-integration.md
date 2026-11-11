@@ -68,3 +68,13 @@ For every phase review, the coordinator captured root/branch/HEAD, exact `git st
 Final integration independent audit: pending at candidate freeze. No main merge/push occurs until that verdict passes. Its report and final Git identities will be recorded afterward.
 
 Residual limits: no live Gemini/PostgreSQL validation; current captured statistical vintages are explicitly distinguished from historical publication vintages; reviewed corpus has no Generative AI documents and some event/indicator combinations must abstain. Model prose is constrained extractive generation with citation-local statement validation, not unrestricted paraphrase or a general semantic truth detector. The configured Gemini identifier does not prove the provider's resolved revision. No deployment or production migration was performed.
+
+## Final independent integration verdict
+
+The same independent auditor returned PASS in integration round 1/3 for candidate `33b6cba4dc8912f608c26118d66ae1f4eb94e928`, weighted score 9.30 before rounding, with no unresolved HIGH/CRITICAL/P0/P1 findings. Dimension scores: correctness 9.5 (25%), security/privacy 9.5 (25%), tests/evidence 9.0 (20%), compatibility 9.0 (15%), scope 9.5 (10%), maintainability 9.0 (5%). All requested requirements passed the local gate. The auditor inspected the actual integrated code, tests, browser report and all three named screenshots; runtime commands were reviewed as coordinator/executor evidence rather than independently rerun.
+
+The complete integration before/after snapshot was byte-identical: root, branch, HEAD, exact clean porcelain status, complete tracked inventory, all baseline-changed/addition paths and SHA-256 hashes including new tests/scripts/docs. No addition, deletion or mutation occurred during audit. Coverage excludes ignored/private contents as described above. The four original worktrees retain the same HEADs and scoped dirty/untracked inventories observed at setup.
+
+Timestamp clarification: the public GET/CSV save completed at 2026-11-11T00:21:10.796637Z; the local replay JSON was constructed at 2026-11-11T00:21:56.578178Z from that same CSV, without another download or value changes. The browser report's `as_of` records JSON snapshot construction. Both are November 10 in America/Montevideo, and the CSV hash is identical.
+
+Only this documentation appendix changed after the reviewed runtime candidate. The existing user authorization permits the final no-fast-forward main merge and push after a fresh remote/baseline check. There is no added deployment or production migration step. The residual limits above remain applicable.
