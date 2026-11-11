@@ -50,6 +50,9 @@ export interface ResearchEvidence {
   period_start: string | null;
   period_end: string | null;
   published_on: string | null;
+  rights_url?: string | null;
+  similarity_score?: number | null;
+  similarity_metric?: 'cosine' | null;
 }
 
 export interface MacroAnalysis {
@@ -63,11 +66,15 @@ export interface MacroAnalysis {
   limitations: string[];
   evidence: ResearchEvidence[];
   graph_steps: string[];
+  narrative?: ResearchClaim[];
+  model_id?: string | null;
+  indicator_id?: string | null;
+  event_id?: string | null;
 }
 
 const ids = new Set(['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy']);
 const frequencies = new Set(['daily', 'monthly', 'quarterly', 'effective_date']);
-const sourceHosts = new Set(['data.ecb.europa.eu', 'www.ecb.europa.eu', 'ec.europa.eu', 'doi.org']);
+const sourceHosts = new Set(['data.ecb.europa.eu', 'www.ecb.europa.eu', 'ec.europa.eu', 'eur-lex.europa.eu', 'doi.org']);
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 
@@ -122,7 +129,13 @@ function researchEvidence(value: unknown): value is ResearchEvidence {
   return object(value) && ['series', 'document'].includes(String(value.kind))
     && ['id', 'title', 'attribution'].every((key) => typeof value[key] === 'string')
     && officialLink(value.url)
-    && ['period_start', 'period_end', 'published_on'].every((key) => value[key] === null || date(value[key]));
+    && ['period_start', 'period_end', 'published_on'].every((key) => value[key] === null || date(value[key]))
+    && (value.rights_url == null || officialLink(value.rights_url))
+    && (value.similarity_metric == null || value.similarity_metric === 'cosine')
+    && (value.similarity_score == null || (value.kind === 'document' && value.similarity_metric === 'cosine'
+      && typeof value.similarity_score === 'number' && Number.isFinite(value.similarity_score)
+      && value.similarity_score >= 0 && value.similarity_score <= 1))
+    && (value.similarity_metric == null || value.similarity_score != null);
 }
 
 async function get(path: string, signal: AbortSignal): Promise<unknown> {
@@ -166,22 +179,43 @@ export async function getMacroHistory(
 
 export async function askMacroAnalysis(
   question: string, start: string, end: string, signal: AbortSignal,
+  context?: { indicator_id: string; event_id: 'covid' | 'ukraine' | 'generative-ai' },
 ): Promise<MacroAnalysis> {
   const response = await fetch('/api/macro/analysis', {
     method: 'POST', signal, cache: 'no-store',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ question, start, end }),
+    body: JSON.stringify({ question, start, end, ...context }),
   });
   if (!response.ok) throw new Error('Local macro research is unavailable.');
   const result: unknown = await response.json();
   if (!object(result) || (result.status !== 'answered' && result.status !== 'insufficient_evidence')
     || result.question !== question || result.start !== start || result.end !== end
+    || (context !== undefined && ((result.indicator_id != null && result.indicator_id !== context.indicator_id)
+      || (result.event_id != null && result.event_id !== context.event_id)))
+    || (result.narrative !== undefined && (!claims(result.narrative)
+      || (result.status === 'answered' && result.narrative.length === 0)))
+    || !(result.model_id == null || (typeof result.model_id === 'string' && /^gemini-[a-z0-9]+(?:[.-][a-z0-9]+){1,6}$/.test(result.model_id)))
     || !claims(result.facts) || !claims(result.calculations) || !claims(result.interpretation)
     || !strings(result.limitations) || !strings(result.graph_steps)
     || !Array.isArray(result.evidence) || !result.evidence.every(researchEvidence)) {
     throw new Error('Unexpected research response.');
   }
+  const evidence = result.evidence as ResearchEvidence[];
+  const citations = new Set(evidence.map(({ id }) => id));
+  const allClaims = [...result.facts, ...result.calculations, ...result.interpretation,
+    ...(result.narrative as ResearchClaim[] | undefined ?? [])];
+  if (citations.size !== evidence.length || allClaims.some((claim) => claim.citations.length === 0
+    || new Set(claim.citations).size !== claim.citations.length
+    || claim.citations.some((id) => !citations.has(id)))) throw new Error('Unexpected research citations.');
+  const documents = evidence.filter(({ kind }) => kind === 'document');
+  if (documents.some((entry, index) => index > 0 && entry.similarity_score != null
+    && documents[index - 1].similarity_score != null
+    && entry.similarity_score > documents[index - 1].similarity_score!)) throw new Error('Unexpected retrieval order.');
   return {
+    narrative: result.narrative as ResearchClaim[] | undefined,
+    model_id: result.model_id as string | null | undefined,
+    indicator_id: result.indicator_id as string | null | undefined,
+    event_id: result.event_id as string | null | undefined,
     status: result.status, question, start, end, facts: result.facts, calculations: result.calculations,
     interpretation: result.interpretation, limitations: result.limitations,
     evidence: result.evidence, graph_steps: result.graph_steps,

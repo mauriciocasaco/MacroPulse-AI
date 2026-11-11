@@ -82,11 +82,11 @@ def _histories(keys, request):
 
 def _draft(prompt, evidence):
     context = json.loads(evidence)
-    return {
-        "selections": [{
-            "citations": [context["statistics"][0]["citations"][0], context["documents"][0]["id"]],
-        }],
-    }
+    approved = context["approved_statements"]
+    required = context["required_statistics"]
+    document = next(item for item in approved if item["citations"][0].startswith("doc:"))
+    return {"narrative": [*required, document]}
+
 
 
 @pytest.mark.parametrize(("demo", "variant"), list(zip(QUERIES, PARAPHRASES, strict=True)))
@@ -113,11 +113,11 @@ def test_demonstrations_use_statistics_retrieval_and_generation(demo, variant, u
     allowed = {item.id for item in response.evidence}
     assert all(set(claim.citations) <= allowed for claim in response.facts + response.calculations + response.interpretation)
     if keys == ("m3-stock", "hicp-yoy"):
-        assert any("36 pares coincidentes" in claim.text for claim in response.calculations)
-        assert any("no identifican causalidad" in note for note in response.limitations)
+        assert any("36 matching pairs" in claim.text for claim in response.calculations)
+        assert any("do not establish causality" in note for note in response.limitations)
     if keys == ("deposit-rate",):
         assert "2021-01-01" not in response.facts[0].text
-        assert response.calculations[0].text.endswith("200.0 puntos básicos.")
+        assert response.calculations[0].text.endswith("200.0 basis points.")
 
 
 def test_retrieval_filters_publication_date_and_chunks_reviewed_summaries():
@@ -163,26 +163,26 @@ def test_graph_abstains_without_calls_and_never_sends_original_question():
 
 
 @pytest.mark.parametrize(("question", "start", "end", "reason"), [
-    ("¿Cómo cambió la tasa de desempleo?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("What happened to mortgage interest rates?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("Compare EUR/USD with inflation in 2022.", "2020-01-01", "2023-12-31", "catálogo"),
-    ("How did GDP change in France after COVID?", "2020-01-01", "2020-12-31", "catálogo"),
-    ("How did France's GDP move during 2020?", "2020-01-01", "2020-12-31", "catálogo"),
-    ("How did French real GDP change in 2020?", "2020-01-01", "2020-12-31", "catálogo"),
-    ("¿Cómo cambió el PIB francés durante 2020?", "2020-01-01", "2020-12-31", "catálogo"),
-    ("What happened to French inflation?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("¿Qué ocurrió con la inflación de Francia?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("¿Qué ocurrió con la inflación subyacente de la zona euro?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("What happened to core euro-area inflation?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("¿Cómo cambió la inflación de la zona euro en su medida subyacente?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("What happened to US interest rates?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("What happened to U.S. interest rates?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("What happened to UK policy rates?", "2022-01-01", "2023-12-31", "catálogo"),
-    ("How did US money supply change?", "2020-01-01", "2023-12-31", "catálogo"),
-    ("¿Cómo cambió el M3 de Estados Unidos?", "2020-01-01", "2023-12-31", "catálogo"),
-    ("¿Qué ocurrió con el EUR/USD en 2023?", "2020-01-01", "2020-12-31", "fecha"),
-    ("How did EUR/USD move on 2020-12-01?", "2020-01-01", "2020-06-30", "fecha"),
-    ("How did EUR/USD move in 2023 after the 2008 financial crisis?", "2020-01-01", "2020-12-31", "fecha"),
+    ("¿Cómo cambió la tasa de desempleo?", "2022-01-01", "2023-12-31", "catalog"),
+    ("What happened to mortgage interest rates?", "2022-01-01", "2023-12-31", "catalog"),
+    ("Compare EUR/USD with inflation in 2022.", "2020-01-01", "2023-12-31", "catalog"),
+    ("How did GDP change in France after COVID?", "2020-01-01", "2020-12-31", "catalog"),
+    ("How did France's GDP move during 2020?", "2020-01-01", "2020-12-31", "catalog"),
+    ("How did French real GDP change in 2020?", "2020-01-01", "2020-12-31", "catalog"),
+    ("¿Cómo cambió el PIB francés durante 2020?", "2020-01-01", "2020-12-31", "catalog"),
+    ("What happened to French inflation?", "2022-01-01", "2023-12-31", "catalog"),
+    ("¿Qué ocurrió con la inflación de Francia?", "2022-01-01", "2023-12-31", "catalog"),
+    ("¿Qué ocurrió con la inflación subyacente de la zona euro?", "2022-01-01", "2023-12-31", "catalog"),
+    ("What happened to core euro-area inflation?", "2022-01-01", "2023-12-31", "catalog"),
+    ("¿Cómo cambió la inflación de la zona euro en su medida subyacente?", "2022-01-01", "2023-12-31", "catalog"),
+    ("What happened to US interest rates?", "2022-01-01", "2023-12-31", "catalog"),
+    ("What happened to U.S. interest rates?", "2022-01-01", "2023-12-31", "catalog"),
+    ("What happened to UK policy rates?", "2022-01-01", "2023-12-31", "catalog"),
+    ("How did US money supply change?", "2020-01-01", "2023-12-31", "catalog"),
+    ("¿Cómo cambió el M3 de Estados Unidos?", "2020-01-01", "2023-12-31", "catalog"),
+    ("¿Qué ocurrió con el EUR/USD en 2023?", "2020-01-01", "2020-12-31", "date"),
+    ("How did EUR/USD move on 2020-12-01?", "2020-01-01", "2020-06-30", "date"),
+    ("How did EUR/USD move in 2023 after the 2008 financial crisis?", "2020-01-01", "2020-12-31", "date"),
 ])
 def test_unsupported_or_conflicting_questions_abstain_before_io(question, start, end, reason):
     def unexpected(*_):
@@ -309,15 +309,13 @@ def test_m3_retrieval_excludes_documents_without_m3_support():
         assert [document["id"] for document in context["documents"]] == [
             "doc:ecb-monetary-developments-2020-12:1",
         ]
-        return {"selections": [{"citations": [
-            "series:m3-stock", "series:hicp-yoy", context["documents"][0]["id"],
-        ]}]}
+        return _draft(_question, evidence)
 
     workflow = service.Workflow(CorpusIndex.load(CORPUS), read=_histories, generate=model)
     response = workflow.run(_request("What relationship do M3 and inflation show?", *QUERIES[3][1:3]))
     assert response.status == "answered"
     assert response.interpretation[0].citations == ["doc:ecb-monetary-developments-2020-12:1"]
-    assert response.interpretation[0].text.startswith("Contexto documental publicado el 2021-01-29.")
+    assert response.interpretation[0].text.startswith("Published 2021-01-29:")
 
 
 def test_document_instruction_cannot_create_an_unretrieved_citation():
@@ -345,21 +343,21 @@ def test_document_instruction_cannot_create_an_unretrieved_citation():
 def test_generation_failures_end_in_fixed_error_state(change):
     def invalid(question, evidence):
         draft = _draft(question, evidence)
-        claim = draft["selections"][0]
+        claim = draft["narrative"][-1]
         if change == "invented-citation":
-            claim["citations"][1] = "doc:invented"
+            claim["citations"] = ["doc:invented"]
         elif change == "duplicate-citation":
-            claim["citations"].append(claim["citations"][1])
+            claim["citations"].append(claim["citations"][0])
         elif change == "only-series":
-            claim["citations"].pop()
+            draft["narrative"].pop()
         elif change == "empty-output":
             return None
         elif change == "empty-selections":
-            return {"selections": []}
+            return {"narrative": []}
         elif change == "malformed-output":
             return "not structured"
         elif change == "free-text":
-            claim["text"] = "M3 alcanzó su máximo meses antes y provocó la inflación."
+            claim["text"] = "M3 caused inflation and increased by 999 percent."
         else:
             raise RuntimeError("synthetic private model details")
         return draft
@@ -396,13 +394,15 @@ def test_model_selects_evidence_without_changing_official_peak_chronology():
         def model(_question, evidence):
             document = json.loads(evidence)["documents"][index_in_retrieval]
             chosen.append(document["id"])
-            return {"selections": [{
-                "citations": ["series:m3-stock", "series:hicp-yoy", document["id"]],
-            }]}
+            context = json.loads(evidence)
+            context["approved_statements"] = [item for item in context["approved_statements"]
+                                                 if item["citations"][0].startswith("series:")
+                                                 or item["citations"] == [document["id"]]]
+            return _draft(_question, json.dumps(context))
 
         result = service.Workflow(index, read=read, generate=model).run(_request(*QUERIES[3][:3]))
         assert result.status == "answered"
-        assert "170 en 2022-09" in result.facts[0].text and "10 en 2022-10" in result.facts[1].text
+        assert "170 on 2022-09" in result.facts[0].text and "10 on 2022-10" in result.facts[1].text
         assert all(phrase not in result.model_dump_json() for phrase in ("meses antes", "provocó", "18 unidades"))
         rendered = result.interpretation[0]
         assert rendered.citations == [chosen[0]]
@@ -436,10 +436,7 @@ def test_provider_uses_real_prompt_chain_with_structured_schema_and_one_attempt(
             def invoke(prompt, *, http_options):
                 seen["messages"] = prompt.to_messages()
                 seen["http"] = http_options
-                return GeminiDraft.model_validate(_draft("", json.dumps({
-                    "statistics": [{"citations": ["series:eur-usd"]}],
-                    "documents": [{"id": "doc:fixture:1"}],
-                })))
+                return GeminiDraft(narrative=[{"text": "Synthetic provider narrative.", "citations": ["series:eur-usd"]}])
 
             return RunnableLambda(invoke)
 
@@ -534,7 +531,7 @@ def test_historical_matrix_preserves_intent_evidence_and_abstention(key, label, 
     supported = (event == 'covid' and key != 'deposit-rate') or (event == 'ukraine' and key == 'hicp-yoy')
     assert response.status == ('answered' if supported else 'insufficient_evidence')
     assert len(calls) == int(supported)
-    assert any('no identifican un efecto causal' in note for note in response.limitations)
+    assert any('do not identify a causal effect' in note for note in response.limitations)
     assert {item.id for item in response.evidence if item.kind == 'series'} == {f'series:{key}'}
     for item in response.evidence:
         if item.kind == 'document':
@@ -543,13 +540,13 @@ def test_historical_matrix_preserves_intent_evidence_and_abstention(key, label, 
             assert service._EVENTS[event][0] <= item.published_on <= request.end
     if not supported:
         assert not response.interpretation
-        assert any('no contiene evidencia documental suficiente' in note for note in response.limitations)
+        assert any('contains insufficient institutional evidence' in note for note in response.limitations)
 
     # A separate synthetic corpus exercises the full graph for every pairing.
     document = CorpusDocument(
         id='fixture-history', title='Synthetic historical macro context',
         url='https://www.ecb.europa.eu/fixture', rights_url='https://www.ecb.europa.eu/fixture-rights',
-        published_on=date(2023, 1, 1), attribution='Synthetic test fixture',
+        published_on=date(2023, 10, 1), attribution='Synthetic test fixture',
         topics=[topic, event],
         text='Synthetic observations describe changes during this event. Temporal overlap alone does not identify causality.',
     )
@@ -585,7 +582,7 @@ def test_event_window_ending_before_onset_abstains_without_provider(event, prefi
     result = service.Workflow(CorpusIndex.load(CORPUS), read=forbidden, generate=forbidden).run(
         _request(f'{prefix} Eurozone Inflation?', '2018-01-01', '2019-12-31'))
     assert result.status == 'insufficient_evidence'
-    assert 'antes del evento' in result.limitations[0]
+    assert 'before the historical event' in result.limitations[0]
 
 
 @pytest.mark.parametrize('question', [
