@@ -1,3 +1,5 @@
+import { launcherReadHeader } from '../pwa/local-read';
+
 export type MacroFrequency = 'daily' | 'monthly' | 'quarterly' | 'effective_date';
 
 export interface MacroIndicator {
@@ -139,8 +141,10 @@ function researchEvidence(value: unknown): value is ResearchEvidence {
 }
 
 async function get(path: string, signal: AbortSignal): Promise<unknown> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (import.meta.env.MODE === 'windows-launcher') headers[launcherReadHeader] = '1';
   const response = await fetch(`/api/macro/indicators${path}`, {
-    signal, cache: 'no-store', headers: { Accept: 'application/json' },
+    signal, cache: 'no-store', headers,
   });
   if (!response.ok) throw new Error('Official data is currently unavailable.');
   return response.json();

@@ -7,10 +7,13 @@ export function App({
   macroAiEnabled = import.meta.env.MARKETPULSE_MACRO_AI_ENABLED === true,
 }: { macroDemoEnabled?: boolean; macroAiEnabled?: boolean } = {}) {
   const publicDemo = import.meta.env.MODE === 'public-demo';
+  const launcher = import.meta.env.MODE === 'windows-launcher';
   const lanDev = import.meta.env.DEV && import.meta.env.MARKETPULSE_LAN_DEV === 'true';
+  const safariUrl = import.meta.env.MARKETPULSE_SAFARI_URL;
+  const isLoopback = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
   const macroAvailable = publicDemo
     ? macroDemoEnabled
-    : ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname) || lanDev;
+    : isLoopback || lanDev || (launcher && Boolean(safariUrl));
   const [attempt, setAttempt] = useState(0);
   const [online, setOnline] = useState(() => navigator.onLine);
   const updateReady = usePwaUpdate();
@@ -41,6 +44,7 @@ export function App({
       </div>
     </header>
     <main className="shell" id="contenido">
+      {launcher && isLoopback && safariUrl && <p className="notice">iPhone Safari <a href={safariUrl}>{safariUrl}</a></p>}
       {updateReady && <output className="notice">An update is ready. Close all MacroPulse AI tabs and windows, then reopen the app.</output>}
       {online ? macroAvailable ? <MacroWorkspace key={attempt}
         analysisEnabled={!publicDemo && macroAiEnabled} />

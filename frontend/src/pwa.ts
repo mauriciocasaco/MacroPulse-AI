@@ -4,7 +4,8 @@ export function usePwaUpdate() {
   const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
-    if (!import.meta.env.PROD || !window.isSecureContext || !('serviceWorker' in navigator)) return;
+    if (!import.meta.env.PROD || import.meta.env.MODE === 'windows-launcher'
+      || !window.isSecureContext || !('serviceWorker' in navigator)) return;
 
     const events = new AbortController();
     const { signal } = events;

@@ -4,6 +4,8 @@ import type { AddressInfo } from 'node:net';
 import { createServer, type ConfigEnv, type ViteDevServer } from 'vite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import viteConfig from '../vite.config.ts';
+import { resolveLanDev } from './local-api.ts';
+import { launcherReadHeader } from './local-read.ts';
 
 const host = '192.168.20.10';
 const device = '192.168.20.11';
@@ -66,7 +68,7 @@ describe('LAN development listener', () => {
     vi.unstubAllEnvs();
   });
 
-  async function fixture(peer?: string) {
+  async function fixture(peer?: string, launcher = false) {
     const forwarded: { method?: string; url?: string; origin?: string; authenticated: boolean; body: string }[] = [];
     const backend = createHttpServer(async (req, res) => {
       const body = await Array.fromAsync(req);
@@ -77,7 +79,7 @@ describe('LAN development listener', () => {
     servers.push(backend);
     vi.stubEnv('MARKETPULSE_API_PORT', String(await listen(backend)));
 
-    const options = await config();
+    const options = await config(launcher ? { mode: 'windows-launcher', isPreview: true } : {});
     vite = await createServer({ ...options, configFile: false, logLevel: 'silent',
       server: { ...options.server, middlewareMode: true, ws: false, hmr: false } });
     const gateway = createHttpServer((req, res) => {
@@ -126,6 +128,44 @@ describe('LAN development listener', () => {
     vi.stubEnv('MARKETPULSE_LAN_DEVICE_IP', device);
     vi.stubEnv('MARKETPULSE_LAN_TOKEN', 'invalid');
     expect(() => config()).toThrow('MARKETPULSE_LAN_TOKEN');
+  });
+
+  it('enables subnet admission only for the explicit launcher LAN preview', async () => {
+    vi.stubEnv('MARKETPULSE_LAN_DEVICE_IP', undefined);
+    const options = await config({ isPreview: true, mode: 'windows-launcher' });
+    expect(options.preview).toMatchObject({ host, port: 5173, strictPort: true, cors: false,
+      headers: { 'X-Frame-Options': 'DENY' } });
+    const lan = resolveLanDev(process.env, true);
+    expect(lan.allowsPeer(device)).toBe(true);
+    expect(lan.allowsPeer('192.168.20.12')).toBe(true);
+    expect(lan.allowsPeer('192.168.21.11')).toBe(false);
+    expect(lan.allowsPeer('127.0.0.1')).toBe(false);
+    expect(() => config()).toThrow('MARKETPULSE_LAN_DEVICE_IP');
+    expect((await config({ isPreview: true })).preview?.host).toBe('127.0.0.1');
+  });
+
+  it('blocks cross-origin browser API reads and limits the launcher LAN history budget', async () => {
+    vi.stubEnv('MARKETPULSE_LAN_DEVICE_IP', undefined);
+    const { port, forwarded } = await fixture(device, true);
+    const headers = { Host: authority };
+    const history = '/api/macro/indicators/eur-usd/history?start=2026-01-01&end=2026-01-31';
+    for (const site of ['cross-site', 'same-site']) {
+      expect((await send(port, history, { ...headers, 'Sec-Fetch-Site': site })).status).toBe(403);
+    }
+    expect((await send(port, history, headers)).status).toBe(403);
+    const localHeaders = { ...headers, [launcherReadHeader]: '1' };
+    expect((await send(port, history, { ...localHeaders, Origin: 'http://foreign.test' })).status).toBe(403);
+    expect((await send(port, history, { ...headers, Origin: 'http://foreign.test',
+      'Access-Control-Request-Headers': launcherReadHeader }, 'OPTIONS')).status).toBe(403);
+    expect(forwarded).toHaveLength(0);
+    for (let index = 0; index < 60; index++) {
+      expect((await send(port, history, localHeaders)).status).toBe(200);
+    }
+    const throttled = await send(port, history, localHeaders);
+    expect(throttled.status).toBe(429);
+    expect(Number(throttled.retry)).toBeGreaterThan(0);
+    expect(forwarded).toHaveLength(60);
+    expect((await send(port, '/api/macro/indicators', localHeaders)).status).toBe(200);
   });
 
   it('denies another private peer before serving the workspace or forwarding requests', async () => {

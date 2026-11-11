@@ -35,31 +35,24 @@ For local AI research, LangGraph routes a supported question to read-only statis
 
 ## Local development
 
-Use Python 3.12 and a Node release supported by [frontend/package.json](frontend/package.json). From the repository root in PowerShell:
+On Windows 11, double-click **MacroPulse AI.bat**. It opens MacroPulse AI in the default browser at `http://127.0.0.1:5173/` and shows the iPhone Safari URL on the page. Connect the iPhone and PC to the same trusted network and use the **Private** network profile on the PC. The launcher detects the PC's address each time the services start.
+
+1. Run **Install MacroPulse AI.bat** once to add **MacroPulse AI** to Start. Find it in Start search and choose **Pin to taskbar** if that option is available. The shortcut uses the Windows command processor and the MacroPulse icon. [Windows taskbar instructions](https://support.microsoft.com/en-us/windows/experience/personalization/customize-the-taskbar-in-windows)
+2. If Windows Firewall blocks Safari on the private network, run **Enable MacroPulse AI LAN.bat** once and approve the Windows elevation prompt. It adds an inbound rule for Node on TCP 5173, the selected interface, the Private profile and local subnet. Run setup again if you switch adapters or change the Node installation path. Daily launches run with ordinary user permissions.
+3. Click **MacroPulse AI** again to reopen the page using the running services. Use **Stop MacroPulse AI.bat** to stop them. Restart the launcher after changing the network or editing frontend source so it can rebuild the local frontend.
+
+The launcher uses the existing DEV read-only settings and Gemini key from the backend environment or ignored root `.env`. FastAPI listens on `127.0.0.1:8000`, and both frontend listeners serve the same compiled app. The LAN proxy accepts only peers on the selected private subnet and allows up to 60 history requests and three research submissions per rolling minute across the LAN listener. LAN access uses HTTP, so use it only on a trusted private network.
+
+If setup is missing, install Python 3.12 and a Node release supported by [frontend/package.json](frontend/package.json), then install the repository dependencies once from PowerShell at the repository root:
 
 ```powershell
-python -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend/requirements-ai.txt -r backend/requirements-dev.txt
-```
-
-For live local charts, point `MACRO_API_DSN` at an authorized, read-only loopback PostgreSQL database populated by the macro ingestion workflow. The [migration guide](docs/macro/migration-progress.md) describes capture and serving. Set the DSN through a secure environment mechanism before starting FastAPI.
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.api:app --host 127.0.0.1 --port 8000
-```
-
-In another terminal:
-
-```powershell
 Set-Location frontend
 npm.cmd ci
-npm.cmd run dev
 ```
 
-Open [the local workspace](http://127.0.0.1:5173/). To enable AI research, set `MARKETPULSE_MACRO_AI_ENABLED=true` in both terminals before starting them and provide an authorized `GEMINI_API_KEY` through the backend environment. Try “How did the euro fare against the dollar during coronavirus?” with a period covering 2020. The tests below use synthetic observations and a mocked Gemini provider.
-
-For iPhone Safari on a trusted private network, follow the
-[optional LAN development setup](frontend/README.md#iphone-testing-on-a-private-lan).
+The launcher reports startup errors in its window. The latest supervisor status is in `status.txt` under `%LOCALAPPDATA%\MacroPulse AI\` in the checkout's subdirectory. For hot reload and manual development, see the [frontend guide](frontend/README.md).
 
 ## Run the tests locally
 

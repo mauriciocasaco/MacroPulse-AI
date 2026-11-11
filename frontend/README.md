@@ -45,6 +45,9 @@ Vite usa el puerto fijo `5173` en loopback. Si el puerto `8000` ya está ocupado
 
 ## iPhone testing on a private LAN
 
+For normal Windows use, start both listeners with the [one-click launcher](../README.md#local-development).
+The steps below describe manual Vite development with a single approved device.
+
 Use PowerShell 7.4 or later. Connect the iPhone to the same trusted private
 subnet as the PC. On the iPhone, open **Settings → Wi-Fi → ⓘ** next to the
 connected network and note its IPv4 address. In PowerShell, use

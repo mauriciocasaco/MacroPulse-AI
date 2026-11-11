@@ -17,7 +17,7 @@ from langchain_core.runnables import RunnableLambda
 from backend.api import app
 from backend.macro_ai import api as research_api
 from backend.macro_ai import gemini, service
-from backend.macro_ai.models import GeminiDraft, ResearchRequest
+from backend.macro_ai.models import ResearchRequest
 from backend.macro_ai.retrieval import CorpusDocument, CorpusIndex
 from backend.macro_data.api import MacroHistory, MacroObservation, indicator_metadata
 from backend.macro_data.contracts import CATALOG, parse_period
@@ -416,7 +416,8 @@ def test_model_selects_evidence_without_changing_official_peak_chronology():
     assert first.interpretation != second.interpretation
 
 
-def test_provider_uses_real_prompt_chain_with_structured_schema_and_one_attempt(monkeypatch):
+@pytest.mark.parametrize("selected", [[2, 1], [1, 1], [0], [3]])
+def test_provider_selects_ids_and_preserves_approved_claims(monkeypatch, selected):
     seen = {}
 
     class Client:
@@ -436,18 +437,27 @@ def test_provider_uses_real_prompt_chain_with_structured_schema_and_one_attempt(
             def invoke(prompt, *, http_options):
                 seen["messages"] = prompt.to_messages()
                 seen["http"] = http_options
-                return GeminiDraft(narrative=[{"text": "Synthetic provider narrative.", "citations": ["series:eur-usd"]}])
+                return schema(statement_ids=selected)
 
             return RunnableLambda(invoke)
 
     monkeypatch.setenv("GEMINI_API_KEY", sha256(b"synthetic API key fixture").hexdigest())
     monkeypatch.delenv(gemini.MODEL_ENV, raising=False)
     monkeypatch.setattr(gemini, "ChatGoogleGenerativeAI", Chat)
-    output = gemini.invoke_gemini("Intención canónica", "Contexto institucional sintetizado")
-    assert isinstance(output, GeminiDraft) and seen["closed"]
-    assert seen["schema"] is GeminiDraft and seen["method"] == "json_schema"
+    statistic = {"text": "Synthetic series change was −1.2345%.", "citations": ["series:eur-usd"]}
+    document = {"text": "Contexto institucional sintetizado.", "citations": ["doc:fixture"]}
+    context = json.dumps({"approved_statements": [statistic, document], "required_statistics": [statistic]})
+    if selected == [2, 1]:
+        output = gemini.invoke_gemini("Intención canónica", context)
+        assert output.model_dump() == {"narrative": [document, statistic]}
+    else:
+        with pytest.raises(ValueError, match="invalid statement IDs"):
+            gemini.invoke_gemini("Intención canónica", context)
+    assert seen["closed"]
+    assert seen["schema"] is gemini.StatementSelection and seen["method"] == "json_schema"
     assert seen["options"]["max_retries"] == 0 and seen["options"]["vertexai"] is False
     assert seen["http"].retry_options.attempts == 1 and seen["http"].timeout == 18_000
+    assert '"required": true' in seen["messages"][-1].content
     assert "Contexto institucional sintetizado" in seen["messages"][-1].content
 
 
