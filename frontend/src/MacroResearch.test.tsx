@@ -1,118 +1,123 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { MacroResearch } from './MacroResearch';
+import type { MacroIndicator } from './macro-api';
 
-const period = { start: '2022-01-01', end: '2023-12-31' };
-
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
-
-const indicators = [
-  ['eur-usd', 'EUR/USD rate'], ['m3-stock', 'Eurozone M3'], ['deposit-rate', 'ECB rate'],
-  ['real-gdp-qoq', 'Eurozone GDP'], ['hicp-yoy', 'Eurozone Inflation'],
-];
+const catalog: MacroIndicator[] = ['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy'].map((id) => ({
+  id, title: id, frequency: 'daily', unit: 'USD/EUR', multiplier: 0, provider: 'ecb', series_key: 'fixture',
+  geography: 'fixture', adjustment: 'fixture', source_url: 'https://data.ecb.europa.eu/',
+  reuse_url: 'https://www.ecb.europa.eu/', attribution: 'ECB statistics',
+}));
+const props = { enabled: true, indicators: catalog, indicatorId: 'eur-usd', onIndicatorChange: vi.fn() };
+const covid = { start: '2020-02-01', end: '2020-12-31' };
 const events = [
-  ['COVID-19', 'How did the COVID-19 pandemic affect'],
-  ['Ukraine War', 'How did the war in Ukraine affect'],
-  ['Generative AI', 'How did the rise of generative AI and LLMs affect'],
+  ['COVID-19', 'covid', '2020-02-01', '2020-12-31'],
+  ['Ukraine War', 'ukraine', '2022-02-01', '2024-02-29'],
+  ['Generative AI Boom', 'generative-ai', '2023-09-01', '2026-09-30'],
 ];
+function response(question: string, window = covid) {
+  return { status: 'insufficient_evidence', question, ...window, facts: [], calculations: [], interpretation: [],
+    narrative: [], model_id: null, limitations: ['Synthetic corpus has no matching context.'], evidence: [], graph_steps: ['abstain'] };
+}
 
-it.each(indicators.flatMap(([id, name]) => events.map(([event, prefix]) => [id, name, event, prefix])))(
-  'prepares an editable historical question for %s / %s / %s without sending', (id, name, event, prefix) => {
-    const fetch = vi.fn();
-    vi.stubGlobal('fetch', fetch);
-    render(<MacroResearch enabled indicatorId={id} {...period} />);
-    expect(screen.getByRole('heading', { name: 'RAG-Powered Macro Research' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: event }));
-    const field = screen.getByLabelText('Research question');
-    expect(field).toHaveProperty('value', `${prefix} ${name}?`);
-    fireEvent.change(field, { target: { value: 'My own macroeconomic question?' } });
-    expect(field).toHaveProperty('value', 'My own macroeconomic question?');
-    expect(fetch).not.toHaveBeenCalled();
-  },
-);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
-it('uses the current indicator after a selection change', () => {
-  vi.stubGlobal('fetch', vi.fn());
-  const view = render(<MacroResearch enabled indicatorId="eur-usd" {...period} />);
-  fireEvent.click(screen.getByRole('button', { name: 'COVID-19' }));
-  view.rerender(<MacroResearch enabled indicatorId="hicp-yoy" {...period} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Ukraine War' }));
-  expect(screen.getByLabelText('Research question')).toHaveProperty('value',
-    'How did the war in Ukraine affect Eurozone Inflation?');
-});
-
-it('sends a prepared question through the existing endpoint only after Ask', async () => {
-  const question = 'How did the war in Ukraine affect Eurozone Inflation?';
-  const fetch = vi.fn(async (_url: string, _init: RequestInit) => Response.json({
-    status: 'insufficient_evidence', question, ...period, facts: [], calculations: [], interpretation: [],
-    limitations: ['Synthetic corpus has no matching context.'], evidence: [], graph_steps: ['abstain'],
-  }));
+it.each(events)('submits %s dates and explicit chart context only after Ask LLM Model', async (label, eventId, start, end) => {
+  const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    return Response.json(response(body.question, { start: body.start, end: body.end }));
+  });
   vi.stubGlobal('fetch', fetch);
-  render(<MacroResearch enabled indicatorId="hicp-yoy" {...period} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Ukraine War' }));
+  render(<MacroResearch {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: label }));
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'How did EUR/USD change?' } });
   expect(fetch).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   await screen.findByText('There is insufficient evidence for an answer.');
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(String(fetch.mock.calls[0][1].body))).toEqual({
+    question: 'How did EUR/USD change?', start, end, indicator_id: 'eur-usd', event_id: eventId,
+  });
   expect(fetch.mock.calls[0][0]).toBe('/api/macro/analysis');
-  expect(JSON.parse(String(fetch.mock.calls[0][1].body))).toEqual({ question, ...period });
+  expect(fetch.mock.calls[0][1].cache).toBe('no-store');
+  expect(screen.getByRole('heading', { name: 'LLM Model' })).toBeTruthy();
+  expect(screen.getByText('No institutional documents were retrieved for this answer.')).toBeTruthy();
 });
 
-it('keeps disabled research inert', () => {
-  const fetch = vi.fn();
+it('renders one narrative and actual retrieved document order with three-decimal genuine cosine scores', async () => {
+  const question = 'How did the COVID-19 pandemic affect EUR/USD rate?';
+  const series = { id: 'series:eur-usd', kind: 'series', title: 'ECB reference rate',
+    url: 'https://data.ecb.europa.eu/', attribution: 'ECB statistics',
+    period_start: '2020-02-03', period_end: '2020-12-31', published_on: null };
+  const sourceDocument = (id: string, title: string, score?: number) => ({
+    id, title, kind: 'document', url: 'https://www.ecb.europa.eu/', attribution: 'European Central Bank',
+    published_on: '2020-03-15', period_start: null, period_end: null,
+    ...(score == null ? {} : { similarity_score: score, similarity_metric: 'cosine' }),
+  });
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+    ...response(question), status: 'answered', model_id: 'gemini-test-fixture',
+    narrative: [{ text: 'The observed change is descriptive and does not establish causality.',
+      citations: ['series:eur-usd', 'doc:high'] }],
+    facts: [{ text: 'Legacy fact should not render twice.', citations: ['series:eur-usd'] }],
+    evidence: [series, sourceDocument('doc:high', 'High relevance source', 0.81256),
+      sourceDocument('doc:low', 'Lower relevance source', 0.23444), sourceDocument('doc:unknown', 'Unscored source')],
+  })));
+  render(<MacroResearch {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  await screen.findByText('The observed change is descriptive and does not establish causality.');
+  expect(screen.queryByText('Legacy fact should not render twice.')).toBeNull();
+  for (const heading of ['Facts', 'Calculations', 'Interpretation', 'Sources']) {
+    expect(screen.queryByRole('heading', { name: heading })).toBeNull();
+  }
+  const raw = screen.getByRole('heading', { name: 'RAW sources' }).parentElement!;
+  expect(within(raw).getAllByRole('link').map((link) => link.textContent))
+    .toEqual(['High relevance source', 'Lower relevance source', 'Unscored source']);
+  expect(raw.textContent).toContain('Cosine similarity 0.813');
+  expect(raw.textContent).toContain('Cosine similarity 0.234');
+  expect(raw.textContent?.match(/Cosine similarity/g)).toHaveLength(2);
+  expect(within(raw).getAllByRole('listitem').map((item) => item.getAttribute('value'))).toEqual(['2', '3', '4']);
+  expect(screen.getByText(/gemini-test-fixture/)).toBeTruthy();
+  for (const link of screen.getAllByRole('link', { name: /^\[/ })) {
+    expect(document.getElementById(link.getAttribute('href')!.slice(1))).toBeTruthy();
+  }
+});
+
+it('cancels old requests on chart indicator change and prevents stale rendering', async () => {
+  let complete!: (value: Response) => void;
+  const fetch = vi.fn((_url: string, _init: RequestInit) => new Promise<Response>((resolve) => { complete = resolve; }));
   vi.stubGlobal('fetch', fetch);
-  render(<MacroResearch enabled={false} {...period} />);
+  const view = render(<MacroResearch {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  expect(screen.getByText('Checking official evidence…')).toBeTruthy();
+  view.rerender(<MacroResearch {...props} indicatorId="hicp-yoy" />);
+  expect(fetch.mock.calls[0][1].signal?.aborted).toBe(true);
+  complete(Response.json(response('How did the COVID-19 pandemic affect EUR/USD rate?')));
+  await Promise.resolve();
+  expect(screen.queryByText('Checking official evidence…')).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'LLM Model' })).toBeNull();
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value',
+    'How did the COVID-19 pandemic affect Eurozone Inflation?');
+  view.rerender(<MacroResearch {...props} />);
+  expect(screen.queryByRole('heading', { name: 'LLM Model' })).toBeNull();
+  expect(screen.queryByText('Checking official evidence…')).toBeNull();
+});
+
+it('keeps public/disabled research inert and has no redundant heading subtitles', () => {
+  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+  render(<MacroResearch {...props} enabled={false} />);
   expect(screen.queryByLabelText('Research question')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Ask' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Ask LLM Model' })).toBeNull();
+  expect(screen.getByText('AI research is available only in an enabled local workspace.')).toBeTruthy();
+  expect(screen.queryByText(/Powered by LangGraph/)).toBeNull();
   expect(fetch).not.toHaveBeenCalled();
 });
 
-it('submits only the selected period and separates facts, calculations, interpretation and sources', async () => {
-  const question = 'How did the deposit rate change?';
-  const fetch = vi.fn(async (_url: string, _init: RequestInit) => Response.json({
-    status: 'answered', question, ...period,
-    facts: [{ text: 'The official series records effective dates.', citations: ['series:fixture'] }],
-    calculations: [{ text: 'The change was 4 percentage points.', citations: ['series:fixture'] }],
-    interpretation: [{ text: 'This describes a tightening cycle.', citations: ['series:fixture'] }],
-    limitations: ['The comparison is descriptive.'],
-    evidence: [{ id: 'series:fixture', kind: 'series', title: 'ECB deposit facility',
-      url: 'https://data.ecb.europa.eu/', attribution: 'ECB statistics',
-      period_start: '2022-07-27', period_end: '2023-09-20', published_on: null }],
-    graph_steps: ['interpret', 'generate'],
-  }));
-  vi.stubGlobal('fetch', fetch);
-  render(<MacroResearch enabled {...period} />);
-  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: question } });
-  fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
-  expect(screen.getByText('Checking official evidence…')).toBeTruthy();
-  await screen.findByRole('heading', { name: 'Interpretation' });
-  for (const name of ['Facts', 'Calculations', 'Limitations', 'Sources']) {
-    expect(screen.getByRole('heading', { name })).toBeTruthy();
-  }
-  expect(screen.getByRole('link', { name: 'ECB deposit facility' }).getAttribute('href')).toBe('https://data.ecb.europa.eu/');
-  expect(screen.getAllByRole('link', { name: '[1]' })).toHaveLength(3);
-  const [url, init] = fetch.mock.calls[0];
-  expect(url).toBe('/api/macro/analysis');
-  expect(init.method).toBe('POST');
-  expect(init.cache).toBe('no-store');
-  expect(JSON.parse(String(init.body))).toEqual({ question, ...period });
-});
-
-it.each([
-  [Response.json({ status: 'insufficient_evidence', question: 'How did rates change?', ...period,
-    facts: [], calculations: [], interpretation: [], limitations: ['No matching evidence.'], evidence: [],
-    graph_steps: ['interpret', 'select_indicators', 'abstain'] }), 'There is insufficient evidence for an answer.'],
-  [new Response(null, { status: 503 }), 'Local macro research is currently unavailable.'],
-])('renders abstentions and errors and clears the loading state', async (response, message) => {
-  vi.stubGlobal('fetch', vi.fn(async () => response));
-  render(<MacroResearch enabled {...period} />);
-  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'How did rates change?' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
-  await screen.findByText(message);
+it('renders network errors and clears the loading state', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })));
+  render(<MacroResearch {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  await screen.findByRole('alert');
+  expect(screen.getByText('Local macro research is currently unavailable.')).toBeTruthy();
   expect(screen.queryByText('Checking official evidence…')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Ask' })).toHaveProperty('disabled', false);
+  expect(screen.getByRole('button', { name: 'Ask LLM Model' })).toHaveProperty('disabled', false);
 });

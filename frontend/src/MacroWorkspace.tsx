@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getMacroIndicators } from './macro-api';
 import { MacroPlot } from './MacroPlot';
-import { unitLabel, loadChartHistory, selectHistory, researchWindow, indicatorPresentation, chartPeriods, type ChartHistory, type ChartPeriod } from './macro-chart';
+import { unitLabel, loadChartHistory, selectHistory, indicatorPresentation, chartPeriods, type ChartHistory, type ChartPeriod } from './macro-chart';
 import { MacroResearch } from './MacroResearch';
 
 const frequencyLabels = {
@@ -40,7 +40,6 @@ export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }
 
   const selected = indicators?.find((item) => item.id === id);
   const history = loaded?.id === id ? selectHistory(loaded.history, period) : undefined;
-  const research = history ? researchWindow(history) : undefined;
   const presentation = selected ? indicatorPresentation(selected) : undefined;
 
   if (failed) return <div className="notice error" role="alert">
@@ -81,9 +80,7 @@ export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }
         Source <a href={selected.source_url}>{selected.attribution}</a> · <a href={selected.reuse_url}>Reuse terms</a>
       </p>
     </section>
-    {history && research && <>
-      {analysisEnabled && research.start !== history.start && <p className="muted">Research uses {research.start} to {research.end}; the chart shows the full history.</p>}
-      <MacroResearch key={`${research.start}:${research.end}`} enabled={analysisEnabled} indicatorId={id} {...research} />
-    </>}
+    <MacroResearch enabled={analysisEnabled} indicatorId={id} indicators={indicators ?? []}
+      onIndicatorChange={(next) => { setHistoryFailed(false); setId(next); }} />
   </>;
 }

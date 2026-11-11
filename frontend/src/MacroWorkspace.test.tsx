@@ -77,7 +77,7 @@ it.each([
 ].flatMap(([id, label]) => [
   [id, label, 'COVID-19', 'How did the COVID-19 pandemic affect'],
   [id, label, 'Ukraine War', 'How did the war in Ukraine affect'],
-  [id, label, 'Generative AI', 'How did the rise of generative AI and LLMs affect'],
+  [id, label, 'Generative AI Boom', 'How did the rise of generative AI and LLMs affect'],
 ]))('passes the selected indicator to research without submitting: %s / %s / %s', async (id, label, event, prefix) => {
   const fetch = stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
   render(<App macroAiEnabled />);
@@ -88,7 +88,7 @@ it.each([
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
 
-it('submits a customized question with the selected chart period only after Ask', async () => {
+it('submits the event window and chart indicator after Ask LLM Model, independently of chart period', async () => {
   const historyFetch = stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
   const analysis = vi.fn(async (_url: string, init: RequestInit) => Response.json({
     ...JSON.parse(String(init.body)), status: 'insufficient_evidence', facts: [], calculations: [],
@@ -104,12 +104,32 @@ it('submits a customized question with the selected chart period only after Ask'
     target: { value: 'How did the Federal Reserve change interest rates?' },
   });
   expect(analysis).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   await screen.findByText('There is insufficient evidence for an answer.');
   expect(analysis).toHaveBeenCalledTimes(1);
   expect(JSON.parse(String(analysis.mock.calls[0][1].body))).toEqual({
-    question: 'How did the Federal Reserve change interest rates?', start: '2026-03-30', end: '2026-06-30',
+    question: 'How did the Federal Reserve change interest rates?', start: '2020-02-01', end: '2020-12-31',
+    indicator_id: 'eur-usd', event_id: 'covid',
   });
+});
+
+it('keeps the chart, composer and custom question synchronized across selection and period changes', async () => {
+  stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
+  render(<App macroAiEnabled />);
+  await screen.findByLabelText('Research question');
+  fireEvent.click(screen.getByRole('button', { name: 'Eurozone M3' }));
+  expect(screen.getByLabelText('Indicator')).toHaveProperty('value', 'm3-stock');
+  await screen.findByLabelText('Eurozone M3: official observations by period');
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'What changed in M3?' } });
+  fireEvent.click(screen.getByRole('button', { name: '7Y' }));
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value', 'What changed in M3?');
+  fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: 'hicp-yoy' } });
+  expect(screen.getByRole('button', { name: 'Eurozone Inflation' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value', 'What changed in M3?');
+  expect(screen.getByText(/Your custom question is preserved\. Review it for the selected indicator/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Use generated question' }));
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value',
+    'How did the COVID-19 pandemic affect Eurozone Inflation?');
 });
 
 it('plots monthly observations without filling gaps and preserves source decimals and units', async () => {
