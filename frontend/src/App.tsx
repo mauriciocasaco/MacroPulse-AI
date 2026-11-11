@@ -7,9 +7,10 @@ export function App({
   macroAiEnabled = import.meta.env.MARKETPULSE_MACRO_AI_ENABLED === true,
 }: { macroDemoEnabled?: boolean; macroAiEnabled?: boolean } = {}) {
   const publicDemo = import.meta.env.MODE === 'public-demo';
+  const lanDev = import.meta.env.DEV && import.meta.env.MARKETPULSE_LAN_DEV === 'true';
   const macroAvailable = publicDemo
     ? macroDemoEnabled
-    : ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+    : ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname) || lanDev;
   const [attempt, setAttempt] = useState(0);
   const [online, setOnline] = useState(() => navigator.onLine);
   const updateReady = usePwaUpdate();

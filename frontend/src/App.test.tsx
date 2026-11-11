@@ -43,6 +43,20 @@ it('keeps the public macro feature gate without falling back to the archive', ()
   expect(screen.queryByText(/synthetic|archive/i)).toBeNull();
 });
 
+it('opens the workspace and AI research on a private hostname only in enabled LAN development', () => {
+  vi.stubGlobal('location', { hostname: '192.168.20.10' });
+  vi.stubEnv('DEV', true);
+  vi.stubEnv('MARKETPULSE_LAN_DEV', undefined);
+  const view = render(<App macroAiEnabled />);
+  expect(screen.queryByRole('region', { name: 'Macro workspace' })).toBeNull();
+  vi.stubEnv('MARKETPULSE_LAN_DEV', 'true');
+  view.rerender(<App macroAiEnabled />);
+  expect(screen.getByRole('region', { name: 'Macro workspace' }).textContent).toContain('AI enabled');
+  vi.stubEnv('DEV', false);
+  view.rerender(<App macroAiEnabled />);
+  expect(screen.queryByRole('region', { name: 'Macro workspace' })).toBeNull();
+});
+
 it('keeps the shell offline and restores macro research after reconnecting', () => {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   render(<App />);

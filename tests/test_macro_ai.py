@@ -476,6 +476,56 @@ def test_local_route_validates_origin_body_and_hides_internal_error(monkeypatch)
         assert response.status_code == 503 and response.json() == {"detail": "Macro research unavailable"}
 
 
+def test_lan_rag_requires_local_transport_opt_in_and_authenticated_proxy(monkeypatch):
+    launch = [sys.executable, "-m", "uvicorn", "backend.api:app", "--host", "127.0.0.1", "--port", "8000"]
+    monkeypatch.setattr(sys, "orig_argv", launch)
+    for variable in ("UVICORN_FD", "UVICORN_UDS", "UVICORN_ENV_FILE", "MARKETPULSE_LAN_DEV"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setenv("MARKETPULSE_MODE", "local")
+    monkeypatch.setenv("MARKETPULSE_MACRO_AI_ENABLED", "true")
+    monkeypatch.setenv("MARKETPULSE_LAN_IP", "192.168.20.10")
+    token = sha256(b"synthetic LAN proxy test fixture").hexdigest()
+    monkeypatch.setenv("MARKETPULSE_LAN_TOKEN", token)
+
+    workflow = service.Workflow(CorpusIndex.load(CORPUS), read=_histories, generate=_draft)
+    monkeypatch.setattr(service, "workflow", lambda: workflow)
+    payload = {"question": QUERIES[0][0], "start": QUERIES[0][1], "end": QUERIES[0][2]}
+    origin = "http://192.168.20.10:5173"
+    auth_header = "x-marketpulse-lan-auth"
+    authenticated = {"Origin": origin, auth_header: token}
+    base_url = "http://127.0.0.1:8000"
+    with TestClient(app, base_url=base_url, client=("127.0.0.1", 51000)) as client:
+        def submit(headers):
+            return client.post("/macro/analysis", json=payload, headers=headers)
+
+        assert submit(authenticated).status_code == 403
+        monkeypatch.setenv("MARKETPULSE_LAN_DEV", "true")
+        for headers in (
+            {"Origin": origin}, {auth_header: token}, {"Origin": origin, auth_header: "incorrect"},
+            {"Origin": origin, auth_header: sha256(b"incorrect fixture").hexdigest()},
+            {**authenticated, "Origin": "http://192.168.20.11:5173"},
+            {**authenticated, "Origin": "http://192.168.20.10:5174"},
+            {**authenticated, "Origin": "http://127.0.0.1:5173"},
+            [*authenticated.items(), (auth_header, token)], [*authenticated.items(), ("Origin", origin)],
+        ):
+            assert submit(headers).status_code == 403
+        assert submit({**authenticated, "X-Forwarded-For": "127.0.0.1"}).status_code == 404
+        assert submit({"Origin": "http://127.0.0.1:5173"}).status_code == 200
+
+        response = submit(authenticated)
+        assert response.status_code == 200 and response.headers["Cache-Control"] == "no-store"
+        assert response.json()["status"] == "answered"
+
+        monkeypatch.setattr(sys, "orig_argv", [*launch[:5], "0.0.0.0", *launch[6:]])
+        assert submit(authenticated).status_code == 404
+        monkeypatch.setattr(sys, "orig_argv", launch)
+        monkeypatch.setenv("MARKETPULSE_MODE", "test")
+        assert submit(authenticated).status_code == 403
+
+    with TestClient(app, base_url=base_url, client=("192.168.20.11", 51000)) as client:
+        assert client.post("/macro/analysis", json=payload, headers=authenticated).status_code == 404
+
+
 def test_public_demo_import_avoids_optional_packages_and_analysis_route(tmp_path):
     ca = tmp_path / "synthetic-ca.pem"
     ca.write_text("Synthetic CA path. Public app is imported without starting lifespan.")
@@ -492,6 +542,9 @@ def test_public_demo_import_avoids_optional_packages_and_analysis_route(tmp_path
                               f"user=marketpulse_demo_ro password={synthetic_password}"),
         MARKETPULSE_DEMO_ORIGIN_SECRET=sha256(b"synthetic public origin fixture").hexdigest(),
         MARKETPULSE_DEMO_SSL_ROOT_CERT=str(ca),
+        MARKETPULSE_LAN_DEV="true",
+        MARKETPULSE_LAN_IP="192.168.20.10",
+        MARKETPULSE_LAN_TOKEN=sha256(b"synthetic LAN proxy test fixture").hexdigest(),
     )
     subprocess.run([sys.executable, "-c", (
         "import sys; from backend.api import app; "

@@ -58,6 +58,9 @@ npm.cmd run dev
 
 Open [the local workspace](http://127.0.0.1:5173/). To enable AI research, set `MARKETPULSE_MACRO_AI_ENABLED=true` in both terminals before starting them and provide an authorized `GEMINI_API_KEY` through the backend environment. Try “How did the euro fare against the dollar during coronavirus?” with a period covering 2020. The tests below use synthetic observations and a mocked Gemini provider.
 
+For iPhone Safari on a trusted private network, follow the
+[optional LAN development setup](frontend/README.md#iphone-testing-on-a-private-lan).
+
 ## Run the tests locally
 
 From the repository root, with test DSNs unset:

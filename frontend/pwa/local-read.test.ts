@@ -1,14 +1,12 @@
 import { expect, it } from 'vitest';
 import { allowsLocalRead } from './local-read';
 
-it('permits only macro reads on loopback and keeps them off the LAN proxy', () => {
-  for (const path of ['/api/macro/indicators', '/api/macro/indicators/eur-usd/history?start=2026-01-01&end=2026-01-31']) {
-    expect(allowsLocalRead(path, false)).toBe(true);
-    expect(allowsLocalRead(path, true)).toBe(false);
+it('permits the macro catalog and the five official histories', () => {
+  expect(allowsLocalRead('/api/macro/indicators')).toBe(true);
+  for (const id of ['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy']) {
+    expect(allowsLocalRead(`/api/macro/indicators/${id}/history?start=2026-01-01&end=2026-01-31`)).toBe(true);
   }
-  for (const path of ['/api/assets', '/api/assets/1/history?start=2026-01-01', '/api/analysis']) {
-    expect(allowsLocalRead(path, true)).toBe(false);
-    expect(allowsLocalRead(path, false)).toBe(false);
+  for (const path of ['/api/assets', '/api/assets/1/history?start=2026-01-01', '/api/analysis', '/api/macro/indicators/unknown/history']) {
+    expect(allowsLocalRead(path)).toBe(false);
   }
-  expect(allowsLocalRead('/api/macro/indicators/unknown/history', false)).toBe(false);
 });

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from hmac import compare_digest
+from ipaddress import IPv4Address
 import os
 import re
 from threading import BoundedSemaphore
@@ -18,6 +20,38 @@ from .models import ResearchRequest, ResearchResponse
 MAX_BODY = 4096
 _SLOT = BoundedSemaphore(1)
 _LOCAL_ORIGIN = re.compile(r"https?://(?:127\.0\.0\.1|localhost|\[::1\])(?::([1-9][0-9]{0,4}))?")
+_LAN_AUTH = "x-marketpulse-lan-auth"
+_LAN_TOKEN = re.compile(r"[a-f0-9]{64}")
+
+
+def _authorized_lan_origin(origin: str, credential: str) -> bool:
+    if os.environ.get("MARKETPULSE_MODE", "local") != "local" or os.environ.get("MARKETPULSE_LAN_DEV") != "true":
+        return False
+    ip = os.environ.get("MARKETPULSE_LAN_IP", "")
+    try:
+        IPv4Address(ip)
+    except ValueError:
+        return False
+    if (not re.match(r"(?:10\.|172\.(?:1[6-9]|2[0-9]|3[01])\.|192\.168\.)", ip)
+            or origin != f"http://{ip}:5173"):
+        return False
+    token = os.environ.get("MARKETPULSE_LAN_TOKEN", "")
+    return bool(_LAN_TOKEN.fullmatch(token) and _LAN_TOKEN.fullmatch(credential) and compare_digest(token, credential))
+
+
+def _require_research_origin(request: Request) -> None:
+    origins = request.headers.getlist("origin")
+    credentials = request.headers.getlist(_LAN_AUTH)
+    if credentials:
+        if len(origins) == len(credentials) == 1 and _authorized_lan_origin(origins[0], credentials[0]):
+            return
+    elif not origins:
+        return
+    elif len(origins) == 1:
+        origin = _LOCAL_ORIGIN.fullmatch(origins[0])
+        if origin and (not origin[1] or int(origin[1]) <= 65535):
+            return
+    raise HTTPException(status_code=403, detail="Forbidden")
 
 
 class _ResearchRoute(APIRoute):
@@ -28,11 +62,7 @@ class _ResearchRoute(APIRoute):
             _require_local(request)
             if os.environ.get("MARKETPULSE_MACRO_AI_ENABLED") != "true":
                 raise HTTPException(status_code=404, detail="Macro research route unavailable")
-            origins = request.headers.getlist("origin")
-            if origins:
-                origin = _LOCAL_ORIGIN.fullmatch(origins[0])
-                if len(origins) != 1 or not origin or (origin[1] and int(origin[1]) > 65535):
-                    raise HTTPException(status_code=403, detail="Forbidden")
+            _require_research_origin(request)
             if request.query_params:
                 raise HTTPException(status_code=422, detail="Invalid macro research request")
             if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":

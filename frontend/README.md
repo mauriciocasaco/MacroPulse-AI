@@ -45,41 +45,98 @@ Vite usa el puerto fijo `5173` en loopback. Si el puerto `8000` ya está ocupado
 
 ## iPhone testing on a private LAN
 
-Connect the iPhone to the Wi-Fi on the same subnet as the PC. The PC can use
-Ethernet. Use a trusted private network and close the LAN listener when done.
+Use PowerShell 7.4 or later. Connect the iPhone to the same trusted private
+subnet as the PC. On the iPhone, open **Settings → Wi-Fi → ⓘ** next to the
+connected network and note its IPv4 address. In PowerShell, use
+`Get-NetIPConfiguration` to find the PC's IPv4 address on that subnet.
 
-Start FastAPI from the repository root using the existing read-only DEV configuration.
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.api:app --host 127.0.0.1 --port 8001
-```
-
-Start the LAN listener from a second terminal at the repository root. Use the
-active private interface that leads to the iPhone. Change `Ethernet` to the
-actual adapter name if needed.
+From a fresh PowerShell window at the repository root, install the local
+dependencies if needed:
 
 ```powershell
-$env:MARKETPULSE_LAN_IP = (Get-NetIPConfiguration -InterfaceAlias 'Ethernet').IPv4Address.IPAddress
-$env:MARKETPULSE_API_PORT = '8001'
-Set-Location frontend
-Write-Host "http://$($env:MARKETPULSE_LAN_IP):5173/"
-npm.cmd run dev
+if (-not (Test-Path .\.venv\Scripts\python.exe)) { py -3.12 -m venv .venv }
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements-ai.txt
+Push-Location frontend
+try { npm.cmd ci } finally { Pop-Location }
 ```
 
-For simultaneous desktop access, keep the regular loopback Vite instance
-running in its own terminal with `MARKETPULSE_API_PORT=8001` and without
-`MARKETPULSE_LAN_IP`. Both listeners use port 5173 on distinct addresses.
-Run `Invoke-RestMethod http://127.0.0.1:8001/health` and check `/api/assets` on
-the Vite URL to distinguish FastAPI liveness from catalog connectivity. Stop
-each listener you started with **Ctrl+C** in its terminal.
+Run the following from the same repository root. It opens separate PowerShell
+windows for FastAPI and Vite. Enter the authorized read-only loopback PostgreSQL
+DSN and Gemini key at the masked prompts in the FastAPI window. If you already
+use an authorized read-only DEV configuration, follow its
+[backend setup](../docs/macro/m6-3-local-ai-validation.md#powershell-7)
+for the database settings and keep the exact Uvicorn host and port shown below.
 
-The LAN listener accepts requests for its configured IP from its own subnet.
-It serves the development frontend and proxies only catalog, history, and
-simulated analysis. FastAPI's diagnostic routes stay on loopback. Use Safari
-to check portrait and landscape layout, tap and slide on the chart, and
-scroll vertically across it. Check **Crude Oil** on **Max** using **Inspect date**
-for April 20, 2020. The reading should be **-37.6 USD/bbl**. Then test a preset,
-a custom question, and a document link.
+```powershell
+$pcIp = Read-Host 'PC private IPv4 address'
+$phoneIp = Read-Host 'iPhone IPv4 address'
+$repoPath = (Get-Location).Path
+$sharedLan = @{
+    MARKETPULSE_LAN_DEV = 'true'
+    MARKETPULSE_LAN_IP = $pcIp
+    MARKETPULSE_LAN_TOKEN = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLowerInvariant()
+    MARKETPULSE_MACRO_AI_ENABLED = 'true'
+}
+$backendLan = $sharedLan + @{ MARKETPULSE_MODE = 'local'; MACRO_API_MODE = 'loopback' }
+$frontendLan = $sharedLan + @{ MARKETPULSE_LAN_DEVICE_IP = $phoneIp; MARKETPULSE_API_PORT = '8000' }
+$backendCommand = @'
+$env:MACRO_API_DSN = Read-Host -MaskInput 'Authorized read-only loopback PostgreSQL DSN'; $env:GEMINI_API_KEY = Read-Host -MaskInput 'Authorized Gemini API key'; .\.venv\Scripts\python.exe -m uvicorn backend.api:app --host 127.0.0.1 --port 8000
+'@
+try {
+    Start-Process pwsh -WorkingDirectory $repoPath -Environment $backendLan -ArgumentList '-NoProfile', '-Command', $backendCommand
+    Start-Process pwsh -WorkingDirectory (Join-Path $repoPath 'frontend') -Environment $frontendLan -ArgumentList '-NoProfile', '-Command', 'npm.cmd run dev'
+} finally {
+    Remove-Variable sharedLan,backendLan,frontendLan
+}
+Write-Host "Open in iPhone Safari: http://${pcIp}:5173/"
+```
+
+Wait for both servers to start. Open the printed HTTP URL in Safari. Choose an
+**Indicator**, change the period under **Official history**, and touch the chart
+to inspect an observation. In **RAG-Powered Macro Research**, select EUR/USD and
+the **COVID-19** event. Enter “How did the euro fare against the dollar during
+coronavirus?” in **Research question** and tap **Ask LLM Model**. The proxy
+accepts three research submissions per rolling minute. If it returns HTTP 429,
+wait for the `Retry-After` interval (up to one minute) before retrying.
+
+If Windows Firewall blocks the connection on a network already set to
+**Private**, an administrator can add a temporary device-scoped rule. Enter
+the same PC and iPhone addresses when prompted.
+
+```powershell
+New-NetFirewallRule -Name 'MarketPulse-LAN-Dev-5173' -DisplayName 'MarketPulse LAN development' `
+    -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5173 -Profile Private `
+    -LocalAddress (Read-Host 'PC private IPv4 address') -RemoteAddress (Read-Host 'iPhone IPv4 address')
+```
+
+The browser reaches Vite on the configured PC address. FastAPI stays on
+`127.0.0.1:8000` and uses the configured read-only database. The proxy serves
+the macro catalog, the five histories and the optional research POST. The
+shared token travels only over loopback from Vite to FastAPI. The LAN HTTP
+connection carries the selected dates, observations and research questions,
+so use it on a trusted private network. If the iPhone's IP changes, restart
+Vite with the new address.
+
+For simultaneous PC access, start another Vite process from `frontend/` in
+a regular PowerShell window, set `MARKETPULSE_MACRO_AI_ENABLED=true` if you
+want RAG on the PC, and open `http://127.0.0.1:5173/`. The two Vite processes
+use distinct local addresses.
+
+To disable LAN mode, press **Ctrl+C** in the LAN Vite window and close it.
+Stop and close the FastAPI window when finished. If you created the temporary
+firewall rule, remove it from an administrator PowerShell window:
+
+```powershell
+Remove-NetFirewallRule -Name 'MarketPulse-LAN-Dev-5173'
+```
+
+The launcher passes the LAN settings only to the two child windows. If you
+set any LAN variables directly in a shell, clear them there before restarting
+in normal loopback mode:
+
+```powershell
+Remove-Item Env:MARKETPULSE_LAN_DEV,Env:MARKETPULSE_LAN_IP,Env:MARKETPULSE_LAN_DEVICE_IP,Env:MARKETPULSE_LAN_TOKEN -ErrorAction SilentlyContinue
+```
 
 ## Contrato y decisiones
 
