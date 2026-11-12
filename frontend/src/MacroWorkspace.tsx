@@ -13,6 +13,7 @@ const frequencyLabels = {
 export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analysisEnabled: boolean; publicDemo?: boolean }) {
   const [indicators, setIndicators] = useState<Awaited<ReturnType<typeof getMacroIndicators>>>();
   const [researchV2, setResearchV2] = useState(false);
+  const localResearchV2 = researchV2 && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
   const [sitekey, setSitekey] = useState('');
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -21,15 +22,19 @@ export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analys
   const [loaded, setLoaded] = useState<{ id: string; history: ChartHistory }>();
   const [historyFailed, setHistoryFailed] = useState(false);
   const [historyAttempt, setHistoryAttempt] = useState(0);
+  const selected = indicators?.find((item) => item.id === id);
+  const ready = !publicDemo || selected !== undefined;
+  const availableFrom = selected?.available_from ?? undefined;
   useEffect(() => {
+    if (!ready) return;
     const controller = new AbortController();
-    loadChartHistory(id, controller.signal).then((history) => {
+    loadChartHistory(id, controller.signal, availableFrom).then((history) => {
       if (!controller.signal.aborted) setLoaded({ id, history });
     }, () => {
       if (!controller.signal.aborted) setHistoryFailed(true);
     });
     return () => controller.abort();
-  }, [id, historyAttempt]);
+  }, [id, historyAttempt, ready, availableFrom]);
   useEffect(() => {
     const controller = new AbortController();
     getMacroIndicators(controller.signal, setResearchV2, publicDemo ? setSitekey : undefined).then((data) => {
@@ -40,7 +45,6 @@ export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analys
     return () => controller.abort();
   }, [attempt, publicDemo]);
 
-  const selected = indicators?.find((item) => item.id === id);
   const history = loaded?.id === id ? selectHistory(loaded.history, period) : undefined;
   const presentation = selected ? indicatorPresentation(selected) : undefined;
 
@@ -71,7 +75,7 @@ export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analys
     <section className="panel" aria-labelledby="macro-history-title">
       <h2 id="macro-history-title">Official history</h2>
       <fieldset className="macro-presets" aria-label="History period">
-        {chartPeriods.map((value) => <button key={value} type="button" aria-pressed={period === value}
+        {(publicDemo && availableFrom ? [...chartPeriods, 'All' as const] : chartPeriods).map((value) => <button key={value} type="button" aria-pressed={period === value}
           onClick={() => { if (historyFailed) setHistoryAttempt((attempt) => attempt + 1); setHistoryFailed(false); setPeriod(value); }}>{value}</button>)}
       </fieldset>
       {historyFailed ? <div className="notice error" role="alert">
@@ -84,7 +88,7 @@ export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analys
     </section>
     <MacroResearch enabled={publicDemo ? Boolean(sitekey) : analysisEnabled} indicatorId={id} indicators={indicators ?? []}
       publicDemo={publicDemo} sitekey={sitekey}
-      researchV2Available={researchV2 && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)}
+      researchV2Available={localResearchV2}
       onIndicatorChange={(next) => { setHistoryFailed(false); setId(next); }} />
   </>;
 }

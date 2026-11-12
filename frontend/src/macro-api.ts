@@ -15,6 +15,7 @@ export interface MacroIndicator {
   source_url: string;
   reuse_url: string;
   attribution: string;
+  available_from?: string | null;
 }
 
 export interface MacroObservation {
@@ -110,7 +111,7 @@ export interface MacroAnalysis {
 
 const ids = new Set(['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy']);
 const frequencies = new Set(['daily', 'monthly', 'quarterly', 'effective_date']);
-const sourceHosts = new Set(['data.ecb.europa.eu', 'www.ecb.europa.eu', 'ec.europa.eu', 'eur-lex.europa.eu', 'doi.org']);
+const sourceHosts = new Set(['data.ecb.europa.eu', 'www.ecb.europa.eu', 'ec.europa.eu', 'eur-lex.europa.eu', 'doi.org', 'www.eia.gov']);
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 
@@ -134,7 +135,8 @@ function indicator(value: unknown): value is MacroIndicator {
     && Number.isInteger(value.multiplier)
     && ['title', 'unit', 'provider', 'series_key', 'geography', 'adjustment', 'attribution']
       .every((key) => typeof value[key] === 'string')
-    && officialLink(value.source_url) && officialLink(value.reuse_url);
+    && officialLink(value.source_url) && officialLink(value.reuse_url)
+    && (value.available_from == null || date(value.available_from));
 }
 
 function date(value: unknown): value is string {
@@ -262,7 +264,7 @@ export async function getMacroHistory(
 
 export async function askMacroAnalysis(
   question: string, start: string, end: string, signal: AbortSignal,
-  context?: { indicator_id: string; event_id: 'covid' | 'ukraine' | 'generative-ai'; research_version?: 'v2' },
+  context?: { indicator_id: string; event_id?: 'covid' | 'ukraine' | 'generative-ai'; research_version?: 'v2' },
   turnstileToken?: string,
 ): Promise<MacroAnalysis> {
   const response = await fetch('/api/macro/analysis', {
@@ -279,14 +281,14 @@ export async function askMacroAnalysis(
     if (response.status === 503 && response.headers.get('Retry-After')) {
       throw new Error('Public research is busy. Please try again shortly.');
     }
-    if (response.status === 422) throw new Error('Review the selected event and question before trying again.');
+    if (response.status === 422) throw new Error('Review the selected dates and question before trying again.');
     throw new Error('Public research is currently unavailable.');
   }
   const result: unknown = await response.json();
   if (!object(result) || (result.status !== 'answered' && result.status !== 'insufficient_evidence')
     || result.question !== question || result.start !== start || result.end !== end
     || (context !== undefined && ((result.indicator_id != null && result.indicator_id !== context.indicator_id)
-      || (result.event_id != null && result.event_id !== context.event_id)))
+      || (result.event_id != null && context.event_id !== undefined && result.event_id !== context.event_id)))
     || (result.narrative !== undefined && (!claims(result.narrative)
       || (result.status === 'answered' && result.narrative.length === 0)))
     || !(result.narrative_kind == null || (result.status === 'answered' && claims(result.narrative)

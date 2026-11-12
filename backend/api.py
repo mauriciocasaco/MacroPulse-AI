@@ -346,6 +346,10 @@ if _MODE == "public_demo":
     from .public_demo import create_public_app
 
     app = create_public_app()
+elif _MODE == "public_online":
+    from .public_online import create_online_app
+
+    app = create_online_app()
 elif _MODE not in {"local", "test"}:
     raise RuntimeError("Invalid MarketPulse mode")
 else:

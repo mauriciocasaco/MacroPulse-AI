@@ -142,7 +142,19 @@ def test_database_errors_are_sanitized(client, monkeypatch):
 
 
 @pytest.fixture
-def remote_settings(monkeypatch):
+def remote_settings(monkeypatch, tmp_path):
+    # The worktree has no local Supabase certificate. Pin a fixture path and
+    # mock CA parsing in these tests of routing and connection error handling.
+    ca = tmp_path / "fixture-ca.pem"
+    ca.touch()
+    monkeypatch.setattr("backend.market_data.connection._CA_CERTIFICATE", ca)
+    load_ca = macro.ssl.SSLContext.load_verify_locations
+
+    def fixture_ca(context, *, cafile):
+        if Path(cafile) != ca:
+            return load_ca(context, cafile=cafile)
+
+    monkeypatch.setattr(macro.ssl.SSLContext, "load_verify_locations", fixture_ca)
     settings = {
         "MARKETPULSE_DEV_PROJECT_REF": DEV_PROJECT_REF,
         "USER_RO": f"marketpulse_api_ro.{DEV_PROJECT_REF}",

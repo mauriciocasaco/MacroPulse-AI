@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 import psycopg
+from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
@@ -160,14 +161,14 @@ def _observation(item: Indicator, row: dict) -> MacroObservation:
     )
 
 
-def _deposit_coverage(connection: psycopg.Connection, indicator_id: str, window: MacroWindow):
+def _deposit_coverage(connection: psycopg.Connection, indicator_id: str, window: MacroWindow, schema: str):
     # Successful snapshots establish which dates were queried. Clip at the
     # provider-local date of receipt so future periods never become coverage.
-    return connection.execute("""
+    return connection.execute(sql.SQL("""
         WITH intervals AS (
             SELECT requested_start AS first_day,
                    least(requested_end, (captured_at AT TIME ZONE 'Europe/Berlin')::date) AS last_day
-            FROM macro_data.capture
+            FROM {}.capture
             WHERE indicator_id = %s AND outcome = 'success' AND stale_observations = 0
               AND source_attributes->>'version_scope' IS DISTINCT FROM 'provider_repository'
               AND requested_start <= %s
@@ -180,24 +181,26 @@ def _deposit_coverage(connection: psycopg.Connection, indicator_id: str, window:
         WHERE upper(span) > %s
         ORDER BY lower(span)
         LIMIT 1
-    """, (indicator_id, window.end, window.start)).fetchone()
+    """).format(sql.Identifier(schema)), (indicator_id, window.end, window.start)).fetchone()
 
 
-def load_history(connection: psycopg.Connection, item: Indicator, window: MacroWindow) -> MacroHistory:
+def load_history(
+    connection: psycopg.Connection, item: Indicator, window: MacroWindow, *, schema: str = "macro_data",
+) -> MacroHistory:
     """Load source observations and locally verified deposit-rate coverage."""
     connection.execute("SET LOCAL statement_timeout = '5s'")
     connection.execute("SET LOCAL lock_timeout = '2s'")
-    updated_at, today = connection.execute("""
+    updated_at, today = connection.execute(sql.SQL("""
         SELECT max(captured_at), (statement_timestamp() AT TIME ZONE 'Europe/Berlin')::date
-        FROM macro_data.capture
+        FROM {}.capture
         WHERE indicator_id = %s AND outcome = 'success'
           AND source_attributes->>'version_scope' IS DISTINCT FROM 'provider_repository'
-    """, (item.id,)).fetchone()
+    """).format(sql.Identifier(schema)), (item.id,)).fetchone()
     coverage_start = coverage_end = anchor = None
     end = window.end
     if item.frequency == "effective_date":
         end = min(end, today)
-        span = _deposit_coverage(connection, item.id, window)
+        span = _deposit_coverage(connection, item.id, window, schema)
         if span is not None:
             first, last = span
             coverage_start, coverage_end = max(first, window.start), min(last, end)
@@ -205,11 +208,11 @@ def load_history(connection: psycopg.Connection, item: Indicator, window: MacroW
                 coverage_start = coverage_end = None
             if coverage_start is not None and first < window.start:
                 previous = read_observations(
-                    connection, item.id, start=first, end=window.start - timedelta(days=1), limit=1, newest_first=True,
+                    connection, item.id, start=first, end=window.start - timedelta(days=1), limit=1, newest_first=True, schema=schema,
                 )
                 if previous:
                     anchor = _observation(item, previous[0])
-    rows = read_observations(connection, item.id, start=window.start, end=end, limit=MAX_POINTS + 1)
+    rows = read_observations(connection, item.id, start=window.start, end=end, limit=MAX_POINTS + 1, schema=schema)
     if len(rows) > MAX_POINTS:
         raise HTTPException(status_code=422, detail="Macro history range exceeds the response limit")
     return MacroHistory(
