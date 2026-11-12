@@ -1,4 +1,4 @@
-# Codex orchestration for MarketPulse AI
+# Codex orchestration for MacroPulse AI
 
 Phase 0.5 installs the project configuration. Phase 0.5B adds automatic
 classification. Live verification belongs in a separate session. Use PowerShell
@@ -86,7 +86,7 @@ goes to stdout.
 
 ## Codex Desktop
 
-1. In Codex Desktop for Windows, open the existing MarketPulse AI folder as a
+1. In Codex Desktop for Windows, open the existing MacroPulse AI folder as a
    trusted local project. Start a new local Codex chat at its root after the
    configuration change. Keep the effective host permissions appropriate to
    the task. Use read-only permissions for smoke tests where available.

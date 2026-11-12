@@ -15,6 +15,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
     : command === 'serve' && !isPreview && mode === 'development' && process.env.NODE_ENV !== 'production'
     && process.env.MARKETPULSE_LAN_DEV === 'true' ? resolveLanDev(process.env) : undefined;
   const macroAiEnabled = process.env.MARKETPULSE_MACRO_AI_ENABLED === 'true';
+  const macroDemoEnabled = mode === 'public-demo' && process.env.MARKETPULSE_DEMO_MACRO_ENABLED !== 'false';
   const api = localApi(lan, macroAiEnabled, apiPort, launcher);
   const proxy = { '^/api/': api.proxy };
 
@@ -24,7 +25,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
     envDir: false,
     envPrefix: [],
     define: {
-      'import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED': JSON.stringify(process.env.MARKETPULSE_DEMO_MACRO_ENABLED === 'true'),
+      'import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED': JSON.stringify(macroDemoEnabled),
       'import.meta.env.MARKETPULSE_MACRO_AI_ENABLED': JSON.stringify(macroAiEnabled),
       'import.meta.env.MARKETPULSE_LAN_DEV': JSON.stringify(lan ? 'true' : 'false'),
       'import.meta.env.MARKETPULSE_SAFARI_URL': JSON.stringify(launcher && process.env.MARKETPULSE_LAN_IP

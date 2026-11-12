@@ -9,10 +9,9 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 
-from ..macro_data.api import MacroWindow
+from ..macro_data.api import MacroHistory, MacroWindow
 from ..macro_data.contracts import CATALOG
 from . import v2_gemini, v2_retrieval
-from .gemini import configured_model
 from .models import EVENT_WINDOWS, Claim, EventId, IndicatorId, ObservedChange, ResearchRequest
 from .statistics import read_statistics
 from .v2_models import Category, CuratedEvidence, Draft, Intent, NarrativeClaim, Requirement, ResearchV2Response, SeriesEvidence
@@ -39,7 +38,22 @@ class Statement:
         return NarrativeClaim(text=text, citations=self.claim.citations, category=self.category)
 
 
+@dataclass(frozen=True)
+class ResearchRuntime:
+    read: Callable[[IndicatorId, MacroWindow], MacroHistory]
+    interpret: Callable[[ResearchRequest], Intent]
+    compose: Callable[[list[dict]], Draft]
+    model_id: str
+
+
+def configured_model() -> str:
+    from .gemini import configured_model as local_model
+
+    return local_model()
+
+
 class State(TypedDict, total=False):
+    runtime: ResearchRuntime
     request: ResearchRequest
     steps: list[str]
     limitations: list[str]
@@ -64,6 +78,8 @@ def _note(state: State, text: str) -> list[str]:
 
 
 def interpret_with_llm(state: State) -> dict:
+    if runtime := state.get("runtime"):
+        return {"intent": Intent.model_validate(runtime.interpret(state["request"]))}
     try:
         return {"intent": Intent.model_validate(v2_gemini.interpret(state["request"]))}
     except Exception:
@@ -127,7 +143,16 @@ def _plan(requirement: Requirement, request: ResearchRequest, bounds: MacroWindo
     return Plan(key, window, requirement)
 
 
+def _read_local_history(key: IndicatorId, window: MacroWindow, question: str) -> MacroHistory | None:
+    try:
+        request = ResearchRequest(question=question, start=window.start, end=window.end)
+        return read_statistics((key,), request)[key]
+    except Exception:
+        return None
+
+
 def read_official_statistics(state: State) -> dict:
+    runtime = state.get("runtime")
     official = []
     limitations = state["limitations"].copy()
     windows = {}
@@ -135,13 +160,9 @@ def read_official_statistics(state: State) -> dict:
         if plan.requirement.operation == "causal_effect":
             continue
         window_key = (plan.indicator, plan.window.start, plan.window.end)
-        try:
-            if window_key not in windows:
-                # Reuse the legacy reader with narrowed, catalog-validated bounds.
-                request = ResearchRequest(question=state["request"].question, start=plan.window.start, end=plan.window.end)
-                windows[window_key] = read_statistics((plan.indicator,), request)[plan.indicator]
-        except Exception:
-            windows[window_key] = None
+        if window_key not in windows:
+            windows[window_key] = (runtime.read(plan.indicator, plan.window) if runtime else
+                                   _read_local_history(plan.indicator, plan.window, state["request"].question))
         history = windows[window_key]
         if history is None:
             limitations.append("The local official data reader was unavailable for a requirement.")
@@ -173,8 +194,12 @@ def retrieve_curated_evidence(state: State) -> dict:
                 continue
             seen.add(key)
             try:
-                results = v2_retrieval.retrieve(state["request"].question, event, plan.indicator, plan.window, state["cutoff"])
+                arguments = (state["request"].question, event, plan.indicator, plan.window, state["cutoff"])
+                results = (v2_retrieval.retrieve(*arguments, strategy="tfidf") if "runtime" in state
+                           else v2_retrieval.retrieve(*arguments))
             except Exception:
+                if "runtime" in state:
+                    raise
                 missing_context = True
                 limitations.append("Approved documentary retrieval was unavailable for a requirement.")
                 continue
@@ -200,7 +225,8 @@ def evaluate_support(state: State) -> dict:
     if state.get("event") == "generative-ai" and any(plan.indicator == "real-gdp-qoq" for plan in state["plans"]):
         limitations.append("The approved corpus has no direct evidence of a generative AI effect on euro-area GDP. EU adoption evidence is proxy context.")
     if official:
-        limitations.append("Official observations use the local capture vintage. The period filter does not reconstruct the data available at the time.")
+        vintage = "DEMO" if "runtime" in state else "local"
+        limitations.append(f"Official observations use the {vintage} capture vintage. The period filter does not reconstruct the data available at the time.")
     if any(result.provisional for result in official):
         limitations.append("At least one cited observation is estimated or provisional.")
     if curated:
@@ -240,6 +266,8 @@ def compose_answer(state: State) -> dict:
         "evidence_id": index, "category": item.category, "sentences": item.options(),
         "sources": [evidence[key].model_dump(mode="json") for key in item.claim.citations],
     } for index, item in enumerate(state["statements"], start=1)]
+    if runtime := state.get("runtime"):
+        return {"draft": runtime.compose(payload), "model_id": runtime.model_id}
     try:
         return {"draft": v2_gemini.compose(payload), "model_id": configured_model()}
     except Exception:
@@ -344,8 +372,10 @@ def workflow():
     return graph.compile()
 
 
-def run(request: ResearchRequest) -> ResearchV2Response:
+def run(request: ResearchRequest, *, runtime: ResearchRuntime | None = None) -> ResearchV2Response:
     cutoff = min(request.end, datetime.now(timezone.utc).date())
+    state: State = {"request": request, "steps": [], "limitations": [], "cutoff": cutoff}
+    if runtime is not None:
+        state["runtime"] = runtime
     with tracing_context(enabled=False):
-        return workflow().invoke({"request": request, "steps": [], "limitations": [], "cutoff": cutoff},
-                                 config={"recursion_limit": 10})["response"]
+        return workflow().invoke(state, config={"recursion_limit": 10})["response"]

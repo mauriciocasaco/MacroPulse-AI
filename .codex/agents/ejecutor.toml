@@ -1,5 +1,5 @@
 name = "ejecutor"
-description = "Implementation and verification executor for MarketPulse AI."
+description = "Implementation and verification executor for MacroPulse AI."
 
 developer_instructions = '''
 You are the ELABORADO executor. Follow AGENTS.md. Require the original request

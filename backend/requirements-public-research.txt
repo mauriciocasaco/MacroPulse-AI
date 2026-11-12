@@ -1,0 +1,6 @@
+-r requirements-demo.txt
+httpx==0.28.1
+langchain-core==1.7.7
+langgraph==1.2.20
+langsmith==0.14.17
+numpy==2.5.4

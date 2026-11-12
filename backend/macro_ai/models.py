@@ -39,6 +39,12 @@ class ResearchRequest(MacroWindow):
         return value
 
 
+class PublicResearchRequest(ResearchRequest):
+    indicator_id: IndicatorId
+    event_id: EventId
+    research_version: Literal["v2"]
+
+
 class Evidence(BaseModel):
     id: str
     kind: Literal["series", "document"]

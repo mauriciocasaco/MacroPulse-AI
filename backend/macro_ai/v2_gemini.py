@@ -7,7 +7,6 @@ import re
 from langchain_core.prompts import ChatPromptTemplate
 
 from ..macro_data.contracts import CATALOG
-from .gemini import invoke_structured
 from .models import EVENT_WINDOWS, ResearchRequest
 from .v2_models import Draft, Intent
 from .v2_statistics import DEFINITIONS
@@ -54,8 +53,7 @@ _CREDENTIAL = re.compile(
 )
 
 
-def interpret(request: ResearchRequest) -> Intent:
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
+def interpretation_inputs(request: ResearchRequest, key: str) -> dict[str, str]:
     if (key and key in request.question) or _CREDENTIAL.search(request.question):
         raise ValueError("Sensitive input")
     scope = {
@@ -68,8 +66,23 @@ def interpret(request: ResearchRequest) -> Intent:
         "events": list(EVENT_WINDOWS),
         "filters": request.model_dump(mode="json", exclude={"question"}),
     }
-    return invoke_structured(_INTERPRET, {"question": request.question, "scope": json.dumps(scope)}, Intent)
+    return {"question": request.question, "scope": json.dumps(scope)}
+
+
+def invoke_structured(prompt, inputs, schema):
+    from .gemini import invoke_structured as local_invoke
+
+    return local_invoke(prompt, inputs, schema)
+
+
+def interpret(request: ResearchRequest) -> Intent:
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    return invoke_structured(_INTERPRET, interpretation_inputs(request, key), Intent)
+
+
+def composition_inputs(evidence: list[dict]) -> dict[str, str]:
+    return {"evidence": json.dumps(evidence, ensure_ascii=False)}
 
 
 def compose(evidence: list[dict]) -> Draft:
-    return invoke_structured(_COMPOSE, {"evidence": json.dumps(evidence, ensure_ascii=False)}, Draft)
+    return invoke_structured(_COMPOSE, composition_inputs(evidence), Draft)

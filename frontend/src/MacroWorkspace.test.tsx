@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { MacroIndicator, MacroObservation } from './macro-api';
@@ -65,8 +65,9 @@ it.each(['/', '/?workspace=market'])('opens macro in the enabled public build at
   window.history.replaceState(null, '', path);
   vi.stubEnv('MODE', 'public-demo');
   const fetch = stubMacroApi([]);
-  render(<App macroDemoEnabled macroAiEnabled />);
-  await screen.findByText('AI research is available only in an enabled local workspace.');
+  vi.stubEnv('MARKETPULSE_DEMO_MACRO_ENABLED', undefined);
+  render(<App macroAiEnabled />);
+  await screen.findByText('Public AI research is currently unavailable.');
   expect(screen.queryByLabelText('Research question')).toBeNull();
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
@@ -273,4 +274,53 @@ it('limits the longest preset to seven years and preserves attribution without r
   expect(screen.getByRole('link', { name: 'Reuse terms' })).toBeTruthy();
   expect(screen.getByText('Powered by LLMs, RAG, LangChain and LangGraph.')).toBeTruthy();
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
+});
+
+
+it('submits only consented and verified Research v2 in the public workspace', async () => {
+  vi.stubEnv('MODE', 'public-demo');
+  const historyFetch = stubMacroApi([]);
+  const renderWidget = vi.fn<NonNullable<Window['turnstile']>['render']>(() => 'widget-id');
+  const remove = vi.fn();
+  window.turnstile = { render: renderWidget, remove };
+  try {
+    const analysis = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return Response.json({
+        ...body, status: 'insufficient_evidence', research_v2: true, support: 'insufficient',
+        publication_cutoff: body.end, evidence: [], narrative: [], facts: [], calculations: [], interpretation: [],
+        limitations: ['Synthetic fixture'], graph_steps: ['finish'],
+      });
+    });
+    vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
+      if (url === '/api/macro/indicators') {
+        return Response.json(catalog, { headers: { 'X-MacroPulse-Turnstile-Sitekey': 'fixture-site-key-01' } });
+      }
+      return url === '/api/macro/analysis' ? analysis(url, init) : historyFetch(url);
+    });
+    render(<App macroDemoEnabled />);
+    const submit = await screen.findByRole('button', { name: 'Ask LLM Model' });
+    expect(screen.queryByText('Use experimental Research v2')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Official history' })).toBeTruthy();
+    expect(submit).toHaveProperty('disabled', true);
+    await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('checkbox', { name: /send my question to Google Gemini/ }));
+    expect(submit).toHaveProperty('disabled', true);
+    const options = renderWidget.mock.calls[0][1];
+    expect(options.action).toBe('research');
+    act(() => options.callback('synthetic-token'));
+    expect(submit).toHaveProperty('disabled', false);
+    fireEvent.click(submit);
+    await screen.findByText('There is insufficient evidence for an answer.');
+    expect(analysis).toHaveBeenCalledTimes(1);
+    const init = analysis.mock.calls[0][1];
+    expect(new Headers(init.headers).get('X-MacroPulse-Turnstile')).toBe('synthetic-token');
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      research_version: 'v2', event_id: 'covid', indicator_id: 'eur-usd',
+    });
+    expect(submit).toHaveProperty('disabled', true);
+    expect(remove).toHaveBeenCalledWith('widget-id');
+  } finally {
+    delete window.turnstile;
+  }
 });

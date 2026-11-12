@@ -508,7 +508,7 @@ def test_lan_rag_requires_local_transport_opt_in_and_authenticated_proxy(monkeyp
         assert client.post("/macro/analysis", json=payload, headers=authenticated).status_code == 404
 
 
-def test_public_demo_import_avoids_optional_packages_and_analysis_route(tmp_path):
+def test_public_demo_import_avoids_optional_packages_when_research_is_off(tmp_path):
     ca = tmp_path / "synthetic-ca.pem"
     ca.write_text("Synthetic CA path. Public app is imported without starting lifespan.")
     env = {key: value for key, value in os.environ.items()
@@ -530,8 +530,8 @@ def test_public_demo_import_avoids_optional_packages_and_analysis_route(tmp_path
     )
     subprocess.run([sys.executable, "-c", (
         "import sys; from backend.api import app; "
-        "assert not any(m.startswith(('backend.macro_ai', 'langchain_core', 'langgraph', 'google.genai')) for m in sys.modules); "
-        "assert '/macro/analysis' not in {route.path for route in app.routes}"
+        "assert not any(m.startswith(('backend.macro_ai', 'langchain_core', 'langgraph', 'google.genai', 'torch')) for m in sys.modules); "
+        "assert '/macro/analysis' in {route.path for route in app.routes}"
     )], env=env, check=True, timeout=15)
 
 HISTORICAL_INDICATORS = [

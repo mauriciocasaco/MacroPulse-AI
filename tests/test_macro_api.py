@@ -97,7 +97,7 @@ def test_loopback_guard_and_public_demo_remain_separate(monkeypatch):
     monkeypatch.setattr(public_demo, "resolve_demo_settings",
                         lambda _: public_demo.DemoSettings("unused fixture", "unused fixture"))
     paths = {route.path for route in public_demo.create_public_app().routes}
-    assert not any(path.startswith("/macro/") for path in paths)
+    assert paths == {"/macro/indicators", "/macro/indicators/{indicator_id}/history", "/macro/analysis"}
 
 
 @pytest.mark.parametrize("dsn", [

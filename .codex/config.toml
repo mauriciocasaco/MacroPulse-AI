@@ -4,11 +4,11 @@ enabled = true
 max_concurrent_threads_per_session = 2
 
 [agents.ejecutor_ligero]
-description = "Implements a bounded MarketPulse AI contract in MEDIO."
+description = "Implements a bounded MacroPulse AI contract in MEDIO."
 config_file = "agents/ejecutor_ligero.toml"
 
 [agents.ejecutor]
-description = "Implements and verifies the authorized MarketPulse AI contract in ELABORADO."
+description = "Implements and verifies the authorized MacroPulse AI contract in ELABORADO."
 config_file = "agents/ejecutor.toml"
 
 [agents.auditor]

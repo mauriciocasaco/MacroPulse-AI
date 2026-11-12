@@ -6,8 +6,6 @@ import os
 from pathlib import Path
 
 from ..m7c.corpus import Corpus, Scope
-from ..m7c.index import LocalE5
-from ..m7c.retrieval import HybridRetriever
 from ..m7d.gate import MEASURES, PROXY_MEASURES
 from ..m7d.predicates import claim_predicates
 from ..m7d.ranking import LexicalRanker
@@ -34,12 +32,16 @@ def lexical() -> LexicalRanker:
 
 
 @lru_cache(maxsize=1)
-def semantic(cache: str, index: str) -> HybridRetriever:
+def semantic(cache: str, index: str):
+    from ..m7c.index import LocalE5
+    from ..m7c.retrieval import HybridRetriever
+
     return HybridRetriever(approved_corpus(), Path(index), LocalE5(Path(cache)))
 
 
 def retrieve(
-    question: str, event: EventId, indicator: IndicatorId, window: MacroWindow, cutoff: date,
+    question: str, event: EventId, indicator: IndicatorId, window: MacroWindow, cutoff: date, *,
+    strategy: str | None = None,
 ) -> list[tuple[CuratedEvidence, Claim]]:
     # Spot observations cannot be supported by swap-market documents.
     if indicator == "eur-usd":
@@ -64,7 +66,8 @@ def retrieve(
     if not candidates:
         return []
 
-    strategy = os.environ.get("MARKETPULSE_RESEARCH_V2_RETRIEVER", "tfidf")
+    if strategy is None:
+        strategy = os.environ.get("MARKETPULSE_RESEARCH_V2_RETRIEVER", "tfidf")
     if strategy == "tfidf":
         ranked = lexical().rank(question, tuple(candidates))
         ranked = [row for row in ranked if row.score > 0]

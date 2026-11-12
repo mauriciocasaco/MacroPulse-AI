@@ -217,16 +217,24 @@ async function get(path: string, signal: AbortSignal, onResponse?: (response: Re
   return response.json();
 }
 
-export async function getMacroIndicators(signal: AbortSignal, onResearchV2?: (enabled: boolean) => void): Promise<MacroIndicator[]> {
+export async function getMacroIndicators(
+  signal: AbortSignal, onResearchV2?: (enabled: boolean) => void, onPublicSiteKey?: (sitekey: string) => void,
+): Promise<MacroIndicator[]> {
   let researchV2 = false;
+  let sitekey = '';
   const result = await get('', signal, (response) => {
     researchV2 = response.headers?.get('X-MarketPulse-Research-V2') === 'true';
+    const advertised = response.headers?.get('X-MacroPulse-Turnstile-Sitekey') ?? '';
+    if (/^[A-Za-z0-9_-]{12,80}$/.test(advertised)) sitekey = advertised;
   });
   if (!Array.isArray(result) || result.length !== ids.size || !result.every(indicator)
     || new Set(result.map(({ id }) => id)).size !== ids.size) {
     throw new Error('Unexpected macro catalog.');
   }
-  if (!signal.aborted) onResearchV2?.(researchV2);
+  if (!signal.aborted) {
+    onResearchV2?.(researchV2);
+    onPublicSiteKey?.(sitekey);
+  }
   return result;
 }
 
@@ -255,13 +263,25 @@ export async function getMacroHistory(
 export async function askMacroAnalysis(
   question: string, start: string, end: string, signal: AbortSignal,
   context?: { indicator_id: string; event_id: 'covid' | 'ukraine' | 'generative-ai'; research_version?: 'v2' },
+  turnstileToken?: string,
 ): Promise<MacroAnalysis> {
   const response = await fetch('/api/macro/analysis', {
     method: 'POST', signal, cache: 'no-store',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json',
+      ...(turnstileToken ? { 'X-MacroPulse-Turnstile': turnstileToken } : {}) },
     body: JSON.stringify({ question, start, end, ...context }),
   });
-  if (!response.ok) throw new Error('Local macro research is unavailable.');
+  if (!response.ok) {
+    if (!turnstileToken) throw new Error('Local macro research is unavailable.');
+    if (response.status === 403) throw new Error('Complete a new Turnstile check.');
+    if (response.status === 429) throw new Error('The public research quota has been reached. Please try again later.');
+    if (response.status === 408 || response.status === 504) throw new Error('Research timed out. Please try again.');
+    if (response.status === 503 && response.headers.get('Retry-After')) {
+      throw new Error('Public research is busy. Please try again shortly.');
+    }
+    if (response.status === 422) throw new Error('Review the selected event and question before trying again.');
+    throw new Error('Public research is currently unavailable.');
+  }
   const result: unknown = await response.json();
   if (!object(result) || (result.status !== 'answered' && result.status !== 'insufficient_evidence')
     || result.question !== question || result.start !== start || result.end !== end

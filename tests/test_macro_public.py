@@ -11,7 +11,7 @@ import pytest
 from backend import public_demo as demo
 from backend.macro_data.api import MacroWindow
 from backend.macro_data.contracts import CATALOG
-from backend.macro_data.public import ProjectionError, read_history, verify_projection
+from backend.macro_data.public import ProjectionError, read_history, stamp_projection, verify_projection
 
 
 SECRET = sha256(b"synthetic macro DEMO origin fixture").hexdigest()
@@ -39,17 +39,11 @@ def _setup_settings(monkeypatch, tmp_path, **overrides):
     return settings
 
 
-def test_macro_disabled_by_default_and_config_fail_closed(monkeypatch, tmp_path):
+def test_projection_required_and_config_fails_closed(monkeypatch, tmp_path):
     settings = _setup_settings(monkeypatch, tmp_path)
-    assert demo.resolve_demo_settings(settings).macro_enabled is False
-    connection = MagicMock()
-    monkeypatch.setattr(demo, "connect_demo", lambda _dsn: connection)
-    with TestClient(demo.create_public_app()) as client:
-        assert client.get(CATALOG_PATH, headers=HEADERS).status_code == 404
-        assert client.get(HISTORY_PATH + WINDOW, headers=HEADERS).status_code == 404
     flag = "MARKETPULSE_DEMO_MACRO_ENABLED"
-    with pytest.raises(demo.DemoConfigurationError, match="flag"):
-        demo.resolve_demo_settings({**settings, flag: "True"})
+    with pytest.raises(demo.DemoConfigurationError, match="requires the macro projection"):
+        demo.resolve_demo_settings({**settings, flag: "false"})
     for key in ("MACRO_API_DSN", "DATABASE_URL", "MARKETPULSE_DEV_PROJECT_REF", "PASS_USER_RO", "GEMINI_API_KEY"):
         with pytest.raises(demo.DemoConfigurationError, match="dedicated"):
             demo.resolve_demo_settings({**settings, flag: "true", key: "synthetic not-for-DEMO fixture"})
@@ -58,8 +52,7 @@ def test_macro_disabled_by_default_and_config_fail_closed(monkeypatch, tmp_path)
 def test_macro_enabled_startup_requires_verified_projection(monkeypatch, tmp_path):
     _setup_settings(monkeypatch, tmp_path, MARKETPULSE_DEMO_MACRO_ENABLED="true")
 
-    def invalid(_dsn, *, macro_enabled):
-        assert macro_enabled
+    def invalid(_dsn):
         raise ProjectionError("synthetic invalid projection")
 
     monkeypatch.setattr(demo, "connect_demo", invalid)
@@ -82,8 +75,7 @@ def test_macro_opt_in_protects_routes_dates_origin_quota_and_methods(monkeypatch
         MagicMock(**{"fetchall.return_value": []}),
     ]
 
-    def connect(_dsn, *, macro_enabled):
-        assert macro_enabled
+    def connect(_dsn):
         return connection
 
     monkeypatch.setattr(demo, "connect_demo", connect)
@@ -110,22 +102,19 @@ def test_macro_opt_in_protects_routes_dates_origin_quota_and_methods(monkeypatch
 
 def test_projection_sql_exact_catalog_and_restricted_reader(disposable_database):
     with disposable_database("MACRO_DATA_TEST_DSN") as dsn, psycopg.connect(dsn, row_factory=dict_row) as db:
-        db.execute("CREATE SCHEMA marketpulse_demo")
-        db.execute("CREATE TABLE marketpulse_demo.synthetic_bars (series_id smallint)")
-        # The role and grants are local to this rolled-back test transaction.
-        db.execute("CREATE ROLE marketpulse_demo_ro NOLOGIN NOINHERIT")
-        db.execute("GRANT USAGE ON SCHEMA marketpulse_demo TO marketpulse_demo_ro")
-        db.execute("GRANT SELECT ON marketpulse_demo.synthetic_bars TO marketpulse_demo_ro")
         source = Path("supabase/demo/macro_projection.sql").read_text(encoding="utf-8")
         body = source.split("BEGIN;\n", 1)[1].rsplit("COMMIT;", 1)[0]
         body = body.replace("current_database() <> 'postgres'", "current_database() <> '" + db.info.dbname + "'")
-        db.execute(body)
+        db.execute(body.replace("DATABASE postgres", f"DATABASE {db.info.dbname}"))
         for item in CATALOG.values():
             coverage = "{[2024-01-01,2024-02-06),[2024-02-10,2024-02-13)}" if item.id == "deposit-rate" else None
             db.execute("""
-                INSERT INTO marketpulse_demo.macro_catalog (indicator_id, series_key, captured_at, deposit_coverage)
-                VALUES (%s, %s, '2024-02-15T10:30:00+00:00', %s)
-            """, (item.id, item.series_key, coverage))
+                INSERT INTO marketpulse_demo.macro_catalog
+                  (indicator_id, series_key, captured_at, requested_start, requested_end, response_sha256,
+                   bundle_sha256, deposit_coverage, projected_rows, projection_sha256)
+                VALUES (%s, %s, '2024-04-01T10:30:00+00:00', '2024-01-01', '2024-04-01', repeat('a', 64),
+                        repeat('b', 64), %s, %s, repeat('0', 64))
+            """, (item.id, item.series_key, coverage, 2 if item.id in {"deposit-rate", "hicp-yoy"} else 1))
         db.execute("""
             INSERT INTO marketpulse_demo.macro_observations VALUES
             ('eur-usd', '2024-02-01', '2024-02-01', '2024-02-01', NULL, 1.2340, 'normal', 'A'),
@@ -136,8 +125,12 @@ def test_projection_sql_exact_catalog_and_restricted_reader(disposable_database)
             ('deposit-rate', '2024-01-03', '2024-01-03', '2024-01-03', '2024-01-03', 2.0, 'normal', 'A'),
             ('deposit-rate', '2024-02-10', '2024-02-10', '2024-02-10', '2024-02-10', 2.25, 'normal', 'A')
         """)
+        stamp_projection(db)
         db.execute("SET LOCAL ROLE marketpulse_demo_ro")
+        db.execute("SET LOCAL TIME ZONE 'Pacific/Auckland'")
+        db.execute("SET LOCAL DateStyle TO 'SQL, DMY'")
         verify_projection(db)
+        db.execute("SET LOCAL DateStyle TO 'ISO, YMD'")
         with pytest.raises(psycopg.errors.InsufficientPrivilege), db.transaction():
             db.execute("DELETE FROM marketpulse_demo.macro_observations WHERE false")
         rate = read_history(
@@ -153,6 +146,18 @@ def test_projection_sql_exact_catalog_and_restricted_reader(disposable_database)
         ]
         assert hicp.observations[1].value is None
         db.execute("RESET ROLE")
+        for change in (
+            "DELETE FROM marketpulse_demo.macro_observations WHERE indicator_id = 'deposit-rate' "
+            "AND period_start = '2024-02-10'",
+            "UPDATE marketpulse_demo.macro_observations SET value_decimal = 9 WHERE indicator_id = 'hicp-yoy' "
+            "AND period_start = '2024-01-01'",
+            "UPDATE marketpulse_demo.macro_catalog SET deposit_coverage = '{[2024-01-01,2024-03-01)}' "
+            "WHERE indicator_id = 'deposit-rate'",
+        ):
+            with pytest.raises(ProjectionError, match="integrity check failed"), db.transaction():
+                db.execute(change)
+                db.execute("SET LOCAL ROLE marketpulse_demo_ro")
+                verify_projection(db)
         db.execute("ALTER TABLE marketpulse_demo.macro_observations ADD COLUMN unexpected text")
         db.execute("SET LOCAL ROLE marketpulse_demo_ro")
         with pytest.raises(ProjectionError, match="unexpected columns"):

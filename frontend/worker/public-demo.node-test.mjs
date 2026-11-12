@@ -103,7 +103,7 @@ test('macro reads require opt-in and an exact route, method, query and browser o
   assert.equal((await worker.fetch(request(catalog), { ...env, MARKETPULSE_DEMO_MACRO_ENABLED: 'false' })).status, 404);
   assert.equal((await worker.fetch(request(path + query), { ...env, MARKETPULSE_DEMO_MACRO_ENABLED: 'false' })).status, 404);
   assert.equal((await worker.fetch(request(catalog + '/other/history' + query), enabled)).status, 404);
-  assert.equal((await worker.fetch(request('/api/macro/analysis', { method: 'POST' }), enabled)).status, 404);
+  assert.equal((await worker.fetch(request('/api/macro/analysis', { method: 'POST' }), enabled)).status, 403);
   assert.equal((await worker.fetch(request(path + query, { method: 'POST' }), enabled)).status, 405);
   assert.equal((await worker.fetch(request(catalog, { headers: { Origin: 'https://foreign.example' } }), enabled)).status, 403);
   assert.equal((await worker.fetch(request(path + '?start=2026-01-01&start=2026-01-31'), enabled)).status, 422);
@@ -140,5 +140,22 @@ test('the PWA service worker never intercepts macro API requests for offline cac
       request: request(path),
       respondWith: () => assert.fail('API must bypass offline interception'),
     });
+  }
+});
+
+
+test('MacroPulse manifest serves matching branded icon paths and launchers resolve locally', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+  assert.equal(manifest.name, 'MacroPulse AI');
+  for (const icon of manifest.icons) {
+    assert.match(icon.src, /^icons\/macropulse-/);
+    const png = readFileSync(new URL('../public/' + icon.src, import.meta.url));
+    assert.equal(png.subarray(1, 4).toString(), 'PNG');
+    assert.equal(`${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`, icon.sizes);
+  }
+  for (const file of ['MacroPulse AI.bat', 'Install MacroPulse AI.bat', 'Enable MacroPulse AI LAN.bat', 'Stop MacroPulse AI.bat']) {
+    const launcher = readFileSync(new URL('../../' + file, import.meta.url), 'utf8');
+    assert.match(launcher, /%~dp0/);
+    assert.doesNotMatch(launcher, /[a-z]:[\\/][^\r\n]*MarketPulse-AI/i);
   }
 });

@@ -1,6 +1,5 @@
--- Optional DEMO-only setup. Requires the existing isolated synthetic DEMO
--- schema and read-only role. Apply only after independently verifying the
--- DEMO project. This file creates empty projection tables and loads no data.
+-- One-time setup on a fresh and independently verified Supabase DEMO.
+-- Use psql with ON_ERROR_STOP and load the verified official snapshot separately.
 BEGIN;
 SET LOCAL search_path = pg_catalog;
 
@@ -10,13 +9,22 @@ BEGIN
         OR to_regnamespace('market_data') IS NOT NULL
         OR to_regnamespace('macro_data') IS NOT NULL
         OR to_regnamespace('news') IS NOT NULL
-        OR to_regclass('marketpulse_demo.synthetic_bars') IS NULL
-        OR NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'marketpulse_demo_ro')
+        OR to_regnamespace('marketpulse_demo') IS NOT NULL
+        OR EXISTS (SELECT FROM pg_roles WHERE rolname = 'marketpulse_demo_ro')
     THEN
         RAISE EXCEPTION 'Expected the independently verified DEMO database';
     END IF;
 END
 $$;
+
+CREATE SCHEMA marketpulse_demo;
+REVOKE ALL ON SCHEMA marketpulse_demo FROM PUBLIC;
+CREATE ROLE marketpulse_demo_ro NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+ALTER ROLE marketpulse_demo_ro SET default_transaction_read_only = on;
+REVOKE CREATE, TEMPORARY ON DATABASE postgres FROM PUBLIC;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT CONNECT ON DATABASE postgres TO marketpulse_demo_ro;
+GRANT USAGE ON SCHEMA marketpulse_demo TO marketpulse_demo_ro;
 
 CREATE TABLE marketpulse_demo.macro_catalog (
     indicator_id text PRIMARY KEY,
@@ -24,7 +32,15 @@ CREATE TABLE marketpulse_demo.macro_catalog (
     captured_at timestamptz NOT NULL CHECK (
         captured_at >= TIMESTAMPTZ '1900-01-01 UTC' AND captured_at < TIMESTAMPTZ '9999-01-01 UTC'
     ),
+    requested_start date NOT NULL CHECK (requested_start >= DATE '1900-01-01'),
+    requested_end date NOT NULL CHECK (
+        requested_end >= requested_start AND requested_end <= (captured_at AT TIME ZONE 'Europe/Berlin')::date
+    ),
+    response_sha256 text NOT NULL CHECK (response_sha256 ~ '^[a-f0-9]{64}$'),
+    bundle_sha256 text NOT NULL CHECK (bundle_sha256 ~ '^[a-f0-9]{64}$'),
     deposit_coverage datemultirange,
+    projected_rows integer NOT NULL CHECK (projected_rows BETWEEN 1 AND 5500),
+    projection_sha256 text NOT NULL CHECK (projection_sha256 ~ '^[a-f0-9]{64}$'),
     CHECK ((indicator_id, series_key) IN (
         ('eur-usd', 'EXR.D.USD.EUR.SP00.A'),
         ('m3-stock', 'BSI.M.U2.Y.V.M30.X.1.U2.2300.Z01.E'),
@@ -36,7 +52,7 @@ CREATE TABLE marketpulse_demo.macro_catalog (
     CHECK (deposit_coverage IS NULL OR (
         NOT isempty(deposit_coverage)
         AND deposit_coverage <@ datemultirange(daterange(
-            DATE '1900-01-01', (captured_at AT TIME ZONE 'Europe/Berlin')::date, '[]'
+            requested_start, requested_end, '[]'
         ))
     ))
 );
@@ -81,6 +97,7 @@ BEGIN
     FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated', 'service_role']
     LOOP
         IF EXISTS (SELECT FROM pg_roles WHERE rolname = api_role) THEN
+            EXECUTE format('REVOKE ALL ON SCHEMA marketpulse_demo FROM %I', api_role);
             EXECUTE format(
                 'REVOKE ALL ON marketpulse_demo.macro_catalog, marketpulse_demo.macro_observations FROM %I',
                 api_role

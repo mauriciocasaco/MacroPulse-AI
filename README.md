@@ -76,9 +76,9 @@ npm.cmd run build:public
 
 ## Security and deployment
 
-The public API uses a Worker route and method allowlist, origin authentication, request limits, rate limits and a separate read-only DEMO database role. The PWA caches its application shell and excludes API responses. The public API omits the Gemini route. Macro charts become the public landing view when the approved macro projection is enabled at the frontend and origin.
+The public demo serves five official macro indicators from an isolated read-only DEMO projection. Research v2 is opt-in and requires Turnstile, a global SQLite reservation and the authenticated Render origin. The PWA caches its shell and excludes API responses. See the [deployment runbook](docs/public-deployment-runbook.md) for activation and rollback.
 
-The repository contains the public build, Worker and Render configuration and a DEMO projection. Public macro deployment still requires an authorized, isolated Supabase DEMO load, verified attribution and role grants, and end-to-end checks of the deployed Worker and Render origin. Public AI would require a separate design and authorization for abuse controls, global spend and concurrency limits, monitoring and a kill switch.
+The repository contains the public build, Worker and Render configuration and a DEMO projection. Public macro deployment still requires an authorized, isolated Supabase DEMO load, verified attribution and role grants, and end-to-end checks of the deployed Worker and Render origin. Research activation requires the authorized Turnstile and Gemini configuration and the deployed acceptance checks.
 
 ## Research limitations
 

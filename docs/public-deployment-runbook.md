@@ -1,110 +1,164 @@
-# Runbook para desplegar la demo pública en Fase 4.4B
+# Despliegue público de MacroPulse AI
 
-Estos pasos describen un despliegue futuro y requieren autorización explícita
-para cada servicio y destino. La demostración inicial usa sólo series sintéticas.
+La fase 8.2 requiere autorización para los destinos de Cloudflare, Render,
+Supabase y Google. La preparación local y las pruebas con datos sintéticos
+se describen en el [informe de Fase 8.1](phase-8.1-public-ai-readiness.md).
 
-## 1. Preparar artefactos locales
+## Preparar artefactos
 
-En la raíz, usar el entorno virtual del proyecto y ejecutar
-`python -m pytest -ra`. En `frontend`, con la versión de Node de
-`package.json`, ejecutar `npm ci`, `npm run lint`, `npm test`,
-`npm run test:worker` y `npm run build:public`. Wrangler 4.36 o superior
-requiere verificar su versión y configuración en la fase autorizada.
-La aplicación se sirve en la raíz de su hostname HTTPS y consume `/api`
-del mismo origen. Mantener el flujo de desarrollo de
-[README](../README.md) y el [proxy local de Vite](../frontend/README.md).
+Desde la raíz, ejecutar las pruebas de Python 3.12 con fixtures locales.
+En `frontend`, usar la versión de Node indicada por `package.json` y ejecutar
+`npm ci`, `npm run lint`, `npm run typecheck`, `npm test`,
+`npm run test:worker`, `npm run build` y `npm run build:public`.
+Comprobar el manifiesto y servir el build público desde la raíz del hostname HTTPS.
 
-## 2. Aprovisionar Supabase DEMO
+## Preparar Supabase DEMO
 
-1. Crear un proyecto dedicado con PostgreSQL 17 o superior y verificar en el dashboard su organización,
-   entorno e identificador. Comparar con el proyecto DEV y comprobar que son
-   distintos antes de abrir una conexión administrativa. No copiar backups,
-   datos, usuarios, permisos o secretos de DEV.
-2. Obtener la CA desde el panel de conexión del proyecto. Usar
-   `sslmode=verify-full` y un cliente de PostgreSQL con `ON_ERROR_STOP`.
-   Mantener las credenciales administrativas fuera del historial del shell.
+1. Crear un proyecto dedicado con PostgreSQL 17 o superior. Verificar organización,
+   referencia y entorno en el panel. Comparar la referencia con DEV antes de
+   cualquier conexión administrativa. No transferir bases, cuentas, roles o
+   secretos de DEV.
+2. Obtener la CA del proyecto. Aplicar [macro_projection.sql](../supabase/demo/macro_projection.sql)
+   en la base `postgres` del proyecto DEMO con `psql`, `ON_ERROR_STOP` y
+   `sslmode=verify-full`. El SQL crea el esquema técnico `marketpulse_demo`
+   y el rol dedicado `marketpulse_demo_ro`. Usar `\password marketpulse_demo_ro`
+   para configurar la contraseña aleatoria y luego habilitar `LOGIN` en el rol.
+   Mantener el esquema fuera de los esquemas expuestos por PostgREST.
    [TLS de Supabase](https://supabase.com/docs/guides/platform/ssl-enforcement).
-3. Aplicar únicamente [synthetic.sql](../supabase/demo/synthetic.sql) sobre
-   una base DEMO nueva. El script verifica la ausencia de esquemas del MVP,
-   crea el dataset, revoca `CREATE` y `TEMPORARY` heredados de PUBLIC en
-   la base DEMO y otorga sólo `CONNECT`, `USAGE` y `SELECT` al rol
-   dedicado. Configurar la contraseña del rol con `\password marketpulse_demo_ro`
-   en psql y habilitar `LOGIN` después. Usar una contraseña aleatoria
-   generada en un gestor de secretos. Nunca colocarla en SQL, argumentos o
-   logs.
-4. Verificar con la sesión real del rol que sólo el esquema y la tabla
-   esperados están accesibles para los datos de la demo. Confirmar ausencia
-   de roles heredados, privilegios de creación, escrituras y acceso a
-   funciones `SECURITY DEFINER` de usuario. Revisar privilegios por defecto
-   y grants administrados por Supabase si el arranque rechaza el rol.
-   Mantener `marketpulse_demo` fuera de los esquemas expuestos por PostgREST
-   y sin grants a `anon` o `authenticated`.
-5. Para Render sin IPv6 verificado, usar el pooler de sesión IPv4 en el
-   puerto 5432 y el usuario compuesto por el rol y el identificador del
-   proyecto. Confirmar que el pooler acepta el rol personalizado, verifica
-   el hostname con la CA descargada y devuelve el rol de base esperado.
-   [Conexiones de Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres) ·
-   [psql en Supabase](https://supabase.com/docs/guides/database/psql).
+3. En la estación administrativa instalar `backend/requirements-demo-import.txt`.
+   Capturar los cinco endpoints oficiales autorizados durante 8.2. Usar un
+   directorio nuevo, privado y fuera de Git. La ventana debe incluir los tres
+   eventos de Research. Revisar el origen, los derechos, el rango, los conteos,
+   las unidades y las huellas SHA-256 antes de cargar.
+4. Ejecutar la verificación offline sin DSN. Guardar la copia exacta del
+   manifiesto y de las respuestas aprobadas junto con la evidencia de revisión.
+   El manifiesto fija URL, fecha de captura y hash por serie. La huella identifica
+   los bytes revisados y depende de la cadena de custodia de la captura HTTPS.
 
-## 3. Aprovisionar Render
+   ```powershell
+   python -m backend.macro_data.demo_import capture data/demo/release --start 2018-01-01
+   python -m backend.macro_data.demo_import import data/demo/release
+   ```
 
-1. Revisar [render.yaml](../render.yaml) antes de importar el Blueprint.
-   Usar la rama y cuenta aprobadas, el plan previsto y un solo proceso.
-   El chequeo de salud por defecto es TCP. El API deliberadamente protege
-   todas las solicitudes HTTP directas y no expone un health HTTP.
+5. En un proceso de administración separado, configurar
+   `MARKETPULSE_DEMO_PROJECT_REF`, `MARKETPULSE_DEMO_SSL_ROOT_CERT` y
+   `MARKETPULSE_DEMO_ADMIN_DSN` con la credencial de administración DEMO.
+   La DSN sólo incluye `host`, `port`, `dbname`, `user` y `password`.
+   Inyectarla con el gestor de secretos y retirarla al finalizar. Mantener
+   vacío el entorno `PG*`. Aplicar en la referencia que se verificó en el panel.
+
+   ```powershell
+   python -m backend.macro_data.demo_import import data/demo/release --apply --project-ref <ref-demo-verificada>
+   ```
+
+   La carga usa un solo commit y rehúsa sustituir una captura más reciente.
+   Cada serie queda vinculada a un conteo y un SHA-256 de sus filas ordenadas,
+   su cobertura y su procedencia. El lector verifica esas huellas en la misma
+   transacción de lectura. Repetir el mismo manifiesto conserva una proyección
+   íntegra o repara sus filas si la verificación falla. La proyección sólo
+   contiene filas sanitizadas y metadatos de procedencia. Los lectores activos pueden
+   seguir usando su instantánea mientras se promueve una captura.
+6. Verificar el rol real en una transacción read-only, las dos tablas permitidas,
+   la ausencia de accesos adicionales y el rechazo de escrituras. Comprobar que
+   el proyecto no contiene esquemas DEV, que el rol no es propietario ni miembro
+   de otros roles y que los roles PostgREST no leen el esquema. Si Render
+   necesita IPv4, verificar el pooler de sesión en puerto 5432 con el usuario
+   `marketpulse_demo_ro.<ref-demo>`, TLS y el rol efectivo esperado.
+   [Conexiones de Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres).
+
+## Preparar Render
+
+1. Revisar [render.yaml](../render.yaml) y usar la rama y la cuenta aprobadas
+   para `macropulse-public-demo`. Mantener un solo proceso y auto deploy
+   deshabilitado. El chequeo de salud es TCP. El servicio exige autenticación
+   Worker para todas las rutas HTTP.
    [Blueprint](https://render.com/docs/blueprint-spec) · [Health checks](https://render.com/docs/health-checks).
-2. Completar las variables `MARKETPULSE_MODE`, `MARKETPULSE_DEMO_PROJECT_REF`,
-   `MARKETPULSE_DEMO_DSN`, `MARKETPULSE_DEMO_SSL_ROOT_CERT` y
-   `MARKETPULSE_DEMO_ORIGIN_SECRET` con el perfil público. La DSN sólo
-   incluye `host`, `port`, `dbname`, `user` y `password`; la aplicación
-   impone TLS y timeout. Cargar la CA como Secret File
-   `marketpulse-demo-ca.pem` y comprobar que se monta en la ruta absoluta
-   indicada en el Blueprint. Render puede necesitar un ajuste manual de
-   esta configuración. [Secret Files](https://render.com/docs/configure-environment-variables).
-3. Generar el secreto de origen a partir de 32 bytes aleatorios y codificar
-   en 64 caracteres hexadecimales minúsculos. Guardarlo como secreto del
-   backend y del Worker. No configurar variables Gemini, DSN de DEV,
-   configuración `PG*` ni caches de embeddings en Render. Conservar el
-   análisis deshabilitado.
-4. Verificar que el servicio arranca con el rol de sólo lectura. Confirmar
-   que una solicitud HTTP directa sin secreto obtiene 403. No enviar el
-   secreto en URL ni imprimirlo al hacer verificaciones.
+2. Configurar `MARKETPULSE_DEMO_PROJECT_REF`, `MARKETPULSE_DEMO_DSN` del rol
+   read-only, y la CA como archivo secreto `macropulse-demo-ca.pem` en
+   `/etc/secrets/macropulse-demo-ca.pem`. Conservar el nombre de entorno
+   `MARKETPULSE_DEMO_SSL_ROOT_CERT`. El código impone `verify-full`.
+   No configurar credenciales administrativas, valores DEV, `PG*` ni
+   trazas de LangSmith. [Secret Files](https://render.com/docs/configure-environment-variables).
+3. Generar un secreto de origen con 32 bytes aleatorios y guardarlo en ambos
+   servicios como `MARKETPULSE_DEMO_ORIGIN_SECRET` en hexadecimal minúsculo.
+   Confirmar 403 al consultar Render directamente sin el secreto.
+4. Preparar una clave Gemini exclusiva del proyecto Google dedicado y limitarla
+   a la API Generative Language. Guardarla como `MARKETPULSE_DEMO_GEMINI_API_KEY`
+   sólo en Render. Elegir un modelo permitido en `MARKETPULSE_DEMO_GEMINI_MODEL`
+   y verificar el contrato de tokens, cuenta y precio antes de activar
+   `MARKETPULSE_DEMO_RESEARCH_ENABLED=true`. Conservar el perfil de análisis
+   heredado desactivado.
 
-## 4. Aprovisionar Cloudflare
+## Preparar Cloudflare
 
-1. Revisar [wrangler.jsonc](../frontend/wrangler.jsonc) desde `frontend`.
-   Reservar IDs de namespace de rate limiting sin colisiones en la cuenta.
-   Usar el build público y conservar `/api` y `/api/*` atendidos por el
-   Worker antes de los archivos estáticos. Mantener el dominio público y
-   las rutas bajo control del mismo equipo.
-   [Static Assets](https://developers.cloudflare.com/workers/static-assets/binding/).
-2. Configurar `MARKETPULSE_DEMO_ORIGIN_URL` con la URL HTTPS del servicio
-   Render y cargar `MARKETPULSE_DEMO_ORIGIN_SECRET` mediante el panel de
-   secretos o una entrada interactiva autorizada de Wrangler. Las variables
-   de frontend, incluidas `VITE_*`, no deben contener credenciales.
-   [Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
-3. Confirmar que `CF-Connecting-IP` llega del borde sin reemplazo por
-   Pseudo IPv4. Evitar subrequests procedentes de Workers no confiables
-   de la misma zona, porque Cloudflare puede derivar la IP de `x-real-ip`
-   en ese contexto. Revisar retención de logs, Logpush, APM y captura de
-   cabeceras en ambas plataformas. Desactivar el registro persistente de
-   IP completas y los encabezados de autenticación del origen.
-   [Cabeceras de Cloudflare](https://developers.cloudflare.com/fundamentals/reference/http-headers/).
-4. Asociar el hostname aprobado y verificar TLS antes de compartirlo.
-   Comprobar que una interrupción del origen deja el shell disponible.
+1. Verificar la versión de Wrangler, los dos namespaces regionales de lecturas,
+   la migración SQLite `v1` y el binding `RESEARCH_QUOTA` de
+   [wrangler.jsonc](../frontend/wrangler.jsonc). Usar el servicio
+   `macropulse-public-demo` y un único Durable Object con el nombre estable
+   definido en el Worker. Conservar los activos compilados y el Worker
+   delante de `/api` y `/api/*`.
+2. Configurar `MARKETPULSE_DEMO_ORIGIN_URL` con el HTTPS de Render y
+   `MARKETPULSE_DEMO_ORIGIN_SECRET` mediante el gestor de secretos. Configurar
+   `MACROPULSE_RESEARCH_HOSTNAME` con el hostname HTTPS exacto de la PWA.
+   Crear un widget Turnstile para ese hostname, configurar
+   `MACROPULSE_TURNSTILE_SITE_KEY` y guardar `MACROPULSE_TURNSTILE_SECRET`
+   como secreto server-side. Generar otro valor hexadecimal aleatorio de 32
+   bytes para `MACROPULSE_RESEARCH_HASH_KEY`.
+   [Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/) ·
+   [Siteverify](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/).
+3. Comprobar que Cloudflare suministra `CF-Connecting-IP`. Desactivar Pseudo
+   IPv4 en modo de sustitución. Evitar Workers no confiables en la misma zona
+   que puedan derivar la dirección de `x-real-ip` en subrequests. Revisar
+   Logpush, logs de Worker y Render, APM y cabeceras. Excluir preguntas,
+   tokens, credenciales e IP completas de registros persistentes.
+   [Cabeceras Cloudflare](https://developers.cloudflare.com/fundamentals/reference/http-headers/).
+4. Asociar el hostname público autorizado, activar Always Use HTTPS para
+   redirigir tráfico HTTP y verificar el certificado y la redirección antes
+   de compartir la PWA. Mantener `MACROPULSE_RESEARCH_ENABLED=false` hasta completar la verificación
+   de gráficos, TLS, DNS, hostname de Turnstile y controles de facturación.
+   Con la habilitación controlada, el catálogo anuncia la clave pública sólo
+   si también está disponible el perfil Render y responde el Durable Object.
 
-## 5. Aceptación y reversión
+## Control de consumo y aceptación
 
-- Confirmar tres series sintéticas, cobertura esperada, punto de índice
-  visible, rutas sin caché, límites, `Retry-After`, manejo de 503/504,
-  arranque en frío y PWA instalable.
-- Verificar 403 en el origen sin secreto y ausencia de rutas de
-  administración o documentación a través del Worker. Confirmar 503 para
-  análisis sin consumo de Render, Gemini o base de datos.
-- Registrar la revisión de [derechos](public-data-policy.md) y la prueba
-  HTTPS de los servicios reales. Retener sólo evidencias sanitizadas.
-- Para retirar la demo, desconectar el hostname del Worker y suspender el
-  servicio Render desde sus paneles. Rotar el secreto de origen si se
-  sospecha exposición. La rotación coordinada con secreto único puede
-  interrumpir temporalmente el proxy. Cerrar el acceso al rol DEMO si se
-  desactiva el servicio. Aplicar la reversión sólo a recursos de DEMO.
+- Las reservas usan UTC, con 3 por IP en 10 minutos, 10 al día por IP, 100 al
+  día globales y 2 ejecuciones concurrentes. Cada admisión consume USD 0.10
+  del presupuesto operativo de USD 10 por mes, incluidos los fallos. Es un
+  estimado conservador de la aplicación. Los límites y facturación de Google
+  se controlan por separado.
+- Configurar alertas de Google Cloud Billing antes de USD 10 y en el objetivo
+  máximo USD 15. Configurar las cuotas disponibles y revisar el consumo del
+  proyecto y los límites del proveedor. Usar el tope de proyecto si está
+  disponible y se verificó su comportamiento. Los reportes y la aplicación
+  de los topes pueden tener retraso, por lo que el objetivo de USD 15 no
+  constituye una garantía de facturación.
+  [Precios Gemini](https://ai.google.dev/gemini-api/docs/pricing/) ·
+  [Facturación Gemini](https://ai.google.dev/gemini-api/docs/billing).
+- Verificar las cinco series, fuentes y unidades, rango de eventos, PWA
+  instalable, protección de origen, rutas cerradas, Turnstile real, replay,
+  límites, abstención y respuesta con referencias. Ensayar reinicio del
+  Worker, cuotas y Render, arranque en frío y expiración de reservas. Usar
+  solicitudes mínimas de Gemini y capturar únicamente evidencia sanitizada.
+- Confirmar que el frontend sigue sirviendo gráficos con Research desactivado
+  o saturado. Verificar la PWA en Safari móvil y un navegador de escritorio,
+  incluida actualización del shell.
+
+## Reversión
+
+Para detener Research, publicar la configuración Worker con
+`MACROPULSE_RESEARCH_ENABLED=false` y poner
+`MARKETPULSE_DEMO_RESEARCH_ENABLED=false` en Render. Las solicitudes nuevas
+se rechazan en el borde al activarse la configuración y las ya admitidas
+pueden completar su plazo. Revocar la clave Gemini si se sospecha exposición.
+Verificar que los gráficos siguen disponibles y conservar la identidad y
+almacenamiento del Durable Object durante el rollback.
+
+Si el problema está en la proyección, verificar el SHA-256 activo en
+`marketpulse_demo.macro_catalog.bundle_sha256` y restaurar un manifiesto
+anterior revisado con `import <bundle-anterior> --apply --project-ref <ref-demo-verificada>
+--restore-from <sha256-activo>`. La comparación se hace dentro de la misma
+transacción de escritura. Una actualización concurrente aborta la restauración.
+
+Para retirar la demo completa, quitar la asociación del hostname Worker,
+suspender Render y deshabilitar el rol DEMO. Rotar el secreto compartido de
+forma coordinada si se sospecha exposición. Operar únicamente sobre DEMO.

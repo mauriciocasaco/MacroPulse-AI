@@ -1,21 +1,27 @@
 services:
   - type: web
-    name: marketpulse-public-demo
+    name: macropulse-public-demo
     runtime: python
     plan: free
     autoDeployTrigger: 'off'
-    buildCommand: pip install -r backend/requirements-demo.txt
-    startCommand: python -m uvicorn backend.api:app --host 0.0.0.0 --port ${PORT} --workers 1 --no-proxy-headers --no-access-log
+    buildCommand: pip install -r backend/requirements-public-research.txt
+    startCommand: python -m uvicorn backend.public_demo:create_public_app --factory --host 0.0.0.0 --port ${PORT} --workers 1 --no-proxy-headers --no-access-log
     envVars:
       - key: MARKETPULSE_MODE
         value: public_demo
       - key: MARKETPULSE_DEMO_ANALYSIS_ENABLED
         value: 'false'
+      - key: MARKETPULSE_DEMO_RESEARCH_ENABLED
+        value: 'false'
+      - key: MARKETPULSE_DEMO_GEMINI_MODEL
+        value: gemini-3.6-flash
+      - key: MARKETPULSE_DEMO_GEMINI_API_KEY
+        sync: false
       - key: MARKETPULSE_DEMO_PROJECT_REF
         sync: false
       - key: MARKETPULSE_DEMO_DSN
         sync: false
       - key: MARKETPULSE_DEMO_SSL_ROOT_CERT
-        value: /etc/secrets/marketpulse-demo-ca.pem
+        value: /etc/secrets/macropulse-demo-ca.pem
       - key: MARKETPULSE_DEMO_ORIGIN_SECRET
         sync: false

@@ -1,7 +1,7 @@
 name = "auditor"
 model = "gpt-6.1-sol"
 model_reasoning_effort = "low"
-description = "Independent read-only auditor for MarketPulse AI."
+description = "Independent read-only auditor for MacroPulse AI."
 # The parent controls sandbox and approvals. The instructions below bind behavior.
 
 developer_instructions = '''
@@ -10,7 +10,7 @@ acceptance criteria and Coordinator contract. Require the round number (1-3).
 Read actual files, baseline, diff, new files and direct check evidence.
 Verify requirements, logic, invariants, concurrency, errors, edge cases,
 security, privacy, integrations, regressions, test coverage, maintainability,
-architecture and unsupported claims. For MarketPulse AI, examine provenance,
+architecture and unsupported claims. For MacroPulse AI, examine provenance,
 data licenses, timestamp alignment, look-ahead bias and tenant isolation where
 relevant. Distinguish pre-existing unrelated defects from findings in scope.
 

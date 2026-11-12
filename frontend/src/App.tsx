@@ -3,7 +3,7 @@ import { MacroWorkspace } from './MacroWorkspace';
 import { usePwaUpdate } from './pwa';
 
 export function App({
-  macroDemoEnabled = import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED === true,
+  macroDemoEnabled = import.meta.env.MARKETPULSE_DEMO_MACRO_ENABLED !== false,
   macroAiEnabled = import.meta.env.MARKETPULSE_MACRO_AI_ENABLED === true,
 }: { macroDemoEnabled?: boolean; macroAiEnabled?: boolean } = {}) {
   const publicDemo = import.meta.env.MODE === 'public-demo';
@@ -47,7 +47,7 @@ export function App({
       {launcher && isLoopback && safariUrl && <p className="notice">iPhone Safari <a href={safariUrl}>{safariUrl}</a></p>}
       {updateReady && <output className="notice">An update is ready. Close all MacroPulse AI tabs and windows, then reopen the app.</output>}
       {online ? macroAvailable ? <MacroWorkspace key={attempt}
-        analysisEnabled={!publicDemo && macroAiEnabled} />
+        analysisEnabled={!publicDemo && macroAiEnabled} publicDemo={publicDemo} />
         : <output className="notice">MacroPulse research is unavailable in this environment.</output>
         : <output className="notice">You are offline. Live macroeconomic data is unavailable.</output>}
     </main>

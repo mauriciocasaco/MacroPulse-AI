@@ -209,7 +209,7 @@ Safari can add the page to the Home Screen. A private LAN IP over HTTP is not
 a secure context. Service worker registration, offline relaunch, and worker
 updates on a physical iPhone must be verified on trusted HTTPS.
 
-### Phase 4.4 hosting requirements
+### Public demo hosting requirements
 
 - Publish the complete contents of `frontend/dist/` to a trusted HTTPS static
   origin, preferably at its root. Keep the worker at the app root and preserve
@@ -226,6 +226,9 @@ updates on a physical iPhone must be verified on trusted HTTPS.
   hashed assets available during rollout for pages opened before the worker
   took control. Verify install, offline relaunch, and update activation on
   a real iPhone and on the supported desktop browsers.
+- Use `npm run build:public` for the public shell. The catalog advertises
+  the public Turnstile site key only when Research v2 is enabled at the Worker
+  and the origin. Follow the [deployment runbook](../docs/public-deployment-runbook.md).
 - Route only the required `/api` operations to the backend on the same origin.
   Keep private data and credentials on the server. Define access controls,
   disable intermediary caching for API responses, and verify the HTTPS

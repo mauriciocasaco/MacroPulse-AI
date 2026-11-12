@@ -1,5 +1,5 @@
 name = "ejecutor_ligero"
-description = "Lightweight executor for bounded MarketPulse AI tasks."
+description = "Lightweight executor for bounded MacroPulse AI tasks."
 
 developer_instructions = '''
 You are the MEDIO executor. Follow AGENTS.md and the Coordinator's contract.

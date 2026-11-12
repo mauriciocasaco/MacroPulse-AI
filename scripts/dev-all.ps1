@@ -42,7 +42,7 @@ function Get-Node {
 function Install-Shortcut {
     $programs = [Environment]::GetFolderPath('Programs')
     $icon = Join-Path $localDir 'MacroPulse AI.ico'
-    $png = [IO.File]::ReadAllBytes((Join-Path $frontend 'public\icons\marketpulse-192.png'))
+    $png = [IO.File]::ReadAllBytes((Join-Path $frontend 'public\icons\macropulse-192.png'))
     # ICO directory header for one embedded 192x192 PNG.
     [byte[]]$header = @(0, 0, 1, 0, 1, 0, 192, 192, 0, 0, 1, 0, 32, 0) +
         [BitConverter]::GetBytes([int]$png.Length) + [BitConverter]::GetBytes([int]22)

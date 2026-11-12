@@ -13,12 +13,14 @@ from .contracts import CATALOG, Indicator
 
 
 _ALLOWED_RELATIONS = {
-    ("marketpulse_demo", "synthetic_bars", "r"),
     ("marketpulse_demo", "macro_catalog", "r"),
     ("marketpulse_demo", "macro_observations", "r"),
 }
 _PROJECTION_COLUMNS = {
-    "macro_catalog": {"indicator_id", "series_key", "captured_at", "deposit_coverage"},
+    "macro_catalog": {
+        "indicator_id", "series_key", "captured_at", "deposit_coverage", "requested_start",
+        "requested_end", "response_sha256", "bundle_sha256", "projected_rows", "projection_sha256",
+    },
     "macro_observations": {
         "indicator_id", "period_raw", "period_start", "period_end", "effective_date",
         "value_decimal", "status_kind", "status_raw",
@@ -26,8 +28,66 @@ _PROJECTION_COLUMNS = {
 }
 
 
+# Fixed array field order, primary-key order, ISO dates and UTC timestamps
+# keep the digest independent of session settings. The limit bounds the
+# aggregate even if a privileged write bloats the projection.
+_INTEGRITY_ROWS = """
+    SELECT c.indicator_id, c.projected_rows, c.projection_sha256, projected.row_count,
+           encode(sha256(convert_to(jsonb_build_array(
+               c.indicator_id, c.series_key,
+               to_char(c.captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US'),
+               to_char(c.requested_start, 'YYYY-MM-DD'), to_char(c.requested_end, 'YYYY-MM-DD'),
+               c.response_sha256, c.bundle_sha256,
+               (SELECT jsonb_agg(jsonb_build_array(
+                   to_char(lower(span), 'YYYY-MM-DD'), to_char(upper(span), 'YYYY-MM-DD')
+               ) ORDER BY lower(span)) FROM unnest(c.deposit_coverage) AS coverage(span)),
+               projected.rows
+           )::text, 'UTF8')), 'hex')
+    FROM ONLY marketpulse_demo.macro_catalog AS c
+    CROSS JOIN LATERAL (
+        SELECT count(*) AS row_count, jsonb_agg(jsonb_build_array(
+            o.period_raw, to_char(o.period_start, 'YYYY-MM-DD'), to_char(o.period_end, 'YYYY-MM-DD'),
+            to_char(o.effective_date, 'YYYY-MM-DD'), o.value_decimal::text, o.status_kind, o.status_raw
+        ) ORDER BY o.period_start) AS rows
+        FROM (
+            SELECT period_raw, period_start, period_end, effective_date, value_decimal, status_kind, status_raw
+            FROM ONLY marketpulse_demo.macro_observations
+            WHERE indicator_id = c.indicator_id
+            ORDER BY period_start LIMIT 5501
+        ) AS o
+    ) AS projected
+"""
+
+
 class ProjectionError(RuntimeError):
     """A fixed, non-sensitive DEMO projection validation failure."""
+
+
+def _integrity_rows(connection: psycopg.Connection):
+    with connection.cursor(row_factory=tuple_row) as cursor:
+        rows = cursor.execute(_INTEGRITY_ROWS).fetchall()
+    if {indicator for indicator, *_ in rows} != set(CATALOG):
+        raise ProjectionError("Public demo macro projection is incomplete")
+    return rows
+
+
+def verify_projection_integrity(connection: psycopg.Connection) -> None:
+    for _, stored_count, stored_digest, live_count, live_digest in _integrity_rows(connection):
+        if (stored_count, stored_digest) != (live_count, live_digest):
+            raise ProjectionError("Public demo macro projection integrity check failed")
+
+
+def stamp_projection(connection: psycopg.Connection) -> None:
+    """Bind a newly copied projection to its exact values and coverage."""
+    hashes = []
+    for indicator, expected_count, _, live_count, live_digest in _integrity_rows(connection):
+        if live_count != expected_count:
+            raise ProjectionError("Public demo macro projection row count differs from the bundle")
+        hashes.append((live_digest, indicator))
+    with connection.cursor() as cursor:
+        cursor.executemany("""
+            UPDATE ONLY marketpulse_demo.macro_catalog SET projection_sha256 = %s WHERE indicator_id = %s
+        """, hashes)
 
 
 def verify_projection(connection: psycopg.Connection) -> None:
@@ -69,8 +129,15 @@ def verify_projection(connection: psycopg.Connection) -> None:
             FROM ONLY marketpulse_demo.macro_catalog AS c
         """).fetchall()
         expected = {(item.id, item.series_key, True, item.frequency == "effective_date") for item in CATALOG.values()}
-        if set(catalog) != expected:
+        provenance = cursor.execute("""
+            SELECT count(DISTINCT bundle_sha256) = 1
+              AND count(DISTINCT (requested_start, requested_end)) = 1
+              AND bool_and(captured_at <= statement_timestamp())
+            FROM ONLY marketpulse_demo.macro_catalog
+        """).fetchone()
+        if set(catalog) != expected or provenance != (True,):
             raise ProjectionError("Public demo macro projection is incomplete")
+    verify_projection_integrity(connection)
 
 
 def read_history(

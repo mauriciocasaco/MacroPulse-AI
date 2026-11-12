@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import type { MacroIndicator } from './macro-api';
 import { indicatorPresentation } from './macro-chart';
 import { historicalEvents, type HistoricalEventId, type QuestionSubmission } from './question-events';
@@ -13,10 +13,12 @@ export interface QuestionComposerProps {
   pending: boolean;
   enabled: boolean;
   onSubmit: (submission: QuestionSubmission) => void;
+  verification?: ReactNode;
+  canSubmit?: boolean;
 }
 
 export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, pending, enabled,
-  onSubmit }: QuestionComposerProps) {
+  onSubmit, verification, canSubmit = true }: QuestionComposerProps) {
   const fieldId = useId();
   const [eventId, setEventId] = useState<HistoricalEventId>('covid');
   const [custom, setCustom] = useState<{ question: string; indicatorId: string; eventId: HistoricalEventId }>();
@@ -31,7 +33,7 @@ export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, p
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (disabled || !indicator || !valid) return;
+    if (disabled || !indicator || !valid || !canSubmit) return;
     onSubmit({ question: question.trim(), indicatorId, eventId, start: selectedEvent.start, end: selectedEvent.end });
   }
 
@@ -63,11 +65,12 @@ export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, p
     {changedContext && <output id={`${fieldId}-review`} className="muted">
       Your custom question is preserved. Review it for the selected indicator and historical event before submitting.
     </output>}
+    {verification}
     <div className="composer-actions">
       {custom && <button type="button" disabled={disabled || !indicator} onClick={() => setCustom(undefined)}>
         Use generated question
       </button>}
-      <button type="submit" className="primary" disabled={disabled || !indicator || !valid}>Ask LLM Model</button>
+      <button type="submit" className="primary" disabled={disabled || !indicator || !valid || !canSubmit}>Ask LLM Model</button>
     </div>
   </form>;
 }

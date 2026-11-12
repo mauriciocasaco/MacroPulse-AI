@@ -8,9 +8,9 @@ const publicShell = [
   'manifest.webmanifest',
   'icons/favicon.svg',
   'icons/apple-touch-icon.png',
-  'icons/marketpulse-192.png',
-  'icons/marketpulse-512.png',
-  'icons/marketpulse-maskable.png',
+  'icons/macropulse-192.png',
+  'icons/macropulse-512.png',
+  'icons/macropulse-maskable.png',
 ];
 
 export function marketPulsePwa(): Plugin {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { askMacroAnalysis, type MacroAnalysis, type MacroIndicator, type ObservedChange, type ResearchEvidence } from './macro-api';
 import { QuestionComposer, type QuestionSubmission } from './QuestionComposer';
+import { TurnstileCheck } from './TurnstileCheck';
 
 const displayDate = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
@@ -50,34 +51,42 @@ function uniqueDocuments(items: ResearchEvidence[]) {
   });
 }
 
-export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorChange, researchV2Available = false }: {
+export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorChange, researchV2Available = false, publicDemo = false, sitekey = '' }: {
   enabled: boolean; indicatorId: string; indicators: MacroIndicator[]; onIndicatorChange: (id: string) => void;
-  researchV2Available?: boolean;
+  researchV2Available?: boolean; publicDemo?: boolean; sitekey?: string;
 }) {
   const [experimental, setExperimental] = useState(false);
-  const researchV2 = experimental && researchV2Available;
+  const researchV2 = publicDemo || (experimental && researchV2Available);
+  const [consent, setConsent] = useState(false);
+  const [token, setToken] = useState('');
+  const [challengeAttempt, setChallengeAttempt] = useState(0);
   const [request, setRequest] = useState<{
-    indicatorId: string; controller: AbortController; pending: boolean; failed: boolean; result?: MacroAnalysis;
+    indicatorId: string; controller: AbortController; pending: boolean; error?: string; result?: MacroAnalysis;
   }>();
   const active = useRef<AbortController>(null);
   useEffect(() => () => active.current?.abort(), [indicatorId, enabled, researchV2]);
   const current = enabled && request?.indicatorId === indicatorId && !request.controller.signal.aborted ? request : undefined;
   const pending = current?.pending ?? false;
-  const failed = current?.failed ?? false;
+  const error = current?.error;
   const result = current?.result;
 
   function submit(submission: QuestionSubmission) {
-    if (!enabled || pending || submission.indicatorId !== indicatorId) return;
+    if (!enabled || pending || submission.indicatorId !== indicatorId || (publicDemo && (!token || !consent))) return;
     active.current?.abort();
     const controller = new AbortController();
     active.current = controller;
-    setRequest({ indicatorId, controller, pending: true, failed: false });
+    setRequest({ indicatorId, controller, pending: true });
+    if (publicDemo) {
+      setToken('');
+      setChallengeAttempt((value) => value + 1);
+    }
     askMacroAnalysis(submission.question, submission.start, submission.end, controller.signal,
       { indicator_id: submission.indicatorId, event_id: submission.eventId,
-        ...(researchV2 ? { research_version: 'v2' as const } : {}) }).then((data) => {
+        ...(researchV2 ? { research_version: 'v2' as const } : {}) }, publicDemo ? token : undefined).then((data) => {
       if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, result: data } : current);
-    }, () => {
-      if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, failed: true } : current);
+    }, (cause: unknown) => {
+      const error = publicDemo && cause instanceof Error ? cause.message : 'Local macro research is currently unavailable.';
+      if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, error } : current);
     }).finally(() => {
       if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, pending: false } : current);
     });
@@ -88,7 +97,7 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
   const series = result?.evidence.filter(({ kind }) => kind === 'series') ?? [];
   return <section className="panel" aria-labelledby="macro-research-title">
     <h2 id="macro-research-title">RAG-Powered Macro Research</h2>
-    {enabled && researchV2Available && <div>
+    {enabled && !publicDemo && researchV2Available && <div>
       <label>
         <input type="checkbox" checked={researchV2} disabled={pending}
           onChange={(event) => { setExperimental(event.target.checked); setRequest(undefined); }} />
@@ -99,10 +108,20 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
       </p>
     </div>}
     {enabled ? <QuestionComposer enabled={enabled} pending={pending} indicators={indicators}
-      indicatorId={indicatorId} onIndicatorChange={onIndicatorChange} onSubmit={submit} />
-      : <p className="muted">AI research is available only in an enabled local workspace.</p>}
+      indicatorId={indicatorId} onIndicatorChange={onIndicatorChange} onSubmit={submit}
+      canSubmit={!publicDemo || Boolean(token && consent)}
+      verification={publicDemo && <>
+        <label className="muted">
+          <input type="checkbox" checked={consent} disabled={pending}
+            onChange={(event) => setConsent(event.target.checked)} />
+          {' '}I agree to send my question to Google Gemini. I will keep secrets and credentials out of it.
+        </label>
+        {!pending && <TurnstileCheck key={challengeAttempt} sitekey={sitekey} onToken={setToken} />}
+      </>} />
+      : <p className="muted">{publicDemo ? 'Public AI research is currently unavailable.'
+        : 'AI research is available only in an enabled local workspace.'}</p>}
     {pending && <output className="notice">Checking official evidence…</output>}
-    {failed && <p role="alert" className="notice error">Local macro research is currently unavailable.</p>}
+    {error && <p role="alert" className="notice error">{error}</p>}
     {result && <div className="analysis-result" aria-live="polite">
       {result.observed_changes?.map((change) => <ChangeHeadline key={change.citation} change={change} />)}
       <section className="result-section" aria-labelledby="macro-analysis-title">

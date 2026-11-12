@@ -1,0 +1,3 @@
+-r requirements-demo.txt
+defusedxml==0.7.1
+tzdata==2026.6

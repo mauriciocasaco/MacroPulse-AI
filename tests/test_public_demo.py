@@ -1,19 +1,27 @@
-from datetime import date, datetime, timezone
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from decimal import Decimal
 from hashlib import sha256
+import json
 import os
 import subprocess
 import sys
 from threading import Event
+from time import time
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
+import httpx
 import psycopg
 from psycopg.conninfo import conninfo_to_dict
 import pytest
 
 from backend import public_demo as demo
+from backend.macro_ai import v2_retrieval, v2_service
+from backend.macro_ai.public_gemini import PREFLIGHT_TOKENS
+from backend.macro_data.api import MacroHistory, MacroObservation, indicator_metadata
+from backend.macro_data.contracts import parse_period
 from backend.market_data.dev_import import DEV_PROJECT_REF
 
 
@@ -27,8 +35,15 @@ SETTINGS = {
     "MARKETPULSE_DEMO_ORIGIN_SECRET": SECRET,
 }
 HEADERS = {demo.ORIGIN_HEADER: SECRET, demo.CLIENT_IP_HEADER: "192.0.2.3"}
-WINDOW = {"start": "2020-01-01", "end_exclusive": "2020-01-03"}
-ANALYSIS = {"question": "What happened?", "event": "covid", "asset": "synthetic_1", **WINDOW}
+CATALOG = "/macro/indicators"
+HISTORY = CATALOG + "/eur-usd/history"
+RESEARCH = "/macro/analysis"
+ANALYSIS = {"question": "What happened?", "event_id": "covid", "indicator_id": "eur-usd",
+            "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2"}
+
+
+def research_headers():
+    return {**HEADERS, "X-MacroPulse-Research-Expires": str(int(time() * 1000) + 60_000)}
 
 
 @pytest.fixture
@@ -47,27 +62,7 @@ def demo_env(monkeypatch, tmp_path):
 
 @pytest.fixture
 def client(demo_env, monkeypatch):
-    first = date(2020, 1, 1)
-    last = date(2020, 1, 2)
-    connection = MagicMock()
-    connection.__enter__.return_value = connection
-
-    def select(query, params=()):
-        cursor = MagicMock()
-        if "GROUP BY" in query:
-            cursor.fetchall.return_value = [{"series_id": 1, "first": first, "last": last, "count": 2}]
-        elif "min(bar_date)" in query:
-            cursor.fetchone.return_value = {"first": first, "last": last, "count": 2}
-        else:
-            assert params == (1, first, date(2020, 1, 3), 2600)
-            cursor.fetchall.return_value = [{
-                "bar_date": first, "close": Decimal("123.00"),
-                "generated_at": datetime(2025, 1, 1, tzinfo=timezone.utc),
-            }]
-        return cursor
-
-    connection.execute.side_effect = select
-    monkeypatch.setattr(demo, "connect_demo", lambda dsn: connection)
+    monkeypatch.setattr(demo, "connect_demo", lambda dsn: MagicMock())
     with TestClient(demo.create_public_app()) as http:
         yield http
 
@@ -135,87 +130,90 @@ def test_entrypoint_mode_isolation(demo_env, monkeypatch, mode, expected):
 
 
 def test_only_authenticated_allowlisted_routes(client):
-    assert client.get("/assets").status_code == 403
-    assert client.get("/assets", headers={**HEADERS, demo.ORIGIN_HEADER: "incorrect"}).status_code == 403
-    assert client.get("/assets", headers={demo.ORIGIN_HEADER: SECRET, "X-Forwarded-For": "192.0.2.3"}).status_code == 403
-    assert client.get("/assets", headers=HEADERS).status_code == 200
+    assert client.get(CATALOG).status_code == 403
+    assert client.get(CATALOG, headers={**HEADERS, demo.ORIGIN_HEADER: "incorrect"}).status_code == 403
+    assert client.get(CATALOG, headers={demo.ORIGIN_HEADER: SECRET, "X-Forwarded-For": "192.0.2.3"}).status_code == 403
+    assert client.get(CATALOG, headers=HEADERS).status_code == 200
     for path in ("/docs", "/redoc", "/openapi.json", "/health", "/admin", "/compare",
-                 "/assets/1/latest", "/assets/4/history", "/assets/"):
+                 "/assets", "/assets/1/history", "/analysis"):
         assert client.get(path, headers=HEADERS).status_code == 404
-    assert client.post("/assets", headers=HEADERS).status_code == 405
+    assert client.post(CATALOG, headers=HEADERS).status_code == 405
+    assert client.post(RESEARCH, json=ANALYSIS).status_code == 403
+    assert client.post(RESEARCH, headers={**research_headers(), demo.ORIGIN_HEADER: "bad"}, json=ANALYSIS).status_code == 403
 
 
-def test_history_catalog_and_validation(client):
-    catalog = client.get("/assets", headers=HEADERS)
-    assert catalog.headers["cache-control"] == "no-store"
-    asset, = catalog.json()
-    assert asset["provider_name"] == "MarketPulse AI synthetic dataset"
-    assert asset["economic_unit"] == "Synthetic index points"
-    history = client.get("/assets/1/history", params=WINDOW, headers=HEADERS)
-    assert history.status_code == 200
-    result = history.json()
-    assert result["asset"] == asset
-    assert result["bars"][0]["source_convention"] == demo.CONVENTION
-    assert result["bars"][0]["retrieved_at"] == "2025-01-01T00:00:00Z"
-    for params in ({}, {**WINDOW, "start": "2010-01-01"}, {**WINDOW, "extra": "x"}):
-        invalid = client.get("/assets/1/history", params=params, headers=HEADERS)
-        assert invalid.status_code == 422
-        assert invalid.json() == {"detail": "Invalid request parameters"}
-    duplicate = client.get("/assets/1/history", params=[*WINDOW.items(), ("start", "2020-01-02")], headers=HEADERS)
-    assert duplicate.status_code == 400
+def test_disabled_research_preserves_catalog(client, monkeypatch):
+    monkeypatch.setattr(demo, "run_public_research", lambda *args: pytest.fail("Disabled research started work"))
+    assert client.post(RESEARCH, headers=research_headers(), json=ANALYSIS).status_code == 503
+    assert client.get(CATALOG, headers=HEADERS).status_code == 200
+    assert demo.RESEARCH_HEADER not in client.get(CATALOG, headers=HEADERS).headers
 
 
-def test_disabled_analysis_never_calls_database_or_model(client, monkeypatch):
-    def unexpected(*args, **kwargs):
-        pytest.fail("Disabled analysis started work")
-
-    monkeypatch.setattr(demo, "connect_demo", unexpected)
-    monkeypatch.setattr("backend.api.analyze", unexpected)
-    monkeypatch.setattr("backend.analysis_provider.GeminiProvider.generate", unexpected)
-    assert client.post("/analysis", headers=HEADERS, json={**ANALYSIS, "question": "x" * 501}).status_code == 422
-    assert client.post("/analysis", headers=HEADERS, content=b"no").status_code == 415
-    assert client.post("/analysis", headers=HEADERS, content=b"x" * 8193).status_code == 413
-    assert client.post("/analysis", headers={**HEADERS, "Content-Type": "application/json"},
-                       content=iter((b"x" * 4097, b"x" * 4096))).status_code == 413
-    response = client.post("/analysis", headers=HEADERS, json=ANALYSIS)
-    assert response.status_code == 503
-    assert response.json() == {"detail": "Public demo analysis is disabled"}
+@pytest.fixture
+def research_client(demo_env, monkeypatch):
+    monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+    monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "f" * 35)
+    monkeypatch.setattr(demo, "connect_demo", lambda dsn: MagicMock())
+    with TestClient(demo.create_public_app()) as client:
+        yield client
 
 
-def test_quota_is_per_operation_and_ip(client, monkeypatch):
+def test_research_rejects_invalid_body_and_leases(research_client, monkeypatch):
+    monkeypatch.setattr(demo, "run_public_research", lambda *args: pytest.fail("Invalid research started work"))
+    assert research_client.get(CATALOG, headers=HEADERS).headers[demo.RESEARCH_HEADER] == "true"
+    assert research_client.post(RESEARCH, headers=HEADERS, json=ANALYSIS).status_code == 403
+    assert research_client.post(RESEARCH, headers={**HEADERS, "X-MacroPulse-Research-Expires": "1234567890123"},
+                                json=ANALYSIS).status_code == 403
+    for invalid in ({**ANALYSIS, "question": "x" * 501}, {**ANALYSIS, "research_version": "v1"},
+                    {**ANALYSIS, "event_id": None}, {**ANALYSIS, "start": 1580515200},
+                    {**ANALYSIS, "end": "2021-01-01"}, {**ANALYSIS, "extra": True},
+                    {**ANALYSIS, "question": f"Explain {SECRET}"}):
+        assert research_client.post(RESEARCH, headers=research_headers(), json=invalid).status_code == 422
+    assert research_client.post(RESEARCH, headers=research_headers(), content=b"no").status_code == 415
+    assert research_client.post(RESEARCH, headers=research_headers(), content=b"x" * 4097).status_code == 413
+    assert research_client.post(RESEARCH, headers={**research_headers(), "Content-Type": "application/json"},
+                                content=iter((b"x" * 3000, b"x" * 1097))).status_code == 413
+    assert research_client.post(RESEARCH, headers={**research_headers(), "Content-Type": "application/json"},
+                                content=b'{"question":"duplicate","question":"again"}').status_code == 422
+
+
+def test_read_quota_is_per_operation_and_ip(client, monkeypatch):
     monkeypatch.setattr(demo, "monotonic", lambda: 61)
     for _ in range(30):
-        assert client.get("/assets", headers=HEADERS).status_code == 200
-    blocked = client.get("/assets", headers={**HEADERS, "X-Forwarded-For": "192.0.2.5"})
+        assert client.get(CATALOG, headers=HEADERS).status_code == 200
+    blocked = client.get(CATALOG, headers={**HEADERS, "X-Forwarded-For": "192.0.2.5"})
     assert blocked.status_code == 429 and blocked.headers["retry-after"] == "59"
-    assert client.get("/assets", headers={**HEADERS, demo.CLIENT_IP_HEADER: "192.0.2.4"}).status_code == 200
+    assert client.get(CATALOG, headers={**HEADERS, demo.CLIENT_IP_HEADER: "192.0.2.4"}).status_code == 200
     for _ in range(20):
-        assert client.get("/assets/1/history", params=WINDOW, headers=HEADERS).status_code == 200
-    assert client.get("/assets/1/history", params=WINDOW, headers=HEADERS).status_code == 429
+        assert client.get(HISTORY, headers=HEADERS).status_code == 422
+    assert client.get(HISTORY, headers=HEADERS).status_code == 429
     monkeypatch.setattr(demo, "monotonic", lambda: 120)
-    assert client.get("/assets", headers=HEADERS).status_code == 200
+    assert client.get(CATALOG, headers=HEADERS).status_code == 200
 
 
-def test_concurrency_limit(demo_env, monkeypatch):
-    monkeypatch.setenv("MARKETPULSE_DEMO_CONCURRENCY", "1")
-    entered, release = Event(), Event()
+def test_research_concurrency_and_timeouts_keep_reads_available(research_client, monkeypatch):
+    started = [Event(), Event()]
+    release = Event()
+    pending = iter(started)
 
-    def wait(_repo):
-        entered.set()
+    def wait(*_args):
+        next(pending).set()
         assert release.wait(5)
-        return []
+        raise RuntimeError("synthetic unavailable provider")
 
-    monkeypatch.setattr(demo.DemoRepository, "catalog", wait)
-    monkeypatch.setattr(demo, "connect_demo", lambda _dsn: MagicMock())
-    with TestClient(demo.create_public_app()) as client, ThreadPoolExecutor(1) as pool:
-        request = pool.submit(client.get, "/assets", headers=HEADERS)
+    monkeypatch.setattr(demo, "run_public_research", wait)
+    monkeypatch.setattr(demo, "RESEARCH_SECONDS", 0.15)
+    with ThreadPoolExecutor(2) as pool:
+        calls = [pool.submit(research_client.post, RESEARCH, headers=research_headers(), json=ANALYSIS)
+                 for _ in started]
         try:
-            assert entered.wait(5)
-            busy = client.get("/assets", headers=HEADERS)
-            assert busy.status_code == 503 and busy.headers["retry-after"] == "1"
+            assert all(event.wait(2) for event in started)
+            assert research_client.get(CATALOG, headers=HEADERS).status_code == 200
+            assert all(call.result(timeout=2).status_code == 504 for call in calls)
+            blocked = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
+            assert blocked.status_code == 503 and blocked.headers["Retry-After"] == "1"
         finally:
             release.set()
-        assert request.result(timeout=5).status_code == 200
 
 
 def test_repository_errors_never_echo_internals(client, monkeypatch):
@@ -223,7 +221,7 @@ def test_repository_errors_never_echo_internals(client, monkeypatch):
         raise psycopg.OperationalError(DSN)
 
     monkeypatch.setattr(demo, "connect_demo", unavailable)
-    response = client.get("/assets", headers=HEADERS)
+    response = client.get(CATALOG, headers=HEADERS)
     assert response.status_code == 503
     assert response.json() == {"detail": "Public demo service unavailable"}
     assert PASSWORD not in response.text
@@ -249,6 +247,7 @@ def test_connection_requires_tls_and_read_only_privileges(monkeypatch, tls, role
     cursor.execute.return_value.fetchone.side_effect = [(role,), (scope,)]
     connect = MagicMock(return_value=connection)
     monkeypatch.setattr(demo.psycopg, "connect", connect)
+    monkeypatch.setattr(demo, "verify_projection", lambda _connection: None)
     if tls and role and scope:
         assert demo.connect_demo(DSN) is connection
         assert connection.read_only
@@ -259,3 +258,111 @@ def test_connection_requires_tls_and_read_only_privileges(monkeypatch, tls, role
         with pytest.raises(demo.DemoConfigurationError):
             demo.connect_demo(DSN)
         connection.close.assert_called_once()
+
+
+def test_public_research_uses_only_verified_demo_and_cites_evidence(research_client, monkeypatch):
+    question = "How did the war in Ukraine relate to euro-area inflation?"
+    connections = []
+    connection = object()
+
+    @contextmanager
+    def connect(dsn):
+        assert conninfo_to_dict(dsn)["host"] == f"db.{REF}.supabase.co"
+        connections.append(dsn)
+        yield connection
+
+    def read(db, item, window, *, max_points):
+        assert db is connection and item.id == "hicp-yoy" and max_points == 2600
+        observations = []
+        for raw, value in [("2022-02", "5.9"), ("2022-09", "9.9"), ("2022-10", "10.6")]:
+            period = parse_period(item.frequency, raw)
+            observations.append(MacroObservation(
+                period_raw=raw, period_start=period.start, period_end=period.end, effective_date=None,
+                value=Decimal(value), status_kind="normal", status_raw=None,
+            ))
+        return MacroHistory(indicator=indicator_metadata(item), start=window.start, end=window.end,
+                            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc), observations=observations)
+
+    monkeypatch.setattr(demo, "connect_demo", connect)
+    monkeypatch.setattr(demo, "read_history", read)
+    monkeypatch.setattr(v2_service, "read_statistics", lambda *_args: pytest.fail("Local reader used"))
+    monkeypatch.setattr(v2_retrieval, "semantic", lambda *_args: pytest.fail("E5 loaded"))
+    requests = []
+    intent = {
+        "event": "ukraine", "purpose": "causal", "requirements": [{
+            "excerpt": question, "indicator": "hicp-yoy", "geography": "euro_area",
+            "measure": "annual_inflation", "operation": "trend",
+        }],
+    }
+
+    def simulate(request):
+        assert request.url.host == "generativelanguage.googleapis.com"
+        assert request.headers["x-goog-api-key"] == "AIza" + "f" * 35
+        payload = json.loads(request.content)
+        assert SECRET not in request.content.decode() and PASSWORD not in request.content.decode()
+        requests.append(payload)
+        if request.url.path.endswith(":countTokens"):
+            assert payload["generateContentRequest"]["model"] == "models/gemini-3.6-flash"
+            return httpx.Response(200, json={"totalTokens": 200})
+        assert payload["generationConfig"]["maxOutputTokens"] == 2400
+        assert payload["generationConfig"]["thinkingConfig"]["includeThoughts"] is False
+        assert "tools" not in payload
+        assert {key: value for key, value in requests[-2]["generateContentRequest"].items() if key != "model"} == payload
+        if len(requests) == 2:
+            answer = intent
+        else:
+            content = payload["contents"][0]["parts"][0]["text"]
+            rows = json.loads(content.split("\n", 1)[1])
+            answer = {"sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in rows]}
+        return httpx.Response(200, json={
+            "usageMetadata": {"promptTokenCount": 200, "candidatesTokenCount": 60, "thoughtsTokenCount": 40},
+            "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(answer)}]}}],
+        })
+
+    client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
+        transport=httpx.MockTransport(simulate), **options,
+    ))
+    params = {**ANALYSIS, "question": question, "indicator_id": "hicp-yoy", "event_id": "ukraine",
+              "start": "2022-02-01", "end": "2024-02-29"}
+    reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
+    assert reply.status_code == 200, reply.text
+    assert reply.headers["X-MacroPulse-Research-Complete"] == "true"
+    result = reply.json()
+    assert result["research_v2"] is True and result["support"] == "partial"
+    assert result["narrative_kind"] == "gemini" and len(connections) == 1
+    assert {row["kind"] for row in result["evidence"]} == {"series", "document"}
+    assert {ref for claim in result["narrative"] for ref in claim["citations"]} <= {
+        row["id"] for row in result["evidence"]
+    }
+    assert len(requests) == 4
+    assert any("does not identify" in limitation for limitation in result["limitations"])
+
+    monkeypatch.setattr(demo, "read_history", lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        psycopg.OperationalError("Synthetic DEMO failure"),
+    ))
+    requests.clear()
+    reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
+    assert reply.status_code == 503
+    assert len(requests) == 2
+
+
+@pytest.mark.parametrize("failure,code", [("input limit", 503), ("provider failure", 503), ("timeout", 504)])
+def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch, failure, code):
+    paths = []
+
+    def simulate(request):
+        paths.append(request.url.path)
+        if failure == "input limit":
+            return httpx.Response(200, json={"totalTokens": PREFLIGHT_TOKENS + 1})
+        if failure == "timeout":
+            raise httpx.ReadTimeout("synthetic provider deadline")
+        return httpx.Response(503, text="synthetic private provider failure")
+
+    client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
+        transport=httpx.MockTransport(simulate), **options,
+    ))
+    reply = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
+    assert reply.status_code == code and "synthetic" not in reply.text
+    assert len(paths) == 1 and paths[0].endswith(":countTokens")

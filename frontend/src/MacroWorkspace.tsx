@@ -10,9 +10,10 @@ const frequencyLabels = {
   quarterly: 'Quarterly',
   effective_date: 'Effective-date events',
 };
-export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }) {
+export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analysisEnabled: boolean; publicDemo?: boolean }) {
   const [indicators, setIndicators] = useState<Awaited<ReturnType<typeof getMacroIndicators>>>();
   const [researchV2, setResearchV2] = useState(false);
+  const [sitekey, setSitekey] = useState('');
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [id, setId] = useState('eur-usd');
@@ -31,13 +32,13 @@ export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }
   }, [id, historyAttempt]);
   useEffect(() => {
     const controller = new AbortController();
-    getMacroIndicators(controller.signal, setResearchV2).then((data) => {
+    getMacroIndicators(controller.signal, setResearchV2, publicDemo ? setSitekey : undefined).then((data) => {
       if (!controller.signal.aborted) setIndicators(data);
     }, () => {
       if (!controller.signal.aborted) setFailed(true);
     });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, publicDemo]);
 
   const selected = indicators?.find((item) => item.id === id);
   const history = loaded?.id === id ? selectHistory(loaded.history, period) : undefined;
@@ -81,7 +82,8 @@ export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }
         Source <a href={selected.source_url}>{selected.attribution}</a> · <a href={selected.reuse_url}>Reuse terms</a>
       </p>
     </section>
-    <MacroResearch enabled={analysisEnabled} indicatorId={id} indicators={indicators ?? []}
+    <MacroResearch enabled={publicDemo ? Boolean(sitekey) : analysisEnabled} indicatorId={id} indicators={indicators ?? []}
+      publicDemo={publicDemo} sitekey={sitekey}
       researchV2Available={researchV2 && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)}
       onIndicatorChange={(next) => { setHistoryFailed(false); setId(next); }} />
   </>;
