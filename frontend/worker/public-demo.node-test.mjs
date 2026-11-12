@@ -88,7 +88,7 @@ test('redirects, oversized bodies, and origin errors become generic service erro
     fetch.mock.mockImplementationOnce(send);
     const response = await worker.fetch(request('/api/macro/indicators'), env);
     assert.equal(response.status, 503);
-    assert.equal((await response.json()).detail, 'Public demo service unavailable');
+    assert.equal((await response.json()).detail, 'MacroPulse service unavailable');
   }
   fetch.mock.mockImplementationOnce(() => { throw new DOMException('fixture timeout', 'TimeoutError'); });
   assert.equal((await worker.fetch(request('/api/macro/indicators'), env)).status, 504);

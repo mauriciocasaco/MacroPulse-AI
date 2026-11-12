@@ -109,6 +109,7 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
     </div>}
     {enabled ? <QuestionComposer enabled={enabled} pending={pending} indicators={indicators}
       indicatorId={indicatorId} onIndicatorChange={onIndicatorChange} onSubmit={submit}
+      allowCustomWindow={researchV2}
       canSubmit={!publicDemo || Boolean(token && consent)}
       verification={publicDemo && <>
         <label className="muted">

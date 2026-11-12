@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from asyncio import get_running_loop, shield, timeout
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 import hmac
@@ -22,7 +22,7 @@ import psycopg
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.rows import dict_row, tuple_row
 
-from .macro_data.api import MacroHistory, MacroIndicator, MacroWindow, indicator_metadata
+from .macro_data.api import MacroHistory, MacroWindow, indicator_metadata
 from .macro_data.contracts import CATALOG
 from .macro_data.public import read_history, verify_projection
 from .market_data.api_config import _ROLE_CHECK, _WRITE_PRIVILEGES, is_dev_target
@@ -76,13 +76,14 @@ def _limit(env: Mapping[str, str], key: str, default: int) -> int:
 
 def demo_target(
     value: str, ref: str, role: str, *, direct_only: bool = False, shared_project: bool = False,
+    shared_role: str = RO_ROLE,
 ) -> dict[str, str]:
     """Validate explicit connection parameters before constructing a DEMO DSN."""
     if (not re.fullmatch(r"[a-z]{20}", ref) or len(set(ref)) < 6
             or re.search(r"example|placeholder|replace|dummy|sample", ref)):
         raise DemoConfigurationError("Public demo project reference is missing or invalid")
     if shared_project:
-        if ref != SHARED_PROJECT_REF or role != RO_ROLE:
+        if ref != SHARED_PROJECT_REF or role != shared_role:
             raise DemoConfigurationError("Public demo shared project reference or role is invalid")
     elif ref == SHARED_PROJECT_REF or is_dev_target(ref, ""):
         raise DemoConfigurationError("Public demo project reference is missing or invalid")
@@ -114,7 +115,7 @@ def tls_dsn(options: dict[str, str], ca_value: str) -> str:
                          gssencmode="disable", connect_timeout=5)
 
 
-def resolve_demo_settings(env: Mapping[str, str]) -> DemoSettings:
+def resolve_demo_settings(env: Mapping[str, str], *, verified_dsn: str | None = None) -> DemoSettings:
     for key in ("DEBUG", "MARKETPULSE_DEBUG", "MARKETPULSE_DEMO_ANALYSIS_ENABLED",
                 "LANGSMITH_TRACING", "LANGCHAIN_TRACING", "LANGCHAIN_TRACING_V2"):
         if env.get(key, "false") != "false":
@@ -130,11 +131,13 @@ def resolve_demo_settings(env: Mapping[str, str]) -> DemoSettings:
     shared = env.get("MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT", "false")
     if shared not in ("false", "true"):
         raise DemoConfigurationError("Public demo shared project flag is invalid")
-    options = demo_target(
-        env.get("MARKETPULSE_DEMO_DSN", ""), env.get("MARKETPULSE_DEMO_PROJECT_REF", ""), RO_ROLE,
-        shared_project=shared == "true",
-    )
-    dsn = tls_dsn(options, env.get("MARKETPULSE_DEMO_SSL_ROOT_CERT", ""))
+    dsn = verified_dsn
+    if dsn is None:
+        options = demo_target(
+            env.get("MARKETPULSE_DEMO_DSN", ""), env.get("MARKETPULSE_DEMO_PROJECT_REF", ""), RO_ROLE,
+            shared_project=shared == "true",
+        )
+        dsn = tls_dsn(options, env.get("MARKETPULSE_DEMO_SSL_ROOT_CERT", ""))
     return DemoSettings(dsn, secret, _limit(env, "MARKETPULSE_DEMO_CATALOG_PER_MINUTE", 30),
                         _limit(env, "MARKETPULSE_DEMO_HISTORY_PER_MINUTE", 20),
                         _limit(env, "MARKETPULSE_DEMO_CONCURRENCY", 4), shared_project=shared == "true")
@@ -210,13 +213,14 @@ def _unique_object(pairs):
     return result
 
 
-def parse_research(body: bytes) -> ResearchRequest:
-    from .macro_ai.models import PublicResearchRequest, ResearchRequest
+def parse_research(body: bytes, *, online: bool = False) -> ResearchRequest:
+    from .macro_ai.models import OnlineResearchRequest, PublicResearchRequest, ResearchRequest
 
     payload = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object)
     if not isinstance(payload, dict) or any(type(value) is not str for value in payload.values()):
         raise ValueError("Invalid Research request")
-    model = PublicResearchRequest.model_validate(payload)
+    contract = OnlineResearchRequest if online else PublicResearchRequest
+    model = contract.model_validate(payload)
     return ResearchRequest.model_validate(model.model_dump(exclude={"research_version"}))
 
 
@@ -254,8 +258,21 @@ def run_public_research(settings: DemoSettings, request: ResearchRequest, key: s
     return result
 
 
-def create_public_app() -> FastAPI:
-    settings = resolve_demo_settings(os.environ)
+def create_public_app(
+    *, settings: DemoSettings | None = None,
+    connect: Callable | None = None, history_reader: Callable | None = None,
+    catalog_reader: Callable | None = None, research_runner: Callable | None = None,
+    research_parser: Callable | None = None, max_window_days: int = MAX_WINDOW_DAYS - 1,
+) -> FastAPI:
+    settings = settings or resolve_demo_settings(os.environ)
+
+    def open_reader():
+        return (connect or connect_demo)(settings)
+
+    history_reader = history_reader or (
+        lambda connection, item, window: read_history(connection, item, window, max_points=MAX_WINDOW_DAYS)
+    )
+    research_parser = research_parser or parse_research
     research = _research_config(os.environ)
     if research:
         try:
@@ -271,10 +288,11 @@ def create_public_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         try:
-            with connect_demo(settings):
-                pass
+            with open_reader() as connection:
+                if catalog_reader:
+                    catalog_reader(connection)
         except Exception:
-            raise DemoConfigurationError("Public demo database startup verification failed") from None
+            raise DemoConfigurationError("MacroPulse database startup verification failed") from None
         yield
 
     app = FastAPI(debug=False, docs_url=None, redoc_url=None, openapi_url=None,
@@ -294,7 +312,7 @@ def create_public_app() -> FastAPI:
         if not RESEARCH_SECONDS + 2 < remaining <= 65:
             return _error(403, "Forbidden")
         try:
-            params = parse_research(request.state.research_body)
+            params = research_parser(request.state.research_body)
             if settings.origin_secret in params.question or (db_password and db_password in params.question):
                 raise ValueError("Sensitive input")
         except ValueError:
@@ -305,7 +323,7 @@ def create_public_app() -> FastAPI:
             return _error(503, "Public Research is busy", 1)
         deadline = monotonic() + RESEARCH_SECONDS
         task = get_running_loop().run_in_executor(
-            None, run_public_research, settings, params, *research, deadline,
+            None, research_runner or run_public_research, settings, params, *research, deadline,
         )
         research_tasks.add(task)
 
@@ -386,7 +404,7 @@ def create_public_app() -> FastAPI:
             request.state.research_body = body
             return await call_next(request)
         if read_in_flight >= settings.concurrency:
-            return _error(503, "Public demo is busy", 1)
+            return _error(503, "MacroPulse is busy", 1)
         client_key = hmac.digest(settings.origin_secret.encode("ascii"), address.packed, "sha256")
         retry = quotas[operation].retry_after(client_key)
         if retry is not None:
@@ -395,7 +413,7 @@ def create_public_app() -> FastAPI:
         try:
             response = await call_next(request)
         except Exception:
-            return _error(503, "Public demo service unavailable")
+            return _error(503, "MacroPulse service unavailable" if connect else "Public demo service unavailable")
         finally:
             read_in_flight -= 1
         response.headers["Cache-Control"] = "no-store"
@@ -406,17 +424,18 @@ def create_public_app() -> FastAPI:
         return _error(422, "Invalid request parameters")
 
     @app.get(_MACRO_CATALOG_PATH)
-    def macro_catalog(response: Response) -> list[MacroIndicator]:
-        with connect_demo(settings):
+    def macro_catalog(response: Response):
+        with open_reader() as connection:
             if research is not None:
                 response.headers[RESEARCH_HEADER] = "true"
-            return [indicator_metadata(item) for item in CATALOG.values()]
+            return (catalog_reader(connection) if catalog_reader else
+                    [indicator_metadata(item) for item in CATALOG.values()])
 
     @app.get(f"{_MACRO_CATALOG_PATH}/{{indicator_id}}/history")
     def macro_history(indicator_id: str, window: Annotated[MacroWindow, Query()]) -> MacroHistory:
-        if (window.end - window.start).days >= MAX_WINDOW_DAYS:
+        if (window.end - window.start).days > max_window_days:
             raise HTTPException(status_code=422, detail="Invalid request parameters")
-        with connect_demo(settings) as connection:
-            return read_history(connection, CATALOG[indicator_id], window, max_points=MAX_WINDOW_DAYS)
+        with open_reader() as connection:
+            return history_reader(connection, CATALOG[indicator_id], window)
 
     return app

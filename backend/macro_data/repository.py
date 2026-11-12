@@ -214,7 +214,7 @@ def _insert_revisions_and_links(connection, indicator, capture, changed, links) 
 def read_observations(
     connection: psycopg.Connection, indicator_id: str, *, known_at: datetime | None = None,
     start: date | None = None, end: date | None = None, limit: int | None = None,
-    newest_first: bool = False,
+    newest_first: bool = False, schema: str = "macro_data",
 ) -> list[dict]:
     """Read promoted snapshot revisions captured by the cutoff.
 
@@ -230,14 +230,14 @@ def read_observations(
         return cursor.execute(sql.SQL("""
             SELECT DISTINCT ON (r.period_start, r.period_raw)
                    r.*, c.captured_at AS last_seen_at, original.captured_at AS first_seen_at
-            FROM macro_data.observation_revision AS r
-            JOIN macro_data.revision_capture AS rc USING (revision_id, indicator_id)
-            JOIN macro_data.capture AS c USING (capture_id, indicator_id)
-            JOIN macro_data.capture AS original ON original.capture_id = r.created_capture_id
+            FROM {schema}.observation_revision AS r
+            JOIN {schema}.revision_capture AS rc USING (revision_id, indicator_id)
+            JOIN {schema}.capture AS c USING (capture_id, indicator_id)
+            JOIN {schema}.capture AS original ON original.capture_id = r.created_capture_id
             WHERE r.indicator_id = %s AND r.provider_valid_from IS NULL
               AND (%s::timestamptz IS NULL OR c.captured_at <= %s)
               AND (%s::date IS NULL OR r.period_end >= %s)
               AND (%s::date IS NULL OR r.period_start <= %s)
-            ORDER BY r.period_start {}, r.period_raw, c.captured_at DESC, r.revision_id DESC
+            ORDER BY r.period_start {direction}, r.period_raw, c.captured_at DESC, r.revision_id DESC
             LIMIT %s
-        """).format(direction), (indicator_id, known_at, known_at, start, start, end, end, limit)).fetchall()
+        """).format(schema=sql.Identifier(schema), direction=direction), (indicator_id, known_at, known_at, start, start, end, end, limit)).fetchall()

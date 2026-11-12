@@ -44,6 +44,8 @@ class ResearchRuntime:
     interpret: Callable[[ResearchRequest], Intent]
     compose: Callable[[list[dict]], Draft]
     model_id: str
+    supplemental_retriever: Callable[..., list[tuple[CuratedEvidence, Claim]]] | None = None
+    capture_vintage: str = "DEMO"
 
 
 def configured_model() -> str:
@@ -183,6 +185,7 @@ def retrieve_curated_evidence(state: State) -> dict:
     limitations = state["limitations"].copy()
     event = state.get("event")
     fingerprint = None
+    runtime = state.get("runtime")
     missing_context = False
     if event:
         seen = set()
@@ -195,8 +198,12 @@ def retrieve_curated_evidence(state: State) -> dict:
             seen.add(key)
             try:
                 arguments = (state["request"].question, event, plan.indicator, plan.window, state["cutoff"])
-                results = (v2_retrieval.retrieve(*arguments, strategy="tfidf") if "runtime" in state
+                results = (v2_retrieval.retrieve(*arguments, strategy="tfidf") if runtime
                            else v2_retrieval.retrieve(*arguments))
+                if results:
+                    fingerprint = v2_retrieval.APPROVED_SNAPSHOT
+                if runtime and runtime.supplemental_retriever:
+                    results += runtime.supplemental_retriever(*arguments)
             except Exception:
                 if "runtime" in state:
                     raise
@@ -204,13 +211,14 @@ def retrieve_curated_evidence(state: State) -> dict:
                 limitations.append("Approved documentary retrieval was unavailable for a requirement.")
                 continue
             if results:
-                fingerprint = v2_retrieval.APPROVED_SNAPSHOT
                 for source, claim in results:
                     curated[source.id] = (source, claim)
             else:
                 missing_context = True
                 limitations.append(f"The approved corpus has no applicable documentary context for {CATALOG[plan.indicator].title}.")
-    return {"curated": list(curated.values()), "limitations": list(dict.fromkeys(limitations)),
+    # Four requirements can each contribute two official statements. Leave
+    # room for up to eight documentary statements in the bounded draft.
+    return {"curated": list(curated.values())[:8], "limitations": list(dict.fromkeys(limitations)),
             "corpus_sha256": fingerprint, "missing_context": missing_context}
 
 
@@ -225,8 +233,9 @@ def evaluate_support(state: State) -> dict:
     if state.get("event") == "generative-ai" and any(plan.indicator == "real-gdp-qoq" for plan in state["plans"]):
         limitations.append("The approved corpus has no direct evidence of a generative AI effect on euro-area GDP. EU adoption evidence is proxy context.")
     if official:
-        vintage = "DEMO" if "runtime" in state else "local"
-        limitations.append(f"Official observations use the {vintage} capture vintage. The period filter does not reconstruct the data available at the time.")
+        runtime = state.get("runtime")
+        vintage = runtime.capture_vintage if runtime else "local"
+        limitations.append(f"Official observations use the {vintage} capture vintage. Historical availability can differ because of later revisions.")
     if any(result.provisional for result in official):
         limitations.append("At least one cited observation is estimated or provisional.")
     if curated:

@@ -29,7 +29,7 @@ flowchart LR
     F --> D
 ```
 
-FastAPI and psycopg serve bounded historical reads. PostgreSQL stores observations and ingestion provenance. React, TypeScript and Vite deliver the charts and PWA shell. A Cloudflare Worker and a separate Render origin configuration provide the public demo boundary.
+FastAPI and psycopg serve bounded historical reads. PostgreSQL stores observations and ingestion provenance. React, TypeScript and Vite deliver the charts and PWA shell. A Cloudflare Worker and a separate Render origin configuration serve the public MacroPulse application.
 
 For the default local AI research flow, LangGraph routes a supported question to read-only statistical tools, retrieves source material, checks sufficiency and answers or abstains. The RAG index ranks eight reviewed ECB and Eurostat summaries with topic filtering, TF-IDF term vectors and cosine similarity. It filters out documents published after the selected end date. LangChain requests a structured selection of evidence IDs from Gemini. The server validates those IDs and assembles the response from deterministic statistics and attributed summaries. The original question stays local in this flow.
 
@@ -76,9 +76,9 @@ npm.cmd run build:public
 
 ## Security and deployment
 
-The public demo serves five official macro indicators from an isolated read-only DEMO projection. Research v2 is opt-in and requires Turnstile, a global SQLite reservation and the authenticated Render origin. The PWA caches its shell and excludes API responses. See the [deployment runbook](docs/public-deployment-runbook.md) for activation and rollback.
+The online application reads the five official macro indicators and their full available histories through read-only views over Supabase `macro_data`. Research v2 is opt-in and requires Turnstile, a global SQLite reservation and the authenticated Render origin. The PWA caches its shell and excludes API responses. See the [deployment runbook](docs/public-deployment-runbook.md) for activation and rollback.
 
-The repository contains the public build, Worker and Render configuration and a DEMO projection. Public macro deployment still requires an authorized, isolated Supabase DEMO load, verified attribution and role grants, and end-to-end checks of the deployed Worker and Render origin. Research activation requires the authorized Turnstile and Gemini configuration and the deployed acceptance checks.
+Publication requires applying the reader migration, provisioning the Render and Cloudflare configuration, and verifying the hosted endpoints. Research v2 uses the complete M7.B snapshot and reviewed institutional supplements. Activating it requires Turnstile and a dedicated Gemini key.
 
 ## Research limitations
 

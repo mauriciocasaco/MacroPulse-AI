@@ -40,7 +40,7 @@ export function App({
           <svg aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M4 18h6l4-8 5 13 4-7h5" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" /></svg>
           <span>MacroPulse <em>AI</em></span>
         </div>
-        <span className="local"><i aria-hidden="true" /> {publicDemo ? 'Public demo' : 'Local workspace'}</span>
+        <span className="local"><i aria-hidden="true" /> {publicDemo ? 'Online workspace' : 'Local workspace'}</span>
       </div>
     </header>
     <main className="shell" id="contenido">

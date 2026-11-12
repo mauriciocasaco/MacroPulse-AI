@@ -98,6 +98,24 @@ it('does not extend a BCE step over missing values or unverified intervals', () 
   expect(rateSegments(data)).toEqual([]);
 });
 
+it('loads the complete catalog coverage across bounded requests', async () => {
+  vi.setSystemTime(new Date('2026-07-01T00:00:00Z'));
+  const earliest = '2016-03-16';
+  const rows = [point(earliest, '1'), point('2026-06-30', '2'), point('2026-07-01', null)];
+  const fetch = vi.fn(async (request: string) => {
+    const url = new URL(request, 'https://macro.example');
+    const start = url.searchParams.get('start')!;
+    const end = url.searchParams.get('end')!;
+    return Response.json({ ...history(rows.filter((row) => row.period_end >= start && row.period_end <= end)),
+      start, end });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const loaded = await loadChartHistory('eur-usd', new AbortController().signal, earliest);
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(selectHistory(loaded, 'All').observations).toEqual(rows);
+  expect(selectHistory(loaded, '7Y').observations).toEqual([rows[1]]);
+});
+
 it('loads seven years through API-compatible windows without unbounded history', async () => {
   vi.setSystemTime(new Date('2026-07-01T00:00:00Z'));
   const fetch = vi.fn(async (request: string) => {

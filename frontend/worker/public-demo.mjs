@@ -9,7 +9,7 @@ export { ResearchQuota } from './research-quota.mjs';
 const maxResponse = 3 * 1024 * 1024;
 const macroHistory = /^\/api\/macro\/indicators\/(?:eur-usd|m3-stock|deposit-rate|real-gdp-qoq|hicp-yoy)\/history$/;
 const date = /^\d{4}-\d{2}-\d{2}$/;
-const maxMacroDays = 2600;
+const maxMacroDays = 3660;
 const dayMs = 86_400_000;
 const allowedStatuses = new Set([200, 400, 404, 405, 408, 413, 415, 422, 429, 503, 504]);
 
@@ -36,7 +36,7 @@ function macroWindow(query) {
   return Number.isFinite(first) && Number.isFinite(last)
     && new Date(first).toISOString().slice(0, 10) === start
     && new Date(last).toISOString().slice(0, 10) === end
-    && last >= first && last - first < maxMacroDays * dayMs;
+    && last >= first && last - first <= maxMacroDays * dayMs;
 }
 
 export default {
@@ -70,7 +70,7 @@ export default {
     const ip = request.headers.get('CF-Connecting-IP');
     const limiter = catalog ? env.CATALOG_RATE_LIMIT : env.HISTORY_RATE_LIMIT;
     if (!base || !ip || !/^[0-9a-fA-F:.]{1,45}$/.test(ip) || !limiter) {
-      return error(503, 'Public demo service unavailable');
+      return error(503, 'MacroPulse service unavailable');
     }
     let timeout;
     try {
@@ -93,17 +93,17 @@ export default {
       if (!allowedStatuses.has(status) || !/^application\/json(?:;|$)/i.test(headers.get('Content-Type') ?? '')
         || Number(headers.get('Content-Length')) > maxResponse) {
         void upstream.body?.cancel().catch(() => {});
-        return error(503, 'Public demo service unavailable');
+        return error(503, 'MacroPulse service unavailable');
       }
       if (status !== 200) {
         void upstream.body?.cancel().catch(() => {});
         const retry = headers.get('Retry-After');
         if (status === 429) return error(429, 'Rate limit exceeded',
           /^[1-9]\d?$/.test(retry ?? '') && Number(retry) <= 60 ? retry : 60);
-        return error(status, status === 503 ? 'Public demo service unavailable' : 'Invalid request');
+        return error(status, status === 503 ? 'MacroPulse service unavailable' : 'Invalid request');
       }
       const body = await boundedBody(upstream.body, maxResponse, timeout);
-      if (!body) return error(503, 'Public demo service unavailable');
+      if (!body) return error(503, 'MacroPulse service unavailable');
       const responseHeaders = new Headers({
         'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
       });
@@ -113,8 +113,8 @@ export default {
       }
       return new Response(body, { status, headers: responseHeaders });
     } catch (cause) {
-      if (timeout?.aborted || cause?.name === 'TimeoutError') return error(504, 'Public demo request timed out');
-      return error(503, 'Public demo service unavailable');
+      if (timeout?.aborted || cause?.name === 'TimeoutError') return error(504, 'MacroPulse request timed out');
+      return error(503, 'MacroPulse service unavailable');
     }
   },
 };

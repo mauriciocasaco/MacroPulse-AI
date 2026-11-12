@@ -1,7 +1,7 @@
 import { getMacroHistory, type MacroHistory, type MacroIndicator, type MacroObservation } from './macro-api';
 
 export const chartPeriods = ['1M', '3M', '6M', '1Y', '3Y', '7Y'] as const;
-export type ChartPeriod = typeof chartPeriods[number];
+export type ChartPeriod = typeof chartPeriods[number] | 'All';
 export const indicatorStyles: Record<string, { label: string; color: string }> = {
   'eur-usd': { label: 'EUR/USD rate', color: '#16A34A' },
   'm3-stock': { label: 'Eurozone M3', color: '#2563EB' },
@@ -42,21 +42,22 @@ export function subtractMonths(day: string, months: number) {
   return iso(date);
 }
 
-export async function loadChartHistory(id: string, signal: AbortSignal): Promise<ChartHistory> {
+export async function loadChartHistory(id: string, signal: AbortSignal, availableFrom?: string): Promise<ChartHistory> {
   const chunks: MacroHistory[] = [];
   let end = iso(new Date());
-  while (end >= historyFloor) {
-    const start = iso(new Date(Math.max(Date.parse(historyFloor), Date.parse(end) - historyChunkDays * dayMs)));
+  const floor = availableFrom ?? historyFloor;
+  do {
+    const start = iso(new Date(Math.min(Date.parse(end), Math.max(Date.parse(floor), Date.parse(end) - historyChunkDays * dayMs))));
     const chunk = await getMacroHistory(id, start, end, signal);
     signal.throwIfAborted();
     chunks.unshift(chunk);
-    // A recent response contains every finite preset. Search older chunks
-    // when a series has no recent numeric data, even for a short preset.
+    // Local catalogs omit the coverage start. Search back until every preset
+    // can be served, even if a series has no recent numeric data.
     const latest = chunks.flatMap((item) => item.observations).filter(numeric)
       .map(pointDay).sort().at(-1) ?? chunks.flatMap((item) => item.anchor && numeric(item.anchor) ? [pointDay(item.anchor)] : []).sort().at(-1);
-    if (latest && start <= subtractMonths(latest, 84)) break;
+    if (!availableFrom && latest && start <= subtractMonths(latest, 84)) break;
     end = iso(new Date(Date.parse(start) - dayMs));
-  }
+  } while (end >= floor);
   const first = chunks[0];
   const last = chunks[chunks.length - 1];
   // Monthly/quarterly rows can intersect both sides of a chunk boundary.
@@ -73,11 +74,12 @@ export function selectHistory(history: ChartHistory, period: ChartPeriod): Chart
   const readings = history.observations.filter(numeric);
   const latest = readings.at(-1) ?? (history.anchor && numeric(history.anchor) ? history.anchor : undefined);
   // An effective rate remains a reading through its verified coverage boundary.
-  const latestReading = latest ? pointDay(latest) : history.end;
+  const lastObservation = period === 'All' ? history.observations.at(-1) ?? latest : latest;
+  const latestReading = lastObservation ? pointDay(lastObservation) : history.end;
   const verifiedEnd = history.chunks.flatMap((chunk) => chunk.coverage_end ? [chunk.coverage_end] : []).sort().at(-1);
   const end = history.indicator.frequency === 'effective_date' && verifiedEnd
     ? [latestReading, verifiedEnd].sort().at(-1)! : latestReading;
-  const start = subtractMonths(end, { '1M': 1, '3M': 3, '6M': 6, '1Y': 12, '3Y': 36, '7Y': 84 }[period]);
+  const start = period === 'All' ? history.start : subtractMonths(end, { '1M': 1, '3M': 3, '6M': 6, '1Y': 12, '3Y': 36, '7Y': 84 }[period]);
   const observations = history.observations.filter((row) => pointDay(row) >= start && pointDay(row) <= end);
   const prior = [history.anchor, ...history.observations].filter((row): row is MacroObservation => row !== null && pointDay(row) < start).at(-1);
   return { ...history, start, end, observations,
