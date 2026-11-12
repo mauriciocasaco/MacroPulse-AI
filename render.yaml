@@ -1,27 +1,25 @@
 services:
   - type: web
-    name: macropulse-public-demo
+    name: macropulse-online
     runtime: python
-    plan: free
+    plan: starter
     autoDeployTrigger: 'off'
     buildCommand: pip install -r backend/requirements-public-research.txt
-    startCommand: python -m uvicorn backend.public_demo:create_public_app --factory --host 0.0.0.0 --port ${PORT} --workers 1 --no-proxy-headers --no-access-log
+    startCommand: python -m uvicorn backend.public_online:create_online_app --factory --host 0.0.0.0 --port ${PORT} --workers 1 --no-proxy-headers --no-access-log
     envVars:
+      - key: PYTHON_VERSION
+        value: '3.12.16'
       - key: MARKETPULSE_MODE
-        value: public_demo
+        value: public_online
       - key: MARKETPULSE_DEMO_ANALYSIS_ENABLED
         value: 'false'
       - key: MARKETPULSE_DEMO_RESEARCH_ENABLED
         value: 'false'
       - key: MARKETPULSE_DEMO_GEMINI_MODEL
         value: gemini-3.6-flash
-      - key: MARKETPULSE_DEMO_PROJECT_REF
-        value: swpithkjviavycrxpwed
-      - key: MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT
-        value: 'true'
-      - key: MARKETPULSE_DEMO_DSN
+      - key: MACROPULSE_ONLINE_DSN
         sync: false
-      - key: MARKETPULSE_DEMO_SSL_ROOT_CERT
-        value: /etc/secrets/macropulse-demo-ca.pem
+      - key: MACROPULSE_ONLINE_SSL_ROOT_CERT
+        value: /etc/secrets/macropulse-online-ca.pem
       - key: MARKETPULSE_DEMO_ORIGIN_SECRET
         sync: false
