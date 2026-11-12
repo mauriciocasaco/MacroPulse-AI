@@ -22,6 +22,7 @@ from .ranking import SemanticRanker
 class Judgment(Case):
     expected_sufficiency: Sufficiency
     required_claim_groups: list[list[ID]] = Field(default_factory=list)
+    grounding_relevant_claims: list[ID] | None = None
 
 
 def _case_result(case, gate, *, gated: bool, repeats: int) -> dict:
@@ -49,7 +50,9 @@ def _summary(rows: list[dict], method: str) -> dict:
     claims = sum(len(run["claim_ids"]) for _, run in items)
     relevant = sum(len(set(run["claim_ids"]) & set(row["relevant_claims"])) for row, run in items)
     grounding_claims = sum(len(run["grounding_claim_ids"] or ()) for _, run in items)
-    relevant_grounding = sum(len(set(run["grounding_claim_ids"] or ()) & set(row["relevant_claims"])) for row, run in items)
+    relevant_grounding = sum(
+        len(set(run["grounding_claim_ids"] or ()) & set(row["grounding_relevant_claims"])) for row, run in items
+    )
     no_answer = [(row, run) for row, run in items if row["expected_sufficiency"] != "sufficient"]
     no_claims = [run for row, run in items if not row["relevant_claims"]]
     complete = [(row, run) for row, run in items if row["expected_sufficiency"] == "sufficient"]
@@ -61,6 +64,8 @@ def _summary(rows: list[dict], method: str) -> dict:
         "claim_hit_at_1": hit_rate(claim_rankings, 1), "claim_hit_at_3": hit_rate(claim_rankings, 3),
         "document_hit_at_1": hit_rate(doc_rankings, 1), "document_hit_at_3": hit_rate(doc_rankings, 3),
         "claims_returned": claims, "claims_relevant": relevant, "claim_precision": relevant / claims if claims else None,
+        "grounding_claims_returned": grounding_claims if gated else None,
+        "grounding_claims_relevant": relevant_grounding if gated else None,
         "grounding_claim_precision": relevant_grounding / grounding_claims if grounding_claims else None,
         "cases_without_relevant_claims": len(no_claims),
         "cases_without_relevant_claims_with_hits": sum(bool(run["claim_ids"]) for run in no_claims),
@@ -73,6 +78,10 @@ def _summary(rows: list[dict], method: str) -> dict:
         "multi_claim_cases_with_all_groups": sum(
             all(set(group) & set(run["claim_ids"]) for group in row["required_claim_groups"]) for row, run in multiple
         ),
+        "multi_claim_cases_grounded_all_groups": sum(
+            all(set(group) & set(run["grounding_claim_ids"]) for group in row["required_claim_groups"])
+            for row, run in multiple
+        ) if gated else None,
         "latency_ms": {
             "median": median(latencies),
             "p95": quantiles(latencies, n=20, method="inclusive")[-1] if len(latencies) > 1 else latencies[0],
@@ -105,7 +114,13 @@ def evaluate(corpus: Path, dataset: Path, kind: str, *, model: LocalE5 | None, r
         groups = case.required_claim_groups if isinstance(case, Judgment) else (
             [[key] for key in case.relevant_claims] if len(case.relevant_claims) > 1 else []
         )
-        if any(not group or not set(group) <= set(case.relevant_claims) for group in groups):
+        allows_grounding = status in {"sufficient", "partial"}
+        grounding_relevant = case.relevant_claims if allows_grounding else []
+        if isinstance(case, Judgment) and case.grounding_relevant_claims is not None:
+            grounding_relevant = case.grounding_relevant_claims
+        if not set(grounding_relevant) <= set(case.relevant_claims) or (not allows_grounding and grounding_relevant):
+            raise ValueError(f"Invalid grounding judgments: {case.id}")
+        if any(not group or not set(group) <= set(grounding_relevant) for group in groups):
             raise ValueError(f"Invalid required claim groups: {case.id}")
         runs = {
             f"{'gate' if gated else 'rank'}_{name}": _case_result(case, gate, gated=gated, repeats=repeats)
@@ -114,6 +129,7 @@ def evaluate(corpus: Path, dataset: Path, kind: str, *, model: LocalE5 | None, r
         rows.append({
             "id": case.id, "indicator": case.indicator, "event": case.event, "expected_sufficiency": status,
             "relevant_claims": case.relevant_claims, "relevant_documents": case.relevant_documents,
+            "grounding_relevant_claims": grounding_relevant,
             "required_claim_groups": groups, "runs": runs,
         })
 

@@ -10,7 +10,7 @@ from backend.m7c.corpus import Geography, Scope
 from backend.macro_data.contracts import CATALOG
 from scripts.m7b_schema import ClaimType, Day, Event, ID, Indicator, Institution, Relation, Strict, Text, URL
 
-from .predicates import Measure
+from .predicates import Measure, Requirement
 
 Sufficiency = Literal["sufficient", "partial", "insufficient", "unsupported_causal"]
 Use = Literal["supports_requested_fact", "context_only"]
@@ -52,6 +52,52 @@ class SelectedClaim(Frozen):
     relation: Relation
     use: Use
     covered_measures: tuple[Measure, ...]
+    covered_requirements: tuple[int, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_use(self):
+        if self.use == "context_only" and self.covered_requirements:
+            raise ValueError("Context cannot authorize a requirement")
+        return self
+
+
+class DerivedRateAverage(Frozen):
+    """Time-weighted average of completed inclusive daily rate intervals."""
+
+    method: Literal["calendar_day_weighted_mean"] = "calendar_day_weighted_mean"
+    unit: Literal["percent"] = "percent"
+    start: Day
+    end: Day
+    value: Decimal
+    weighted_sum: Decimal
+    days: int = Field(gt=0)
+    observations: tuple[SelectedClaim, ...]
+
+
+class RateObservation(Frozen):
+    reference_month: Day
+    value_percent: Decimal
+    source: SelectedClaim
+
+
+class DerivedRateComparison(Frozen):
+    operation: Literal["rate_difference", "percentage_point_difference", "percentage_change"]
+    unit: Literal["percentage_points", "percent"]
+    value: Decimal
+    base: RateObservation
+    target: RateObservation
+    absolute: bool = False
+
+
+class RequirementCoverage(Frozen):
+    index: int = Field(ge=0)
+    requirement: Requirement | None
+    unmatched_text: str | None = None
+    status: Literal["supported", "uncovered", "ambiguous"]
+    claim_ids: tuple[ID, ...] = ()
+    official_movement: bool = False
+    derived_rate_average: DerivedRateAverage | None = None
+    derived_rate_comparison: DerivedRateComparison | None = None
 
 
 class OfficialMovement(Frozen):
@@ -98,6 +144,7 @@ class EvidenceAssessment(Frozen):
     limitations: tuple[Limitation, ...]
     selected_claims: tuple[SelectedClaim, ...]
     official_movement: OfficialMovement | None
+    requirement_coverage: tuple[RequirementCoverage, ...] = ()
 
     @property
     def grounding_claims(self) -> tuple[SelectedClaim, ...]:

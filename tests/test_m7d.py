@@ -1,11 +1,13 @@
 """Experimental gate regressions using public approved data and synthetic inputs."""
+from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
 import shutil
 
 from pydantic import ValidationError
 import pytest
 
-from backend.m7c.corpus import Scope
+from backend.m7c.corpus import Corpus, Scope
 from backend.m7c.retrieval import Ranked
 from backend.m7d import EvidenceGate, Intent, OfficialMovement, Requirement, Times
 from backend.m7d.evaluate import evaluate
@@ -114,12 +116,17 @@ def test_adoption_requires_matching_population_unit_technology_and_modality(gate
 
 def test_coordinated_technologies_require_distinct_coverage(gate):
     ai = scope(event="genai", indicator="real-gdp-qoq", geography="eu", cutoff="2025-12-31")
-    partial = gate.assess("What fraction of EU firms used automated workflows and speech recognition in 2023?", ai)
+    missing = gate.assess("What fraction of EU firms used automated workflows and speech recognition in 2023?", ai)
+    assert missing.status == "insufficient"
+    assert not missing.grounding_claims
+    partial = gate.assess(
+        "What fraction of EU firms used natural language generation and speech recognition in 2024, respectively?", ai,
+    )
     assert partial.status == "partial"
-    assert [claim.covered_measures for claim in partial.grounding_claims] == [("ai_automation",)]
-    joint = gate.assess("What share of EU firms used AI and automated workflows in 2023?", ai)
-    assert joint.status == "partial"
-    assert {claim.covered_measures for claim in joint.grounding_claims} == {("ai_enterprise",), ("ai_automation",)}
+    assert [claim.covered_measures for claim in partial.grounding_claims] == [("ai_language",)]
+    joint = gate.assess("What share of EU firms used AI and natural language generation in 2024?", ai)
+    assert joint.status == "insufficient"
+    assert not joint.grounding_claims
 
 
 @pytest.mark.parametrize("question", [
@@ -303,3 +310,388 @@ def test_frozen_m7c_benchmark_meets_claim_recall_and_intent_abstention():
     assert summary["false_answers"] == 0
     assert summary["cases_without_relevant_claims_with_hits"] == 0
     assert summary["multi_claim_cases_with_all_groups"] == 1
+
+
+@pytest.mark.parametrize("question", [
+    "What was the annual HICP inflation rate at constant taxes in April 2020?",
+    "¿Cuál fue en abril de 2020 la tasa interanual del IPCA a impuestos constantes?",
+    "Report the April 2020 annual HICP excluding changes in taxes.",
+    "What was the change in the annual HICP rate in April 2020?",
+    "What was the month-over-month HICP rate in April 2020?",
+    "What was the quarter-over-quarter HICP rate in April 2020?",
+])
+def test_headline_hicp_cannot_ground_another_variant_or_statistic(gate, question):
+    answer = gate.assess(question, scope())
+    assert answer.status == "insufficient"
+    assert not answer.grounding_claims
+
+
+def test_mixed_hicp_request_authorizes_only_the_headline_requirement(gate):
+    result = gate.assess(
+        "What was headline HICP in April 2020 and what was HICP at constant taxes?", scope(),
+    )
+    assert result.status == "partial"
+    headline, constant_tax = result.requirement_coverage
+    assert headline.requirement.variant == "headline" and headline.status == "supported"
+    assert constant_tax.requirement.variant == "constant_tax" and constant_tax.status == "uncovered"
+    assert len(result.grounding_claims) == 1
+    assert result.grounding_claims[0].covered_requirements == (headline.index,)
+    assert not constant_tax.claim_ids
+
+
+def test_mixed_hicp_frequencies_do_not_share_grounding(gate):
+    result = gate.assess(
+        "Give the headline annual HICP for April 2020 and the monthly HICP for April 2020.", scope(),
+    )
+    assert result.status == "partial"
+    headline, monthly = result.requirement_coverage
+    assert headline.status == "supported"
+    assert monthly.status == "uncovered" and "monthly" in monthly.unmatched_text
+    assert result.grounding_claims[0].covered_requirements == (headline.index,)
+
+
+@pytest.mark.parametrize("question", [
+    "How much did HICP increase versus the preceding month in April 2020?",
+    "¿Cuánto aumentó el IPCA respecto del mes previo en abril de 2020?",
+    "By how many points did the April 2020 annual HICP inflation rate exceed its March level?",
+    "What was the gap in annual HICP in April 2020?",
+    "What was the change in euro area HICP in April 2020?",
+    "How much did HICP go up in April 2020?",
+])
+def test_hicp_comparison_cannot_use_a_level_as_the_difference(gate, question):
+    result = gate.assess(question, scope())
+    assert result.status == "insufficient"
+    assert not result.grounding_claims
+
+
+def test_explicit_constant_tax_evidence_covers_only_its_variant(monkeypatch):
+    corpus = Corpus.load(M7B)
+    claim = next(row for row in corpus.claims.values() if row.text.startswith("Euro area HICP inflation was 0.3%"))
+    corpus.claims[claim.id] = claim.model_copy(update={
+        "text": "Euro area HICP inflation at constant taxes was 0.2% year on year in April 2020.",
+        "qualifiers": "Synthetic constant-tax observation.",
+    })
+    monkeypatch.setattr(Corpus, "load", lambda _: corpus)
+    synthetic = EvidenceGate(M7B)
+    assert synthetic.assess("What was annual HICP at constant taxes in April 2020?", scope()).status == "sufficient"
+    assert synthetic.assess("What was headline HICP in April 2020?", scope()).status == "insufficient"
+
+
+@pytest.mark.parametrize("question", [
+    "What was the September 2022 average ECB deposit facility rate?",
+    "¿A cuánto ascendió en promedio la tasa de la facilidad de depósito en septiembre de 2022?",
+    "What was the maximum ECB deposit facility rate in September 2022?",
+    "What nominal deposit facility rate was actually in effect on 10 September 2022?",
+    "What was the ECB deposit facility rate in force during its decision on 8 September 2022?",
+    "What deposit facility rate did the ECB announce on 8 September 2022 that was in force that same day?",
+    "What was the ECB's deposit facility rate net of taxes at its September 2022 meeting?",
+    "¿Qué tasa de depósito neta de impuestos anunció el BCE en septiembre de 2022?",
+])
+def test_policy_decision_cannot_ground_a_statistic_or_after_tax_rate(gate, question):
+    policy = scope(event="ukraine", indicator="deposit-rate", cutoff="2022-09-10")
+    result = gate.assess(question, policy)
+    assert result.status == "insufficient"
+    assert not result.grounding_claims
+
+
+def test_policy_announcement_publication_and_effective_date_are_distinct(gate):
+    policy = scope(event="ukraine", indicator="deposit-rate", cutoff="2022-09-08")
+    question = "What deposit facility rate did the ECB announce on 8 September 2022, effective 14 September 2022?"
+    assert gate.assess(question, policy).status == "sufficient"
+    assert gate.assess(question, scope(event="ukraine", indicator="deposit-rate", cutoff="2022-09-07")).status == "insufficient"
+    later = scope(event="ukraine", indicator="deposit-rate", cutoff="2022-09-14")
+    assert gate.assess("What was the actual deposit facility rate on 14 September 2022?", later).status == "insufficient"
+
+
+@pytest.mark.parametrize("question", [
+    "What share of EU firms that export used AI in 2024, and what was their turnover?",
+    "¿Qué proporción de las empresas exportadoras de la UE usó IA en 2024?",
+    "What proportion of large EU businesses adopted AI in 2024?",
+    "¿Cuántas de cada cien pymes de la UE usaron IA en 2024?",
+    "For recruitment, what percentage of EU businesses used AI in 2024?",
+    "For recruitment in 2024 what percentage of EU businesses used AI?",
+    "What share of EU households used generative AI for work in 2025?",
+    "What percentage of employed EU residents used generative AI for work in 2025?",
+    "What percentage of female EU residents used generative AI for work in 2025?",
+    "What percentage of retired people used generative AI for work in 2025?",
+    "What percentage of EU adults used generative AI for work in 2025?",
+    "¿Qué porcentaje de los adultos de la UE usó IA generativa con fines de trabajo en 2025?",
+    "What share of EU firms used all AI technologies in 2024?",
+    "What share of EU residents used generative AI for both work and formal education in 2025?",
+    "What proportion of EU people used generative AI for work or formal education in 2025?",
+    "¿Qué porcentaje de personas de la UE usó IA generativa para trabajo y educación formal en 2025?",
+])
+def test_adoption_subgroups_and_purposes_do_not_inherit_aggregate_grounding(gate, question):
+    ai = scope(event="genai", indicator="real-gdp-qoq", geography="eu", cutoff="2025-12-31")
+    result = gate.assess(question, ai)
+    assert result.status == "insufficient"
+    assert not result.grounding_claims
+    assert all(not claim.covered_requirements for claim in result.selected_claims)
+
+
+def test_separate_purposes_can_use_the_same_claim_without_grounding_joint_usage(gate):
+    ai = scope(event="genai", indicator="real-gdp-qoq", geography="eu", cutoff="2025-12-31")
+    result = gate.assess(
+        "What shares of EU residents used generative AI for work and formal education in 2025, respectively?", ai,
+    )
+    assert result.status == "sufficient"
+    assert {row.requirement.purpose for row in result.requirement_coverage} == {"work", "formal_education"}
+    assert len(result.grounding_claims) == 1
+    assert result.grounding_claims[0].covered_requirements == (0, 1)
+
+
+def test_rate_average_requires_complete_published_coverage(monkeypatch):
+    # Exercise the calculation with in-memory observations at the corpus boundary.
+    corpus = Corpus.load(M7B)
+    template = next(claim for claim in corpus.claims.values() if claim.text.startswith("On 8 September 2022"))
+    document = corpus.documents[template.document_id]
+    observations = [
+        ("1" * 64, "2022-09-01", "2022-09-10", "2022-09-10", "0.25"),
+        ("2" * 64, "2022-09-11", "2022-09-30", "2022-10-01", "1.00"),
+    ]
+    claims = {}
+    documents = {}
+    for index, (key, start, end, published, value) in enumerate(observations):
+        document_id = str(index + 3) * 64
+        claims[key] = template.model_copy(update={
+            "id": key, "document_id": document_id,
+            "text": f"The ECB deposit facility rate was {value}% from {start} through {end}.",
+            "historical_period": template.historical_period.model_copy(update={"start": start, "end": end}),
+            "publication_date": published,
+        })
+        documents[document_id] = document.model_copy(update={
+            "id": document_id, "publication_date": published, "claim_ids": [key],
+        })
+    fixture = replace(corpus, claims=claims, documents=documents, groups={
+        ("ukraine", "deposit-rate", "euro-area"): tuple(documents),
+    })
+    monkeypatch.setattr(Corpus, "load", lambda _: fixture)
+    synthetic = EvidenceGate(M7B)
+    question = "What was the mean ECB deposit facility rate for September 2022?"
+    policy = scope(event="ukraine", indicator="deposit-rate", cutoff="2022-10-01")
+    result = synthetic.assess(question, policy)
+    assert result.status == "sufficient"
+    assert not result.grounding_claims
+    average = result.requirement_coverage[0].derived_rate_average
+    assert average.value == Decimal("0.75")
+    assert average.weighted_sum == Decimal("22.50") and average.days == 30
+    assert {claim.claim_id for claim in average.observations} == set(claims)
+    assert all(claim.use == "context_only" and not claim.covered_requirements for claim in average.observations)
+    assert synthetic.assess(question, scope(event="ukraine", indicator="deposit-rate", cutoff="2022-09-30")).status == "insufficient"
+    assert synthetic.assess(question.replace("mean", "volume-weighted mean"), policy).status == "insufficient"
+    assert synthetic.assess(question.replace("mean", "unweighted mean"), policy).status == "insufficient"
+    assert synthetic.assess(
+        "What was the arithmetic mean of the two published ECB deposit facility rate observations for September 2022?", policy,
+    ).status == "insufficient"
+    assert synthetic.assess(
+        "What was the average of the opening and closing ECB deposit facility rates for September 2022?", policy,
+    ).status == "insufficient"
+    fixture.groups[("ukraine", "deposit-rate", "euro-area")] = ("4" * 64,)
+    assert EvidenceGate(M7B).assess(question, policy).status == "insufficient"
+    second = claims[observations[1][0]]
+    claims[second.id] = second.model_copy(update={
+        "text": "The ECB deposit facility rate averaged 0.75% from 2022-09-01 through 2022-09-30 on a calendar-day-weighted basis.",
+        "historical_period": second.historical_period.model_copy(update={"start": "2022-09-01"}),
+    })
+    published = EvidenceGate(M7B).assess(question, policy)
+    assert published.status == "sufficient"
+    assert published.grounding_claims[0].claim_id == second.id
+    assert published.requirement_coverage[0].derived_rate_average is None
+
+
+@pytest.mark.parametrize("question", [
+    "What was raw euro area quarterly real GDP growth in Q1 2020 prior to seasonal adjustment?",
+    "In Q1 2020, what was the euro area real GDP growth rate before it was seasonally adjusted?",
+    "What was the not seasonally adjusted real GDP growth rate in Q1 2020?",
+    "¿Qué crecimiento registró el PIB real en el primer trimestre de 2020 antes del ajuste estacional?",
+    "¿Cuánto creció el PIB real trimestral sin desestacionalizar en 2020 T1?",
+    "¿Cuánto cayó el PIB real trimestral de la zona euro en 2020 T1 antes de desestacionalizar la serie?",
+    "Give euro area Q1 2020 quarterly real GDP growth before correcting for seasonality.",
+    "En el primer trimestre de 2020, ¿cuál fue la variación trimestral del PIB real de la zona euro antes de corregir el efecto estacional?",
+])
+def test_raw_gdp_requires_unadjusted_evidence(gate, question):
+    result = gate.assess(question, scope(indicator="real-gdp-qoq", cutoff="2020-05-15"))
+    assert result.status == "insufficient"
+    assert not result.grounding_claims
+    assert result.requirement_coverage[0].requirement.adjustment == "unadjusted"
+
+
+@pytest.mark.parametrize(("qualifier", "expected"), [
+    ("seasonally adjusted", "sufficient"), ("calendar adjusted", "insufficient"),
+    ("", "sufficient"), ("raw and seasonally adjusted", "insufficient"),
+])
+def test_gdp_adjustment_keeps_positive_unspecified_and_conflicting_requests_distinct(gate, qualifier, expected):
+    question = f"What was the euro area real GDP growth rate in Q1 2020 ({qualifier})?"
+    result = gate.assess(question, scope(indicator="real-gdp-qoq", cutoff="2020-05-15"))
+    assert result.status == expected
+    if not qualifier:
+        assert result.requirement_coverage[0].requirement.adjustment is None
+
+
+@pytest.mark.parametrize(("question", "operation", "unit"), [
+    ("How much higher was the October 2022 headline annual HICP rate than in the previous month?",
+     "rate_difference", "percentage_points"),
+    ("¿En cuántos puntos porcentuales fue mayor la tasa interanual del IPCA de octubre de 2022 que la del mes anterior?",
+     "percentage_point_difference", "percentage_points"),
+    ("By what percentage was the October 2022 annual HICP rate higher than the September 2022 rate?",
+     "percentage_change", "percent"),
+    ("What was the relative change in annual HICP inflation from September 2022 to October 2022?",
+     "percentage_change", "percent"),
+])
+def test_rate_comparison_grounding_is_the_calculation_with_two_dated_values(gate, question, operation, unit):
+    hicp = scope(event="ukraine", cutoff="2022-11-17")
+    result = gate.assess(question, hicp)
+    assert result.status == "sufficient"
+    assert not result.grounding_claims
+    row, = result.requirement_coverage
+    comparison = row.derived_rate_comparison
+    assert row.requirement.operation == comparison.operation == operation
+    assert comparison.unit == unit
+    if unit == "percentage_points":
+        assert comparison.value == Decimal("0.7")
+    else:
+        assert comparison.value.quantize(Decimal("0.000001")) == Decimal("7.070707")
+    assert (comparison.base.reference_month, comparison.base.value_percent) == ("2022-09-01", Decimal("9.9"))
+    assert (comparison.target.reference_month, comparison.target.value_percent) == ("2022-10-01", Decimal("10.6"))
+    assert all(item.source.use == "context_only" for item in (comparison.base, comparison.target))
+    assert gate.assess(question, scope(event="ukraine", cutoff="2022-11-16")).status == "insufficient"
+
+
+def test_difference_of_averages_does_not_use_observed_rate_levels(gate):
+    result = gate.assess(
+        "What was the difference between the average annual HICP rates in September 2022 and October 2022?",
+        scope(event="ukraine", cutoff="2022-11-17"),
+    )
+    assert result.status == "insufficient"
+    assert not result.grounding_claims
+    assert all(row.derived_rate_comparison is None for row in result.requirement_coverage)
+
+
+@pytest.mark.parametrize(("adjustments", "geographies", "cutoff", "expected"), [
+    (("Seasonally adjusted", "Seasonally adjusted"), ("euro area", "euro area"), "2022-12-01", "sufficient"),
+    (("Seasonally adjusted", "Unadjusted"), ("euro area", "euro area"), "2022-12-01", "insufficient"),
+    (("Unadjusted", "Unadjusted"), ("euro area", "euro area"), "2022-12-01", "sufficient"),
+    (("Release vintage", "Release vintage"), ("euro area", "euro area"), "2022-12-01", "insufficient"),
+    (("Seasonally adjusted", "Seasonally adjusted"), ("euro area", "euro area (EA19)"), "2022-12-01", "insufficient"),
+    (("Seasonally adjusted", "Seasonally adjusted"), ("euro area", "euro area"), "2022-11-16", "insufficient"),
+])
+def test_separate_rate_observations_must_be_comparable_and_available(monkeypatch, adjustments, geographies, cutoff, expected):
+    corpus = Corpus.load(M7B)
+    claim = next(row for row in corpus.claims.values() if row.text.startswith("Euro area annual HICP inflation reached 10.6%"))
+    document = corpus.documents[claim.document_id]
+    observations = (
+        ("September", "2022-09-01", "2022-09-30", "2022-10-17", "9.9"),
+        ("October", "2022-10-01", "2022-10-31", "2022-11-17", "10.6"),
+    )
+    claims, documents = {}, {}
+    for index, (month, start, end, published, value) in enumerate(observations):
+        key, document_id = str(index + 1) * 64, str(index + 3) * 64
+        claims[key] = claim.model_copy(update={
+            "id": key, "document_id": document_id, "publication_date": published,
+            "text": f"Euro area annual HICP inflation was {value}% in {month} 2022.",
+            "historical_period": claim.historical_period.model_copy(update={"start": start, "end": end}),
+            "qualifiers": adjustments[index], "geography": geographies[index],
+        })
+        documents[document_id] = document.model_copy(update={
+            "id": document_id, "claim_ids": [key], "publication_date": published, "geography": geographies[index],
+        })
+    fixture = replace(corpus, claims=claims, documents=documents, groups={
+        ("ukraine", "hicp-yoy", "euro-area"): tuple(documents),
+    })
+    monkeypatch.setattr(Corpus, "load", lambda _: fixture)
+    gate = EvidenceGate(M7B)
+    question = "What was the percentage-point difference in annual HICP from September 2022 to October 2022?"
+    result = gate.assess(question, scope(event="ukraine", cutoff=cutoff))
+    assert result.status == expected
+    assert not result.grounding_claims
+    if expected == "sufficient":
+        assert result.requirement_coverage[0].derived_rate_comparison.value == Decimal("0.7")
+
+
+def test_hicp_ellipsis_preserves_measure_units_and_incomplete_coverage(gate):
+    hicp = scope(event="ukraine", cutoff="2022-11-17")
+    question = (
+        "En puntos porcentuales, ¿cuánto aportó la energía al IPCA de octubre de 2022 "
+        "y cuál fue la tasa interanual general en porcentaje?"
+    )
+    result = gate.assess(question, hicp)
+    assert result.status == "sufficient"
+    assert [row.requirement.measure for row in result.requirement_coverage] == ["hicp_energy", "hicp_annual"]
+    assert [row.requirement.unit for row in result.requirement_coverage] == ["percentage_points", "percent"]
+    assert gate.assess(
+        "For October 2022, give the services and energy contributions to euro-area annual HICP inflation.",
+        scope(event="ukraine", cutoff="2022-11-17"),
+    ).status == "partial"
+    assert [claim.covered_requirements for claim in result.grounding_claims] == [(0,), (1,)]
+    partial = gate.assess(question.replace("en porcentaje?", "en puntos del índice?"), hicp)
+    assert partial.status == "partial"
+    assert [claim.covered_requirements for claim in partial.grounding_claims] == [(0,)]
+
+
+@pytest.mark.parametrize("question", [
+    "How many times as high was the annual HICP rate in October 2022 as in September 2022?",
+    "¿Cuántas veces fue mayor la tasa interanual del IPCA de octubre de 2022 que la del mes anterior?",
+    "By what factor was the annual HICP inflation rate in October 2022 above its September 2022 level?",
+])
+def test_rate_ratio_cannot_use_a_level_or_an_additive_difference(gate, question):
+    result = gate.assess(question, scope(event="ukraine", cutoff="2022-11-17"))
+    assert result.status == "insufficient"
+    assert not result.grounding_claims
+    assert result.requirement_coverage[0].requirement.operation == "rate_ratio"
+
+
+@pytest.mark.parametrize("question", [
+    "For October 2022, what was the euro area's annual HICP rate, and by how much did it exceed September's?",
+    "¿Cuál fue la tasa interanual del IPCA de octubre de 2022 y en cuánto superó la de septiembre?",
+    "Give the annual HICP rate for October 2022 and its change from the previous month.",
+    "For October 2022, what was the annual HICP rate and by what margin did it exceed September’s?",
+])
+def test_level_and_elliptical_comparison_are_independent_requirements(gate, question):
+    result = gate.assess(question, scope(event="ukraine", cutoff="2022-11-17"))
+    assert result.status == "sufficient"
+    level, difference = result.requirement_coverage
+    assert level.requirement.operation == "observed_level"
+    assert difference.derived_rate_comparison.value == Decimal("0.7")
+    assert len(result.grounding_claims) == 1
+    assert result.grounding_claims[0].covered_requirements == (level.index,)
+
+
+def test_prenominal_energy_contribution_keeps_its_own_unit(gate):
+    result = gate.assess(
+        "For October 2022, give the energy contribution to euro-area annual HICP inflation "
+        "in percentage points and the headline rate in percent.",
+        scope(event="ukraine", cutoff="2022-11-17"),
+    )
+    assert result.status == "sufficient"
+    assert [row.requirement.measure for row in result.requirement_coverage] == ["hicp_energy", "hicp_annual"]
+    assert [row.requirement.unit for row in result.requirement_coverage] == ["percentage_points", "percent"]
+
+
+def test_absolute_difference_is_distinct_from_signed_difference(gate):
+    hicp = scope(event="ukraine", cutoff="2022-11-17")
+    question = "What was the absolute difference in percentage points between October 2022 and September 2022 annual HICP rates?"
+    absolute = gate.assess(question, hicp).requirement_coverage[0]
+    signed = gate.assess(question.replace("absolute difference", "signed difference"), hicp).requirement_coverage[0]
+    assert absolute.requirement.comparison.absolute
+    assert absolute.derived_rate_comparison.value == Decimal("0.7")
+    assert not signed.requirement.comparison.absolute
+    assert signed.derived_rate_comparison.value == Decimal("-0.7")
+
+
+@pytest.mark.parametrize(("publication", "expected"), [(16, "insufficient"), (17, "sufficient")])
+def test_comparison_ellipsis_preserves_requested_vintage(gate, publication, expected):
+    question = (
+        f"Based on the {publication} November 2022 release, what was annual HICP inflation in October 2022 "
+        "and by how much did it exceed September’s?"
+    )
+    result = gate.assess(question, scope(event="ukraine", cutoff="2022-11-17"))
+    assert result.status == expected
+    level, difference = result.requirement_coverage
+    assert level.requirement.timing.publication == difference.requirement.timing.publication
+    if expected == "sufficient":
+        assert difference.derived_rate_comparison.value == Decimal("0.7")
+        assert all(item.source.publication_date == "2022-11-17" for item in (
+            difference.derived_rate_comparison.base, difference.derived_rate_comparison.target,
+        ))
+    else:
+        assert not result.grounding_claims and difference.derived_rate_comparison is None

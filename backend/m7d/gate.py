@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 from datetime import date
-from decimal import Decimal
+from decimal import Context, Decimal, ROUND_HALF_EVEN, localcontext
 from pathlib import Path
 import re
 
@@ -12,8 +12,13 @@ from backend.m7c.corpus import Corpus, Scope
 from backend.macro_data.contracts import CATALOG
 from scripts.m7b_schema import Claim, Institution
 
-from .contracts import AssessedScope, EvidenceAssessment, Limitation, OfficialMovement, SelectedClaim, Sufficiency, Use
-from .predicates import Intent, Measure, Population, Predicate, Requirement, When, claim_predicates, interpret
+from .comparisons import hicp_observations
+from .contracts import (
+    AssessedScope, DerivedRateAverage, DerivedRateComparison, EvidenceAssessment, Limitation, OfficialMovement,
+    RateObservation, RequirementCoverage, SelectedClaim, Sufficiency, Use,
+)
+from .predicates import Intent, Measure, Population, Predicate, Requirement, When, claim_predicates, interpret, measure_variant, normalize
+from .qualifiers import statistical_variant
 from .ranking import LexicalRanker, Ranker
 
 LIMIT = 5
@@ -21,7 +26,7 @@ RankerFactory = Callable[[Mapping[str, str]], Ranker]
 MEASURES = {
     "hicp-yoy": {"hicp_annual", "hicp_energy", "hicp_food", "hicp_energy_rate", "hicp_diagnosis"},
     "real-gdp-qoq": {"gdp_quarterly", "gdp_consumption"},
-    "deposit-rate": {"deposit_decision", "deposit_effective", "deposit_intention", "deposit_move",
+    "deposit-rate": {"deposit_decision", "deposit_effective", "deposit_in_force", "deposit_intention", "deposit_move",
                      "app_schedule", "ltro_pricing", "tltro_pricing"},
     "m3-stock": {"m3_annual", "m3_stock", "m1_annual", "m1_contribution"},
     "eur-usd": {"spot_move", "spot_level", "swap_liquidity"},
@@ -31,6 +36,7 @@ PROXY_MEASURES = {"ai_enterprise", "ai_language", "ai_automation", "ai_household
 SERIES_CONTEXT_MEASURES = {
     "series_change", "spot_move", "hicp_annual", "gdp_quarterly", "m3_stock", "deposit_decision", "deposit_move",
 }
+RATE_COMPARISONS = {"rate_difference", "percentage_point_difference", "percentage_change"}
 
 
 def _ref_match(when: When, claim: Claim, predicate: Predicate, *, whole_period: bool) -> bool:
@@ -55,18 +61,54 @@ def _ref_match(when: When, claim: Claim, predicate: Predicate, *, whole_period: 
     )
 
 
-def _matches(
-    requirement: Requirement, claim: Claim, predicate: Predicate, institution: Institution, *, whole_period: bool,
-) -> bool:
+def _dimensions_match(requirement: Requirement, claim: Claim, predicate: Predicate, institution: Institution) -> bool:
     if (requirement.measure != predicate.measure or (requirement.unit and requirement.unit not in predicate.units)
             or (requirement.institution and requirement.institution != institution)
             or (requirement.modality and requirement.modality != claim.type)
             or (requirement.area_definition and requirement.area_definition not in claim.geography.lower())
             or not _population_matches(requirement.population, predicate.population)
+            or (requirement.denominator is not None and requirement.denominator != predicate.denominator)
+            or requirement.subgroup != predicate.subgroup or requirement.purpose != predicate.purpose
+            or (requirement.technology is not None and requirement.technology != predicate.technology)
+            or (requirement.variant or measure_variant(requirement.measure)) != predicate.variant
+            or predicate.variant == "other" or predicate.subgroup == "other" or predicate.purpose == "other"
+            or predicate.adjustment == "other"
             or requirement.polarity != predicate.polarity
             or (requirement.adjustment is not None
                 and (requirement.adjustment == "other" or requirement.adjustment != predicate.adjustment))
             or (requirement.flash and not predicate.flash)):
+        return False
+    return True
+
+
+def _bounds(when: When, fallback_year: int) -> tuple[date, date] | None:
+    try:
+        return when.bounds(fallback_year)
+    except ValueError:
+        return None
+
+
+def _policy_observation(requirement: Requirement, predicate: Predicate, cutoff: date) -> bool:
+    coverage = predicate.rate_coverage
+    if coverage is None or coverage.end > cutoff or not requirement.timing.reference:
+        return False
+    if requirement.statistic != "point":
+        if (requirement.average_method or "calendar_day_weighted") != predicate.average_method:
+            return False
+        return all(_bounds(when, coverage.start.year) == (coverage.start, coverage.end)
+                   for when in requirement.timing.reference)
+    return all(when.day is not None and (bounds := _bounds(when, coverage.start.year)) is not None
+               and coverage.start <= bounds[0] <= coverage.end for when in requirement.timing.reference)
+
+
+def _matches(
+    requirement: Requirement, claim: Claim, predicate: Predicate, institution: Institution, *, cutoff: date, whole_period: bool,
+) -> bool:
+    if requirement.operation in RATE_COMPARISONS or requirement.operation == "rate_ratio":
+        return False
+    if not _dimensions_match(requirement, claim, predicate, institution):
+        return False
+    if requirement.statistic != predicate.statistic or requirement.statistic == "other":
         return False
     if requirement.premise is not None and requirement.premise not in {
         Decimal(value.replace(",", ".")) for value in re.findall(r"(-?\d+(?:[.,]\d+)?)\s*%", claim.text)
@@ -74,30 +116,41 @@ def _matches(
         return False
     timing = requirement.timing
     published = date.fromisoformat(claim.publication_date)
+    if published > cutoff:
+        return False
     if not all(when.includes_day(published) for when in timing.publication):
         return False
     if timing.effective:
-        if not all(any(
-            value.day is not None and when.includes_day(value.bounds(published.year)[0])
-            for value in predicate.timing.effective
-        ) for when in timing.effective):
+        if predicate.effective_date is None or not all(when.includes_day(predicate.effective_date) for when in timing.effective):
             return False
+    if requirement.measure == "deposit_in_force":
+        return _policy_observation(requirement, predicate, cutoff)
+    if requirement.measure in {"deposit_decision", "deposit_effective"}:
+        if requirement.measure == "deposit_effective" and (
+            predicate.effective_date is None or (predicate.effective_date > cutoff and not requirement.announced)
+        ):
+            return False
+        decision = predicate.decision_date
+        return decision is not None and decision <= cutoff and not requirement.revised and all(
+            when.includes_day(decision) for when in timing.reference
+        )
     if requirement.measure == "deposit_intention":
         return all(any(
             (value.year or published.year, value.month, value.day) ==
             (when.year or published.year, when.month, when.day)
             for value in predicate.timing.reference if not value.includes_day(published)
         ) for when in timing.reference)
-    if requirement.measure in {"deposit_decision", "deposit_effective", "app_schedule", "ai_tasks", "ai_hypothesis",
-                               "ltro_pricing", "tltro_pricing"}:
+    if requirement.measure in {"app_schedule", "ai_tasks", "ai_hypothesis", "ltro_pricing", "tltro_pricing"}:
         return not requirement.revised and all(when.includes_day(published) for when in timing.reference)
+    if claim.type == "observed" and date.fromisoformat(claim.historical_period.end) > cutoff:
+        return False
     if requirement.revised and requirement.measure == "m3_annual":
         start = date.fromisoformat(claim.historical_period.start)
         if not predicate.previous_reference or not timing.reference:
             return False
         if not all(_prior_period(when, start) for when in timing.reference):
             return False
-    elif requirement.revised and (requirement.measure != "gdp_quarterly" or predicate.flash or not timing.publication):
+    elif requirement.revised and (requirement.measure != "gdp_quarterly" or not predicate.revised or predicate.flash):
         return False
     return all(_ref_match(when, claim, predicate, whole_period=whole_period) for when in timing.reference)
 
@@ -120,7 +173,16 @@ def _series_matches(requirement: Requirement, observation: OfficialMovement | No
         return False
     if requirement.modality not in {None, "observed"} or requirement.population is not None:
         return False
+    if requirement.operation in RATE_COMPARISONS or requirement.operation == "rate_ratio":
+        return False
+    if requirement.statistic not in {"point", "change"} or any((
+        requirement.subgroup, requirement.denominator, requirement.purpose, requirement.technology,
+    )):
+        return False
     catalog = CATALOG[observation.indicator]
+    variant = {"deposit-rate": "nominal", "hicp-yoy": "headline", "real-gdp-qoq": "real"}.get(observation.indicator)
+    if requirement.variant is not None and requirement.variant != variant:
+        return False
     if requirement.area_definition and requirement.area_definition.removeprefix("ea") not in catalog.geography:
         return False
     if requirement.polarity != "affirmative" or (requirement.adjustment and requirement.adjustment != catalog.adjustment):
@@ -179,15 +241,21 @@ class EvidenceGate:
             movement = None
             limitations.append("official_vintage_unverified_or_out_of_scope")
         if intent.unsupported or not intent.requirements:
-            return self._result(scope, "insufficient", [*limitations, "unsupported_question"], (), movement)
+            unmatched = intent.unmatched_parts or (question,)
+            coverage = tuple(RequirementCoverage(index=index, requirement=None, unmatched_text=part, status="uncovered")
+                             for index, part in enumerate(unmatched))
+            return self._result(scope, "insufficient", [*limitations, "unsupported_question"], (), movement, coverage)
         allowed = MEASURES[scope.indicator] | {"series_change"}
         if scope.event == "genai" and scope.indicator == "real-gdp-qoq":
             allowed |= PROXY_MEASURES
-        if any(item.measure not in allowed for item in intent.requirements):
-            return self._result(scope, "insufficient", [*limitations, "unsupported_question"], (), movement)
+        if any(item.measure not in allowed or item.indicator not in {None, scope.indicator}
+               or item.geography not in {None, scope.geography} for item in intent.requirements):
+            return self._result(scope, "insufficient", [*limitations, "unsupported_question"], (), movement,
+                                self._requirements(intent))
         if any(not all(day.includes_day(date.fromisoformat(scope.cutoff)) for day in item.timing.as_of)
                for item in intent.requirements):
-            return self._result(scope, "insufficient", [*limitations, "unsupported_question"], (), movement)
+            return self._result(scope, "insufficient", [*limitations, "unsupported_question"], (), movement,
+                                self._requirements(intent))
 
         eligible = self._eligible(scope)
         if intent.causal:
@@ -197,10 +265,11 @@ class EvidenceGate:
         series_coverage = {i for i, requirement in enumerate(intent.requirements)
                            if requirement.measure in {"series_change", "spot_move"} and _series_matches(requirement, movement)}
         ranked = self._order(question, matches)
-        return self._assess_coverage(scope, intent, coverage, ranked, series_coverage, movement, limitations)
+        return self._assess_coverage(scope, intent, eligible, coverage, ranked, series_coverage, movement, limitations)
 
     def _coverage(self, scope: Scope, intent: Intent, eligible: tuple[str, ...]) -> dict[str, tuple[int, ...]]:
         coverage = {}
+        cutoff = date.fromisoformat(scope.cutoff)
         for key in eligible:
             claim = self._corpus.claims[key]
             document = self._corpus.documents[claim.document_id]
@@ -208,7 +277,8 @@ class EvidenceGate:
             coverage[key] = tuple(
                 index for index, requirement in enumerate(intent.requirements)
                 if (not is_proxy or requirement.measure in PROXY_MEASURES)
-                and any(_matches(requirement, claim, predicate, document.institution, whole_period=intent.whole_period)
+                and any(_matches(requirement, claim, predicate, document.institution, cutoff=cutoff,
+                                 whole_period=requirement.whole_period or intent.whole_period)
                         for predicate in self._predicates[key])
             )
         return coverage
@@ -220,7 +290,11 @@ class EvidenceGate:
         # Observations can give context for a causal question even when their
         # units differ from the requested causal effect.
         contextual = replace(intent, requirements=tuple(
-            replace(item, unit=None, premise=None, polarity="affirmative") for item in intent.requirements
+            replace(
+                item, unit=None, premise=None, polarity="affirmative", operation=None, comparison=None,
+                statistic="point" if item.measure == "hicp_annual" and item.statistic == "change" else item.statistic,
+            )
+            for item in intent.requirements
         ))
         coverage = self._coverage(scope, contextual, eligible)
         context = tuple(key for key in eligible if coverage[key]) or self._causal_context(contextual, eligible, scope)
@@ -230,49 +304,190 @@ class EvidenceGate:
         if context or causal_observation:
             ranked = self._order(question, context)
             selected = tuple(self._selected(key, scope, "context_only", ()) for key in ranked[:LIMIT])
-            return self._result(scope, "unsupported_causal", limitations, selected, movement)
-        return self._result(scope, "insufficient", limitations, (), movement)
+            return self._result(scope, "unsupported_causal", limitations, selected, movement, self._requirements(intent))
+        return self._result(scope, "insufficient", limitations, (), movement, self._requirements(intent))
+
+    @staticmethod
+    def _requirements(intent: Intent) -> tuple[RequirementCoverage, ...]:
+        unknown = intent.unmatched_parts or (("Uninterpreted requirement",) if intent.unknown_parts else ())
+        return (
+            *(RequirementCoverage(index=index, requirement=requirement, status="uncovered")
+              for index, requirement in enumerate(intent.requirements)),
+            *(RequirementCoverage(index=index, requirement=None, unmatched_text=part, status="uncovered")
+              for index, part in enumerate(unknown, start=len(intent.requirements))),
+        )
+
+    def _derived_average(
+        self, scope: AssessedScope, requirement: Requirement, eligible: tuple[str, ...],
+    ) -> DerivedRateAverage | None:
+        if (requirement.measure != "deposit_in_force" or requirement.statistic != "average"
+                or requirement.average_method == "other"):
+            return None
+        timing = requirement.timing
+        if len(timing.reference) != 1 or timing.publication or timing.effective or requirement.revised or requirement.premise:
+            return None
+        when = timing.reference[0]
+        if when.year is None or when.day is not None or (bounds := _bounds(when, when.year)) is None:
+            return None
+        start, end = bounds
+        if end > date.fromisoformat(scope.cutoff):
+            return None
+        spans = []
+        for key in eligible:
+            claim = self._corpus.claims[key]
+            document = self._corpus.documents[claim.document_id]
+            if document.indicators[scope.indicator] != "direct" or claim.publication_date > scope.cutoff:
+                continue
+            for predicate in self._predicates[key]:
+                rate = predicate.rate_coverage
+                if (rate is not None and predicate.statistic == "point" and rate.end >= start and rate.start <= end
+                        and _dimensions_match(requirement, claim, predicate, document.institution)):
+                    spans.append((max(rate.start, start), min(rate.end, end), rate.value, key))
+        cursor = start.toordinal()
+        with localcontext(Context(prec=28, rounding=ROUND_HALF_EVEN)):
+            weighted = Decimal(0)
+            for left, right, value, _ in sorted(spans):
+                if left.toordinal() != cursor:
+                    return None  # A gap, duplicate vintage, or overlap leaves coverage unresolved.
+                cursor = right.toordinal() + 1
+                weighted += value * ((right - left).days + 1)
+            if cursor != end.toordinal() + 1:
+                return None
+            days = (end - start).days + 1
+            return DerivedRateAverage(start=start.isoformat(), end=end.isoformat(), value=weighted / days,
+                                      weighted_sum=weighted, days=days, observations=tuple(
+                                          self._selected(key, scope, "context_only", ()) for *_, key in sorted(spans)
+                                      ))
+
+    def _derived_rate_comparison(
+        self, scope: AssessedScope, requirement: Requirement, eligible: tuple[str, ...],
+    ) -> DerivedRateComparison | None:
+        operation = requirement.operation
+        comparison = requirement.comparison
+        if (requirement.measure != "hicp_annual" or operation not in RATE_COMPARISONS or comparison is None
+                or requirement.statistic != "change" or requirement.premise is not None or requirement.revised
+                or requirement.whole_period or requirement.timing.effective):
+            return None
+        months = (comparison.base, comparison.target)
+        cutoff = date.fromisoformat(scope.cutoff)
+        if months[0] == months[1] or any(
+            when.year is None or when.month is None or when.day is not None or when.quarter is not None
+            or (bounds := _bounds(when, cutoff.year)) is None or bounds[1] > cutoff for when in months
+        ):
+            return None
+        expected_unit = "percent" if operation == "percentage_change" else "percentage_points"
+        if requirement.unit not in {None, expected_unit}:
+            return None
+        level = replace(requirement, unit="percent", modality="observed", statistic="point",
+                        operation="observed_level", comparison=None)
+        if requirement.modality not in {None, "observed"}:
+            return None
+        candidates = {month: [] for month in months}
+        for key in eligible:
+            claim = self._corpus.claims[key]
+            document = self._corpus.documents[claim.document_id]
+            published = date.fromisoformat(claim.publication_date)
+            if (document.indicators[scope.indicator] != "direct" or published > cutoff
+                    or not all(when.includes_day(published) for when in requirement.timing.publication)):
+                continue
+            for predicate in self._predicates[key]:
+                if predicate.statistic != "point" or not _dimensions_match(level, claim, predicate, document.institution):
+                    continue
+                if statistical_variant(normalize(claim.qualifiers)) not in {None, predicate.variant}:
+                    continue
+                definition = (claim.geography, document.institution, predicate.variant, predicate.adjustment)
+                for month, value in hicp_observations(claim):
+                    if month in candidates and month.bounds(published.year)[1] <= published:
+                        candidates[month].append((value, key, definition))
+        if any(len(rows) != 1 for rows in candidates.values()):
+            return None
+        (base_value, base_key, base_definition), (target_value, target_key, target_definition) = (
+            candidates[month][0] for month in months
+        )
+        if base_definition != target_definition or (base_key != target_key and base_definition[-1] is None):
+            return None
+        with localcontext(Context(prec=28, rounding=ROUND_HALF_EVEN)):
+            value = target_value - base_value
+            if (comparison.direction == "higher" and value <= 0) or (comparison.direction == "lower" and value >= 0):
+                return None
+            if comparison.absolute:
+                value = abs(value)
+            if operation == "percentage_change":
+                if base_value <= 0:
+                    return None
+                value = value * 100 / base_value
+        base, target = (
+            RateObservation(reference_month=month.bounds(cutoff.year)[0].isoformat(), value_percent=rate,
+                            source=self._selected(key, scope, "context_only", ()))
+            for month, rate, key in zip(months, (base_value, target_value), (base_key, target_key), strict=True)
+        )
+        return DerivedRateComparison(
+            operation=operation, unit=expected_unit, value=value, base=base, target=target, absolute=comparison.absolute,
+        )
 
     def _assess_coverage(
-        self, scope: AssessedScope, intent: Intent, coverage: dict[str, tuple[int, ...]], ranked: tuple[str, ...],
+        self, scope: AssessedScope, intent: Intent, eligible: tuple[str, ...],
+        coverage: dict[str, tuple[int, ...]], ranked: tuple[str, ...],
         series_coverage: set[int], movement: OfficialMovement | None, limitations: list[Limitation],
     ) -> EvidenceAssessment:
-        covered = series_coverage.copy()
-        chosen = []
-        ambiguous = False
+        outcomes = list(self._requirements(intent))
+        chosen: dict[str, list[int]] = {}
+        context = []
+        limit_reached = False
         for index, requirement in enumerate(intent.requirements):
+            row = outcomes[index]
+            if index in series_coverage:
+                outcomes[index] = row.model_copy(update={"status": "supported", "official_movement": True})
+                continue
             answers = tuple(key for key in ranked if index in coverage[key])
-            if index in covered or not answers:
+            if not answers:
+                if requirement.operation in RATE_COMPARISONS:
+                    comparison = self._derived_rate_comparison(scope, requirement, eligible)
+                    if comparison is not None:
+                        outcomes[index] = row.model_copy(update={"status": "supported", "derived_rate_comparison": comparison})
+                    continue
+                derived = self._derived_average(scope, requirement, eligible)
+                if derived:
+                    outcomes[index] = row.model_copy(update={"status": "supported", "derived_rate_average": derived})
                 continue
             periods = {(self._corpus.claims[key].historical_period.start, self._corpus.claims[key].historical_period.end)
                        for key in answers}
             ambiguous_answer = len(answers) > 1 and (
-                (not requirement.timing.reference and not requirement.timing.publication and len(periods) > 1)
+                requirement.measure == "deposit_in_force"
+                or (not requirement.timing.reference and not requirement.timing.publication and len(periods) > 1)
                 or self._ambiguous_vintage(answers, requirement)
             )
-            ambiguous |= ambiguous_answer
-            for key in (answers if ambiguous_answer else answers[:1]):
-                if key not in chosen:
-                    chosen.append(key)
-                covered.update(coverage[key])
-        if len(chosen) > LIMIT:
+            if ambiguous_answer:
+                outcomes[index] = row.model_copy(update={"status": "ambiguous"})
+                context.extend(answers)
+                continue
+            key = answers[0]
+            if key not in chosen and len(chosen) == LIMIT:
+                limit_reached = True
+                continue
+            chosen.setdefault(key, []).append(index)
+            outcomes[index] = row.model_copy(update={"status": "supported", "claim_ids": (key,)})
+        if limit_reached:
             limitations.append("claim_limit_reached")
-        selected = tuple(
-            self._selected(key, scope, "context_only" if ambiguous else "supports_requested_fact",
-                           tuple(intent.requirements[i].measure for i in coverage[key]))
-            for key in chosen[:LIMIT]
+        selected = (
+            *(self._selected(key, scope, "supports_requested_fact",
+                             tuple(dict.fromkeys(intent.requirements[i].measure for i in indices)), tuple(indices))
+              for key, indices in chosen.items()),
+            *(self._selected(key, scope, "context_only", ())
+              for key in tuple(dict.fromkeys(key for key in context if key not in chosen))[:LIMIT - len(chosen)]),
         )
+        ambiguous = any(row.status == "ambiguous" for row in outcomes)
         if ambiguous:
             limitations.append("ambiguous_period_or_vintage")
-        if not covered:
+        if not ambiguous and all(row.status == "uncovered" for row in outcomes):
             limitations.append("no_approved_claim_matches")
             status: Sufficiency = "insufficient"
-        elif len(covered) < len(intent.requirements) or len(chosen) > LIMIT or ambiguous or intent.unknown_parts:
+        elif any(row.status != "supported" for row in outcomes):
             limitations.append("incomplete_predicate_coverage")
             status = "partial"
         else:
             status = "sufficient"
-        return self._result(scope, status, limitations, selected, movement)
+        return self._result(scope, status, limitations, selected, movement, tuple(outcomes))
 
     def _causal_context(self, intent: Intent, eligible: tuple[str, ...], scope: Scope) -> tuple[str, ...]:
         if scope.event != "genai" or not any(item.measure == "gdp_quarterly" for item in intent.requirements):
@@ -303,7 +518,9 @@ class EvidenceGate:
             raise ValueError("Claim ranker must order exactly the eligible claim IDs")
         return ids
 
-    def _selected(self, key: str, scope: Scope, use: Use, measures: tuple[Measure, ...]) -> SelectedClaim:
+    def _selected(
+        self, key: str, scope: Scope, use: Use, measures: tuple[Measure, ...], requirements: tuple[int, ...] = (),
+    ) -> SelectedClaim:
         claim = self._corpus.claims[key]
         document = self._corpus.documents[claim.document_id]
         return SelectedClaim(
@@ -314,11 +531,12 @@ class EvidenceGate:
             publication_date=claim.publication_date, reference_start=claim.historical_period.start,
             reference_end=claim.historical_period.end, indicator=scope.indicator, event=scope.event,
             geography=scope.geography, relation=document.indicators[scope.indicator], use=use, covered_measures=measures,
+            covered_requirements=requirements,
         )
 
     def _result(
         self, scope: AssessedScope, status: Sufficiency, limitations: list[Limitation], claims: tuple[SelectedClaim, ...],
-        movement: OfficialMovement | None,
+        movement: OfficialMovement | None, coverage: tuple[RequirementCoverage, ...] = (),
     ) -> EvidenceAssessment:
         if any(claim.relation == "proxy" for claim in claims):
             limitations.append("proxy_for_indicator")
@@ -327,4 +545,5 @@ class EvidenceGate:
         return EvidenceAssessment(
             corpus_sha256=self.corpus_sha256, scope=scope, status=status,
             limitations=tuple(limitations), selected_claims=claims, official_movement=movement,
+            requirement_coverage=coverage,
         )

@@ -9,18 +9,26 @@ import re
 from typing import Literal
 import unicodedata
 
-from backend.m7c.corpus import Scope
-from scripts.m7b_schema import Claim, ClaimType, Institution
+from backend.m7c.corpus import Geography, Scope
+from scripts.m7b_schema import Claim, ClaimType, Indicator, Institution
 
 from .question_constraints import Adjustment, Polarity, adjustment, counterfactual, exclusive, operands, polarity, relative_time
+from .qualifiers import (
+    AverageMethod, Denominator, Purpose, Statistic, Subgroup, Technology, Variant, average_method, statistic,
+    statistical_variant, subgroup, survey_purpose,
+)
 
 
-Unit = Literal["percent", "percentage_points", "basis_points", "count", "level"]
+Unit = Literal["percent", "percentage_points", "basis_points", "count", "level", "index_points"]
 Population = Literal["enterprises", "enterprises_10_plus", "households", "persons", "persons_16_74"]
+Operation = Literal[
+    "observed_level", "level_change", "rate_difference", "temporal_average",
+    "percentage_change", "percentage_point_difference", "rate_ratio",
+]
 Measure = Literal[
     "hicp_annual", "hicp_energy", "hicp_food", "hicp_energy_rate", "hicp_diagnosis",
     "gdp_quarterly", "gdp_consumption", "m3_annual", "m3_stock", "m1_annual", "m1_contribution",
-    "deposit_decision", "deposit_effective", "deposit_intention", "deposit_move", "app_schedule",
+    "deposit_decision", "deposit_effective", "deposit_in_force", "deposit_intention", "deposit_move", "app_schedule",
     "tltro_pricing", "ltro_pricing",
     "ai_enterprise", "ai_language", "ai_automation", "ai_household", "ai_purpose",
     "ai_tasks", "ai_hypothesis", "spot_move", "spot_level", "swap_liquidity", "series_change",
@@ -52,7 +60,7 @@ _YEAR = r"(?:19|20)\d{2}"
 _DAY = r"(?:[0-2]?\d|3[01])"
 _DATES = re.compile(
     rf"(?<!\w)(?:(?P<iso>{_YEAR}-\d{{2}}-\d{{2}})"
-    rf"|(?:(?P<qyear>{_YEAR})[ -]?)?q(?P<q>[1-4])(?: (?:of |de )?(?P<qy2>{_YEAR}))?"
+    rf"|(?:(?P<qyear>{_YEAR})[ -]?)?[qt](?P<q>[1-4])(?: (?:of |de )?(?P<qy2>{_YEAR}))?"
     rf"|(?P<ordinal>{_ORDINAL})[- ](?:quarter|trimestre)(?: (?:of |de )?(?P<oy>{_YEAR}))?"
     rf"|(?:(?P<pre>{_DAY}) (?:de )?)?(?P<month>{_MONTH})(?: (?P<post>{_DAY})(?!\d))?"
     rf"(?:[ ,]+(?:de )?(?P<my>{_YEAR}))?"
@@ -60,12 +68,12 @@ _DATES = re.compile(
 )
 _VINTAGE_BEFORE = (
     r"(?:release|publicaci[oó]n|publicad[oa]|published|released|comunicado|"
-    r"estimaci[oó]n|estimate|anunciad[oa]|announc(?:ed|ement)|bolet[ií]n)"
+    r"estimaci[oó]n(?: flash)?|estimate|revisi[oó]n|revision|anunciad[oa]|announc(?:ed|ement)|bolet[ií]n)"
     r"(?: (?:in|on|of|en|del?|of the))?\s*$"
 )
 _VINTAGE_AFTER = r"^\s*(?:(?:flash|preliminary|final) )?(?:release|estimate|publication|announcement|comunicado)\b"
 _AS_OF = r"(?:as of|disponible(?:s)? hasta(?: el)?|con corte(?: al)?|a fecha(?: de)?)\s*$"
-_EFFECTIVE = r"(?:effective(?: from| on)?|vigente desde|en vigor(?: el| desde)?|aplicable desde)\s*$"
+_EFFECTIVE = r"(?:effective(?: from| on)?|to take effect (?:on|from)|vigente desde|en vigor(?: el| desde)?|aplicable desde)\s*$"
 
 
 @dataclass(frozen=True)
@@ -151,11 +159,13 @@ _GDP = r"\b(?:gdp|pib|produccion trimestral|quarterly output|producto interno br
 _M3 = r"\b(?:m3|broad money|masa monetaria amplia|agregado monetario amplio)\b"
 _AI = r"\b(?:ai|ia|artificial intelligence|inteligencia artificial)\b"
 _GENAI = r"\b(?:generative ai|genai|ia generativa|inteligencia artificial generativa)\b"
-_FIRMS = r"\b(?:firms?|enterprises?|business(?:es)?|compan(?:y|ies)|empresas?)\b"
-_PEOPLE = r"\b(?:people|persons?|personas?|individuals?|individuos?|adults?|adultos?|residents?|residentes?)\b"
+_FIRMS = r"\b(?:firms?|enterprises?|business(?:es)?|compan(?:y|ies)|empresas?|companias?|negocios?)\b"
+_PEOPLE = r"\b(?:people|persons?|personas?|individuals?|individuos?|adults?|adultos?|residents?|residentes?|respondents?|poblacion encuestada)\b"
 _HOUSEHOLDS = rf"(?:{_PEOPLE}|\b(?:households?|hogares?)\b)"
-_LANGUAGE = r"\b(?:natural language generation|language generation|generacion (?:de )?(?:lenguaje|texto))\b"
-_AUTOMATION = r"\b(?:automated workflows?|decision support|flujos automatizados|apoyo a decisiones)\b"
+_LANGUAGE = r"\b(?:natural language generation|language generation|generacion (?:de )?(?:lenguaje(?: natural)?|texto))\b"
+_WORKFLOW = r"\b(?:automat(?:ed|ing) workflows?|workflow automation|automatizacion (?:de )?(?:flujos|procesos)(?: de trabajo)?|flujos automatizados)\b"
+_DECISION_SUPPORT = r"\b(?:decision support|apoyo (?:a |para )?(?:la toma de )?decisiones)\b"
+_AUTOMATION = rf"(?:{_WORKFLOW}|{_DECISION_SUPPORT})"
 _EXPECTATION = (
     r"\b(?:intend\w*|intent\w*|plan(?:ned|eaba|ific\w*)?|esper(?:ab\w*|ad\w*|an)|expect\w*|"
     r"prev(?:ist|ei)\w*|forecast\w*|proyect\w*|pronostic\w*|will|would use|projected)\b"
@@ -180,7 +190,7 @@ _INSTITUTIONS = {
     "Eurostat": r"\beurostat\b",
     "Reserva Federal (Junta)": r"\b(?:fed|federal reserve|reserva federal)\b",
 }
-_PERCENT_POINTS = r"\b(?:percentage points?|puntos porcentuales?|pp)\b"
+_PERCENT_POINTS = r"\b(?:percentage[- ]points?|puntos porcentuales?|pp)\b"
 _BASIS_POINTS = r"\b(?:basis points?|puntos basicos?|bps|pb)\b"
 _PERCENT = r"%|\b(?:percent(?:age)?|por ciento|porcentaj\w*)\b"
 _COUNT = (
@@ -218,8 +228,49 @@ _NARROW_PRICE = (
     r"core inflation|inflacion subyacente|excluding|excluyendo)\b"
 )
 _BASKET_EXCLUSION = r"\b(?:excluding|excluyendo|without energy|sin energia|net of|net[oa] de|excluding taxes|tax adjusted)\b"
+_NON_ANNUAL_HICP = (
+    r"\b(?:monthly|quarterly|month[- ](?:on|over)[- ]month|quarter[- ](?:on|over)[- ]quarter|"
+    r"mensual|intermensual|trimestral|intertrimestral|mom|qoq|m/m|q/q)\b"
+)
+_HICP_COMPARISON = (
+    r"\b(?:exceed\w*|(?:higher|lower|more|less) than|super[oa]|(?:mayor|menor) que|"
+    r"difference|gap|delta|diferencia|brecha)\b|"
+    r"\b(?:increas\w*|decreas\w*|ris[er]\w*|rose|fell|fall|chang\w*|go (?:up|down)|"
+    r"subi[oó]|aument\w*|"
+    r"baj\w*|cay[oó]|vari\w*)\b[^?;.]*"
+    r"\b(?:versus|vs|relative to|compared (?:to|with)|respecto (?:a|al|de|del)|en comparacion con|"
+    r"over (?:the )?(?:previous|preceding|prior|last) (?:month|quarter|year))\b|"
+    r"\b(?:higher|lower|more|less|mayor|menor|mas|menos)\b[^?;.]*\b(?:than|que)\b|"
+    r"\b(?:change|increase|decrease|rise|fall|cambio|variacion|aumento|caida)\b[^?;.]*"
+    r"\b(?:from|between|desde|entre|compared (?:to|with)|respecto (?:a|al|de|del))\b"
+)
+_PREVIOUS_MONTH = r"\b(?:(?:previous|preceding|prior|last) month|mes (?:anterior|previo)|mes pasado)\b"
+_RATE_TARGET = r"\b(?:inflation|inflacion|rate|tasa|annual|interanual|year[- ](?:on|over)[- ]year)\b"
+_RATE_RATIO = (
+    r"\b(?:how many times|times as (?:high|large|low)|ratio (?:of|between)|multiple of|"
+    r"(?:by )?what factor|factor by which|multiplicative factor|fold (?:change|increase|decrease)|"
+    r"cuantas veces|por que factor|factor multiplicativo|cociente (?:de|entre)|razon entre)\b"
+)
+_COMPARISON_PROMPT = (
+    r"by (?:how much|what (?:margin|amount)|how many (?:percentage[- ]points?|points?))|"
+    r"en cuant(?:o|os puntos(?: porcentuales)?)|por que margen"
+)
+_COMPARISON_ELLIPSIS = re.compile(
+    rf"^(?:(?:{_COMPARISON_PROMPT}) (?:did it (?:exceed|differ from)|was it (?:higher|lower) than|"
+    r"supero|fue (?:mayor|menor) que)|"
+    r"(?:its |the )(?:change|difference) (?:from|versus|relative to)|"
+    r"(?:su |la )(?:variacion|diferencia) (?:respecto (?:a|al|de|del)|frente a))\b"
+)
+_ANNOUNCED = r"\b(?:announc\w*|decid\w*|decision|anunci\w*|decisio\w*|reuni[oó]n|meeting)\b"
+_EFFECTIVE_DATE_QUESTION = r"\b(?:when|what date|which date|from what date|desde que fecha|cuando|en que fecha|a partir de que fecha)\b"
+_IN_FORCE = (
+    r"\b(?:in force|in effect|in place|actual(?:ly)?|prevailing|then[- ]current|aplicad[oa]|"
+    r"aplicaba|regia|rigio|en vigor|vigente|efectiv[oa])\b"
+)
+_ACTUAL_POLICY = r"\b(?:actually|in fact|de hecho|efectivamente|realmente)\b"
+_PROJECTED_POLICY = r"\b(?:would|will|was to) be\b|\b(?:estaria|estara|regiria|regira|entraria|entrara)\b"
 _ADOPTION_MEASURES = frozenset({"ai_enterprise", "ai_language", "ai_automation", "ai_household", "ai_purpose"})
-_ADOPTION_VERB = r"\b(?:used?|using|adopt(?:ed|ing)?|usa(?:ban|ron|ba)?|uso|utiliz(?:aba|aban|aron|o|ar))\b"
+_ADOPTION_VERB = r"\b(?:used?|using|adopt(?:ed|ing)?|usa(?:ban|ron|ba|r)?|uso|utiliz(?:aba|aban|aron|o|ar))\b"
 _FIRM_THRESHOLD = (
     r"\b(?:(?:ten|diez|10) (?:or more|o mas) (?:employees|empleados)|"
     r"(?:ten|diez|10) (?:employees|empleados) (?:or more|o mas)|"
@@ -236,6 +287,7 @@ _AGGREGATE_GDP_PREFIX = {
 _GEO_OR_PERIOD_START = {
     *_MONTH_NUMBER, *_ORDINALS, "euro", "eurozone", "eurozona", "zona", "ea19", "ea20", "ea21",
     "eu", "ue", "union", "european", "united", "us", "estados", "quarter", "trimestre", "q1", "q2", "q3", "q4",
+    "both", "ambos", "t1", "t2", "t3", "t4",
 }
 
 
@@ -253,6 +305,28 @@ class Requirement:
     area_definition: str | None = None
     polarity: Polarity = "affirmative"
     adjustment: Adjustment | None = None
+    variant: Variant | None = None
+    statistic: Statistic = "point"
+    subgroup: Subgroup | None = None
+    purpose: Purpose | None = None
+    technology: Technology | None = None
+    indicator: Indicator | None = None
+    geography: Geography | None = None
+    description: str = ""
+    whole_period: bool = False
+    announced: bool = False
+    denominator: Denominator | None = None
+    average_method: AverageMethod | None = None
+    operation: Operation | None = None
+    comparison: RateComparison | None = None
+
+
+@dataclass(frozen=True)
+class RateComparison:
+    base: When
+    target: When
+    direction: Literal["higher", "lower"] | None = None
+    absolute: bool = False
 
 
 @dataclass(frozen=True)
@@ -262,6 +336,14 @@ class Intent:
     unsupported: bool = False
     whole_period: bool = False
     unknown_parts: bool = False
+    unmatched_parts: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RateCoverage:
+    start: date
+    end: date
+    value: Decimal
 
 
 @dataclass(frozen=True)
@@ -274,6 +356,17 @@ class Predicate:
     population: Population | None = None
     polarity: Polarity = "affirmative"
     adjustment: Adjustment | None = None
+    variant: Variant | None = None
+    statistic: Statistic = "point"
+    subgroup: Subgroup | None = None
+    purpose: Purpose | None = None
+    technology: Technology | None = None
+    rate_coverage: RateCoverage | None = None
+    decision_date: date | None = None
+    revised: bool = False
+    effective_date: date | None = None
+    denominator: Denominator | None = None
+    average_method: AverageMethod | None = None
 
 
 def units(text: str, *, adoption: bool = False) -> tuple[Unit, ...]:
@@ -287,6 +380,8 @@ def units(text: str, *, adoption: bool = False) -> tuple[Unit, ...]:
         found.append("percent")
     if has(r"\b(?:millions? of (?:euros|eur)|millones de euros|usd per eur|dolares por euro)\b", text):
         found.append("level")
+    if has(r"\b(?:index points?|puntos (?:del |de )?indice|index level|nivel del indice)\b", text):
+        found.append("index_points")
     if has(_COUNT, text) or (adoption and not found and has(_HOW_MANY, text)):
         found.append("count")
     if adoption and not found and has(r"\b(?:share|fraction|proportion|proporcion|fraccion)\b", text):
@@ -305,7 +400,9 @@ def _ai_measures(text: str) -> tuple[Measure, ...]:
         return ("ai_automation",)
     if has(_FIRMS, text):
         return () if has(_GENAI, text) else ("ai_enterprise",)
-    if has(r"\b(?:pace|ritmo|extent|magnitud)\b", text) and has(r"\b(?:choices|decisions|decisiones)\b", text):
+    if has(r"\b(?:pace|ritmo|extent|magnitud|economic (?:effects?|impact)|efectos economicos)\b", text) and has(
+        r"\b(?:choices|decisions|decisiones|depend\w*)\b", text,
+    ):
         return ("ai_hypothesis",)
     return ()
 
@@ -327,7 +424,7 @@ def _enterprise_qualifier(text: str) -> bool:
     prefix = re.search(rf"\b([a-z]+) (?:(?:eu|ue|european union) )?{_FIRMS}", text)
     if prefix and prefix.group(1) not in {
         "eu", "ue", "of", "the", "many", "among", "for", "by", "de", "las", "los",
-        "cuantas", "cuantos", "entre", "en", "por", "que", "which", "what", "did", "does",
+        "cuantas", "cuantos", "entre", "en", "por", "que", "which", "what", "did", "does", "las", "para",
     }:
         return True
     suffix = re.search(rf"{_FIRMS} ([a-z]+)\b", text)
@@ -341,38 +438,97 @@ def _enterprise_qualifier(text: str) -> bool:
     return bool(locative and locative.group(1) not in _GEO_OR_PERIOD_START and not locative.group(1).isdecimal())
 
 
-def _unsupported_population(text: str) -> bool:
-    if has(_SUBPOPULATION, text) or has(r"\b(?:median|mediana|percentile|percentil|by industry|por sector|by member state)\b", text):
+def _adoption_subgroup(text: str, population: Population | None) -> Subgroup | None:
+    named = subgroup(text)
+    if named:
+        return named
+    if has(_SUBPOPULATION, text) or has(r"\b(?:by industry|por sector|by member state)\b", text):
+        return "other"
+    if population in {"enterprises", "enterprises_10_plus"}:
+        if has(rf"\b(?:all|todas las) (?:eu |ue |european union )?{_FIRMS}", text):
+            return "all"
+        if _enterprise_qualifier(text) or has(
+            rf"{_FIRMS} (?:that|which|que) (?!{_ADOPTION_VERB})|{_FIRMS} (?:with|con) (?!{_FIRM_THRESHOLD})",
+            text,
+        ) or (has(r"\b(?:employees|empleados)\b", text) and not has(_FIRM_THRESHOLD, text)):
+            return "other"
+    if population in {"persons", "persons_16_74", "households"} and (
+        (has(r"\b(?:aged?|ages?|edad(?:es)?|years old|anos de edad)\b", text) and not has(_AGE_THRESHOLD, text))
+        or has(r"\b(?:adults?|adultos?|adultas?)\b", text)
+        or has(rf"{_HOUSEHOLDS} (?:with|con|who|that|que) (?!{_ADOPTION_VERB})", text)
+        or _person_qualifier(text)
+    ):
+        return "other"
+    return None
+
+
+def _person_qualifier(text: str) -> bool:
+    geographies = "|".join(_GEO.values())
+    unlocated = re.sub(geographies, "", text)
+    unlocated = normalize(re.sub(r"(?<=\w)['’]s\b", "", unlocated))
+    prefix = re.search(rf"\b([a-z]+) {_PEOPLE}", unlocated)
+    if prefix and prefix[1] not in {
+        "the", "of", "among", "from", "for", "by", "did", "surveyed", "sampled",
+        "de", "del", "las", "los", "la", "el", "por", "entre", "para", "que",
+    }:
         return True
-    if has(_FIRMS, text):
-        return _enterprise_qualifier(text) or (
-            has(r"\b(?:employees|empleados)\b", text) and not has(_FIRM_THRESHOLD, text)
-        )
-    if has(_HOUSEHOLDS, text) and has(r"\b(?:aged?|ages?|edad(?:es)?|years old|anos de edad)\b", text):
-        return not has(_AGE_THRESHOLD, text)
-    return False
+    location = re.search(rf"{_PEOPLE} (?:in|within|en) (?:the |la |el )?([a-z0-9]+)\b", text)
+    if location and location[1] not in _GEO_OR_PERIOD_START and not location[1].isdecimal():
+        return True
+    suffix = re.search(rf"{_PEOPLE} ([a-z]+)\b", unlocated)
+    return bool(suffix and suffix[1] not in {
+        "used", "use", "using", "adopted", "adopting", "did", "report", "reported", "surveyed",
+        "in", "on", "of", "from", "were", "who", "that", "aged", "ages",
+        "usaron", "usa", "uso", "usaba", "utilizaron", "utilizo", "utilizaba", "declaro", "declararon",
+        "encuestadas", "encuestados", "de", "del", "en", "que", "con",
+    })
 
 
-def _technology_measure(text: str, population: Population | None) -> Measure | None:
-    text = text.strip(" ,.;?").removeprefix("the ").removeprefix("la ").removeprefix("las ")
-    if re.fullmatch(_LANGUAGE, text):
-        return "ai_language"
-    if re.fullmatch(_AUTOMATION, text):
-        return "ai_automation"
-    if population in {"persons", "persons_16_74", "households"} and re.fullmatch(
-        rf"{_GENAI}(?: (?:tools?|herramientas?))?"
-        r"(?: (?:for|para) (?:personal purposes?|propositos personales|work|trabajo|formal education|educacion formal))?",
+def _adoption_denominator(text: str) -> Denominator:
+    if has(
+        rf"\b(?:among|of|entre|de) (?:the |los |las )?"
+        rf"(?:ai users?|usuarios? de ia|{_FIRMS} (?:already |ya )?(?:using|adopting|usuari[oa]s? de) {_AI})",
         text,
     ):
-        return "ai_household"
+        return "adopters"
+    if has(rf"\b(?:all|todas las|todos los) (?:eu |ue |european union )?(?:{_FIRMS}|{_HOUSEHOLDS})", text):
+        return "all_population"
+    return "survey_population"
+
+
+def _automation_purpose(text: str) -> Purpose | None:
+    if re.fullmatch(rf"(?:{_WORKFLOW} (?:or|o) {_DECISION_SUPPORT}|{_DECISION_SUPPORT} (?:or|o) {_WORKFLOW})", text):
+        return "workflow_or_decision_support"
+    if re.fullmatch(_WORKFLOW, text):
+        return "workflow"
+    if re.fullmatch(_DECISION_SUPPORT, text):
+        return "decision_support"
+    return None
+
+
+def _technology_object(text: str, population: Population | None) -> tuple[Measure, Purpose | None] | None:
+    text = text.strip(" ,.;?").removeprefix("the ").removeprefix("la ").removeprefix("las ")
+    if re.fullmatch(_LANGUAGE, text):
+        return "ai_language", None
+    activity = _automation_purpose(re.sub(rf"^{_AI} (?:for|para) ", "", text))
+    if activity:
+        return "ai_automation", activity
+    personal = re.fullmatch(
+        rf"{_GENAI}(?: (?:tools?|herramientas?))?(?: (?:for|para|con (?:fines?|propositos?) (?:de )?)(.+))?", text,
+    )
+    if population in {"persons", "persons_16_74", "households"} and personal:
+        if personal[1] is None:
+            return "ai_household", None
+        purpose = survey_purpose(personal[1])
+        return ("ai_purpose", purpose) if purpose else None
     if population in {"enterprises", "enterprises_10_plus"} and re.fullmatch(
-        r"(?:(?:any|all|some|at least one|alguna|todas las) )?"
+        r"(?:(?:any|some|at least one|alguna) )?"
         r"(?:(?:technolog(?:y|ies)|tecnologias?) (?:de )?)?"
         r"(?:ai|ia|artificial intelligence|inteligencia artificial)"
         r"(?: (?:technolog(?:y|ies)|tools?|herramientas?))?",
         text,
     ):
-        return "ai_enterprise"
+        return "ai_enterprise", None
     return None
 
 
@@ -395,24 +551,57 @@ def _adoption_tail(text: str) -> str | None:
     return normalize(tail)
 
 
-def _adoption_objects(text: str) -> tuple[tuple[Measure, ...], bool] | None:
+def _adoption_objects(text: str) -> tuple[tuple[tuple[Measure, Purpose | None], ...], tuple[str, ...]]:
     """Recognize enumerated technology operands without inheriting the first operand."""
+    front = re.match(
+        r"^(?:for|para|in|en|con fines? de) (.+?)(?:,|\s+(?=(?:what|which|how|que|cual|cuant[oa]s?)\b))",
+        text,
+    )
+    if front:
+        remainder = _DATES.sub("", front[1])
+        for pattern in (*_GEO.values(), _FIRMS, _HOUSEHOLDS, _FIRM_THRESHOLD, _AGE_THRESHOLD):
+            remainder = re.sub(pattern, "", remainder)
+        remainder = re.sub(r"\b(?:the|of|in|during|la|el|las|los|de|en|durante|with|con)\b", "", remainder)
+        if remainder.strip():
+            # A leading activity can restrict an otherwise generic adoption clause.
+            return (), (text,)
     tail = _adoption_tail(text)
     if not tail:
-        return None
-    individual = has(r"\b(?:respectively|separately|each|por separado|respectivamente|cada)\b", tail)
-    tail = re.sub(r"\b(?:respectively|separately|por separado|respectivamente)\b", "", tail)
-    objects = operands(tail)
+        # Survey nominal forms still need an exact technology object and activity.
+        nominal = re.search(rf"(?:{_GENAI}|{_AI})(?: (?:tools?|herramientas?))? (?=(?:use|usage|adoption|uso|adopcion)\b)", text)
+        if not nominal:
+            return (), (text,)
+        tail = nominal.group().strip()
+        if has(r"\b(?:for|para|fines|purpose|proposito)\b", text[nominal.end():]):
+            return (), (text,)
+    individual = has(r"\b(?:respectively|separately|each|por separado|respectivamente|cada)\b", text)
+    if not individual and has(
+        r"\b(?:both|jointly|together|simultaneously|at the same time|amb[oa]s|en conjunto|a la vez|simultaneamente)\b"
+        r"|\btanto\b.+\bcomo\b", tail,
+    ):
+        return (), (tail,)
+    tail = re.sub(r"\b(?:respectively|separately|por separado|respectivamente)\b", "", tail).strip(" ,")
     population = _adoption_population(text)
-    recognized = tuple(_technology_measure(item, population) for item in objects)
-    if len(objects) < 2:
-        # Preserve an explicit survey purpose after a recognized use verb.
-        return None if recognized and recognized[0] else ((), True)
-    return tuple(dict.fromkeys(item for item in recognized if item)), not individual or any(item is None for item in recognized)
+    single = _technology_object(tail, population)
+    if single:
+        return (single,), ()
+    shared_purpose = re.fullmatch(
+        rf"(?P<technology>{_GENAI}(?: (?:tools?|herramientas?))?) (?:for|para|con (?:fines?|propositos?) (?:de )?)(?P<purposes>.+)", tail,
+    )
+    if shared_purpose:
+        objects = operands(shared_purpose["purposes"])
+        recognized = tuple(("ai_purpose", purpose) if (purpose := survey_purpose(item)) else None for item in objects)
+    else:
+        objects = operands(tail)
+        recognized = tuple(_technology_object(item, population) for item in objects)
+    unknown = tuple(obj for obj, known in zip(objects, recognized, strict=True) if known is None)
+    if len(objects) > 1 and not individual:
+        return (), (tail,)
+    return tuple(dict.fromkeys(item for item in recognized if item)), unknown
 
 
 def _adoption_question(text: str) -> bool:
-    return has(r"\b(?:us(?:e[ds]?|ing|o|a[bdn]\w*|aron)|utiliz\w*|adopt\w*|adopc\w*)\b", text)
+    return has(r"\b(?:us(?:e[ds]?|ing|o|a[bdn]\w*|ar(?:on)?)|utiliz\w*|adopt\w*|adopc\w*)\b", text)
 
 
 def _aggregate_hicp(text: str) -> bool:
@@ -421,10 +610,10 @@ def _aggregate_hicp(text: str) -> bool:
     narrowed = re.search(rf"{_HICP} (?:rate |tasa )?(?:for|of|among|in|de|del|en|entre|para) (?:the |la |el |las |los )?(\w+)", text)
     if narrowed and narrowed.group(1) not in {
         *_MONTH_NUMBER, "euro", "eurozona", "zona", "ea19", "ea20", "eu", "ue", "union",
-        "2020", "2022", "2023", "q1", "q2", "q3", "q4", "lockdown", "confinamiento",
+        "2020", "2022", "2023", "q1", "q2", "q3", "q4", "lockdown", "confinamiento", "impuestos", "taxes",
     } and not narrowed.group(1).isdecimal():
         return False
-    if has(r"\b(?:median|mediana|mean|media aritmetica|percentile|percentil|across|por ciudades|entre ciudades)\b", text):
+    if has(r"\b(?:across|por ciudades|entre ciudades)\b", text):
         return False
     if has(r"\b(?:price|precios?) (?:of|for|de|del|para)\b", text):
         return False
@@ -432,7 +621,8 @@ def _aggregate_hicp(text: str) -> bool:
     return not modifier or modifier.group(1) in {
         "annual", "year", "headline", "aggregate", "total", "overall", "general", "euro", "area", "eurozone",
         "hicp", "ipca", "ea19", "ea20", "ea21", "was", "did", "is", "what", "how", "the", "reported",
-        "annualized", "de", "la", "en", "para", "in", "rate", "tasa", "of", "to",
+        "annualized", "de", "la", "en", "para", "in", "rate", "tasa", "of", "to", "core", "subyacente",
+        "average", "mean", "highest", "lowest", "maxima", "minima", "maximum", "minimum", "tax",
     }
 
 
@@ -442,11 +632,15 @@ def _supported_subject(text: str, measures: tuple[Measure, ...]) -> bool:
     if "gdp_quarterly" in measures:
         # The bare aggregate has a closed set of grammatical modifiers. A
         # geographic adjective in this position is a different target series.
-        prefix = re.search(r"\b([a-z0-9]+)[ -]+(?:(?:quarter-on-quarter|quarterly|real|seasonally adjusted) )*gdp\b", text)
-        if prefix and prefix.group(1) not in _AGGREGATE_GDP_PREFIX:
+        subject = re.sub(r"(?<=\w)['’]s\b", "", text)
+        prefix = re.search(
+            r"\b([a-z0-9]+)[ -]+(?:(?:quarter-on-quarter|quarterly|real|raw|unadjusted|"
+            r"(?:(?:not )?(?:seasonally|calendar)[- ])?adjusted) )*gdp\b", subject,
+        )
+        if prefix and prefix.group(1) not in _AGGREGATE_GDP_PREFIX and not re.fullmatch(_YEAR, prefix.group(1)):
             return False
         locative = re.search(
-            r"\b(?:gdp|pib)(?: (?:real|growth rate|growth|change|contraction|decline|drop|estimate|"
+            r"\b(?:gdp|pib)(?: (?:real|growth rates?|growth|change|contraction|decline|drop|estimate|"
             r"crecimiento|caida|contraccion|trimestral)){0,3}"
             r" (?:in|for|of|en|de|del|para) (?:the |la |el )?([a-z0-9]+)\b", text,
         )
@@ -462,6 +656,7 @@ def _supported_subject(text: str, measures: tuple[Measure, ...]) -> bool:
             "to", "from", "and", "after", "before", "during", "since", "cause", "caused", "move",
             "subio", "cayo", "crecio", "estimo", "registro", "reporto", "publico", "trimestral", "cambio", "real", "nominal",
             "del", "de", "en", "por", "se", "el", "durante", "y", "tras", "despues", "segun", "fue",
+            "before", "prior", "unadjusted", "raw", "seasonally", "calendar", "sin", "antes", "bruto",
         }:
             return False
     if "deposit_decision" in measures:
@@ -470,7 +665,7 @@ def _supported_subject(text: str, measures: tuple[Measure, ...]) -> bool:
             r"mant(?:uvo|en\w*)|fix\w*|fij\w*|rais\w*|lower\w*|subi[oó]|redujo|recort\w*|"
             r"cut|rate level|nivel|what (?:was|is) (?:the )?|cual (?:era|fue|es) (?:la |el )?)\b", text
         )
-        if not decision:
+        if not decision and not has(_ANNOUNCED, text):
             return False
     if _ADOPTION_MEASURES.intersection(measures):
         if not _adoption_question(text):
@@ -510,7 +705,8 @@ def _contribution_actors(text: str) -> str | None:
         return None
     before = text[:verbal.start()]
     actors = re.split(
-        r"\b(?:did|does|do|(?:what|how large|how big) (?:is|was|are|were)|cual fue|cuant[oa]|que|como)\b",
+        r"\b(?:did|does|do|give|report|provide|(?:what|how large|how big) (?:is|was|are|were)|"
+        r"cual fue|cuant[oa]|que|como)\b",
         before,
     )[-1]
     actors = re.sub(r"(?:['’]s)? (?:accounting|contable)$|['’]s$", "", actors.strip(" ¿?"))
@@ -555,17 +751,25 @@ def _policy_measures(text: str) -> tuple[Measure, ...]:
         return ()
     if has(r"\b(?:app|asset purchase(?:s| programme)?|compras de activos)\b", text):
         return ("app_schedule",)
-    if has(_DEPOSIT, text) and has(
-        r"\b(?:effective|effect|efectiv[oa]|aplicaba|aplic[oa]|aplicable|en vigor|entr[oó] en vigencia|vigente)\b", text,
-    ):
-        return ("deposit_effective",)
     if has(_EXPECTATION, text) and (has(_DEPOSIT, text) or has(r"\b(?:rates?|tasas?|increase|subida)\b", text)):
         return ("deposit_intention",)
     if not has(_DEPOSIT, text):
         return ()
+    if has(_EFFECTIVE_DATE_QUESTION, text) and has(
+        rf"{_IN_FORCE}|\b(?:effective|effect|aplicable|aplico|vigencia)\b", text,
+    ):
+        return ("deposit_effective",)
+    if statistic(text) != "point":
+        if has(r"\b(?:of (?:the )?(?:announcements?|decisions?)|de (?:los |las )?(?:anuncios?|decisiones))\b", text):
+            return ()
+        return ("deposit_in_force",)
+    if has(_IN_FORCE, text) and not (has(_ANNOUNCED, text) and has(_PROJECTED_POLICY, text)):
+        return ("deposit_in_force",)
     if has(_MOVE, text) or has(_BASIS_POINTS, text) or has(_PERCENT_POINTS, text):
         return ("deposit_move",)
-    return ("deposit_decision",)
+    if has(_ANNOUNCED, text) or has(r"\b(?:kept|left|maintain\w*|mantuvo|dejo|fijo|set)\b", text):
+        return ("deposit_decision",)
+    return ("deposit_in_force",)
 
 
 def _money_measures(text: str) -> tuple[Measure, ...]:
@@ -630,9 +834,11 @@ def _scope_matches(text: str, scope: Scope) -> bool:
 def _requested_measures(text: str, scope: Scope) -> tuple[Measure, ...]:
     if scope.indicator == "hicp-yoy":
         component = has(_CONTRIBUTION, text) and (has(_ENERGY, text) or has(_FOOD, text))
-        if (has(_NARROW_PRICE, text) and not component) or has(_BASKET_EXCLUSION, text) or has(
-            r"\b(?:month.on.month|mensual|mom|quarter.on.quarter)\b", text,
-        ):
+        subject = re.sub(r"\b(?:excluding|excluyendo) (?:the |los )?(?:tax changes|cambios (?:de|en) impuestos)\b", "", text)
+        subject = re.sub(r"\b(?:core inflation|inflacion subyacente)\b", "", subject)
+        if ((has(_NARROW_PRICE, subject) and not component) or has(_BASKET_EXCLUSION, subject) or has(
+            rf"{_NON_ANNUAL_HICP}|\b(?:cpi|ipc|annualized|anualizad\w*)\b", text,
+        )):
             return ()
         return _hicp_measures(text)
     if scope.indicator == "deposit-rate":
@@ -642,7 +848,7 @@ def _requested_measures(text: str, scope: Scope) -> tuple[Measure, ...]:
     if scope.indicator == "eur-usd":
         return _fx_measures(text)
     if scope.event == "genai" and not has(_GDP, text):
-        return () if _unsupported_population(text) else _ai_measures(text)
+        return _ai_measures(text)
     if has(r"\b(?:year.on.year|yoy|interanual|annualized|anualizad\w*|gdp level|nivel del pib)\b", text):
         return ()
     return _gdp_measures(text)
@@ -676,7 +882,198 @@ def _modality(text: str, measure: Measure) -> ClaimType:
     return "observed"
 
 
-def _interpret_clause(text: str, scope: Scope, inherited: Times) -> Intent:
+def measure_variant(measure: Measure) -> Variant | None:
+    if measure in {"deposit_decision", "deposit_effective", "deposit_in_force", "deposit_move", "deposit_intention"}:
+        return "nominal"
+    if measure in {"hicp_annual", "hicp_energy", "hicp_food"}:
+        return "headline"
+    if measure in {"gdp_quarterly", "gdp_consumption"}:
+        return "real"
+    return None
+
+
+def _technology(measure: Measure) -> Technology | None:
+    if measure in {"ai_enterprise", "ai_automation"}:
+        return "any_ai"
+    if measure == "ai_language":
+        return "natural_language_generation"
+    if measure in {"ai_household", "ai_purpose", "ai_hypothesis", "ai_tasks"}:
+        return "generative_ai"
+    return None
+
+
+def _measure_statistic(text: str, measure: Measure, *, requested: bool = False) -> Statistic:
+    kind = statistic(text)
+    if measure in {"deposit_move", "series_change", "spot_move"}:
+        return "change" if kind == "point" else kind
+    # The pricing formula may refer to an average of a different instrument.
+    if measure in {"tltro_pricing", "ltro_pricing"}:
+        return "point"
+    if measure == "hicp_annual" and (has(
+        r"\b(?:change in (?:the )?|variacion de (?:la |el )?|cambio (?:en|de) (?:la |el )?)"
+        r"(?:(?:annual|headline|interanual|general|hicp|ipca|inflation|inflacion) )*(?:rate|tasa)\b",
+        text,
+    ) or (requested and _hicp_change_request(text))):
+        return "change" if kind == "point" else "other"
+    return kind
+
+
+def _hicp_change_request(text: str) -> bool:
+    if has(_HICP_COMPARISON, text) or has(_RATE_RATIO, text):
+        return True
+    # The annual change of the price index defines the annual inflation rate.
+    # A change of that rate requires a distinct calculation.
+    text = re.sub(r"\b(?:annual|year[- ](?:on|over)[- ]year) (?:change|variation)\b", "annual rate", text)
+    if has(r"\b(?:change|variation|increase|decrease|drop) in\b|\b(?:cambio|variacion|aumento|caida) (?:del?|en)\b", text):
+        return True
+    return not has(r"\b(?:year[- ](?:on|over)[- ]year|interanual|anual)\b", text) and has(
+        r"\b(?:how much did .{0,70}?\b(?:rise|fall|change|increase|decrease|go (?:up|down))|"
+        r"cuanto (?:subio|bajo|aumento|cayo|vario|cambio))\b", text,
+    )
+
+
+def _comparison_direction(text: str) -> Literal["higher", "lower"] | None:
+    if has(r"\b(?:higher|exceed\w*|mayor|super[oa])\b", text):
+        return "higher"
+    if has(r"\b(?:lower|menor)\b", text):
+        return "lower"
+    return None
+
+
+def _comparison_operation(base: When, target: When, text: str) -> RateComparison:
+    absolute = has(r"\b(?:absolute (?:difference|change|gap)|diferencia absoluta|valor absoluto)\b", text)
+    return RateComparison(base, target, _comparison_direction(text), absolute)
+
+
+def _rate_comparison(text: str, timing: Times) -> RateComparison | None:
+    if any(has(pattern, text) for pattern in (_DEPOSIT, _GDP, _M3, _ENERGY, _FOOD)):
+        return None
+    refs = timing.reference
+    if len(refs) == 1 and has(_PREVIOUS_MONTH, text):
+        target = refs[0]
+        if target.year is not None and target.month is not None and target.day is None:
+            year = target.year - int(target.month == 1)
+            return _comparison_operation(When(year, target.month - 1 or 12), target, text)
+    if len(refs) != 2 or any(when.month is None or when.day is not None for when in refs):
+        return None
+    first, second = refs
+    mentions = [(left, right) for role, _, left, right in _time_mentions(text) if role == "reference"]
+    if len(mentions) != 2:
+        return None
+    join = text[mentions[0][1]:mentions[1][0]]
+    left = text[:mentions[0][0]]
+    chronological = has(r"\b(?:from|between|de|desde|entre)\s*$", left) and has(r"\b(?:to|and|a|y)\b", join)
+    target_first = has(r"\b(?:than|que|versus|vs|exceed\w*|super[oa]|relative to|respecto (?:a|al|de|del))\b", join)
+    if not chronological and not target_first:
+        return None
+    if first.year is None or second.year is None:
+        # Never guess a year across a calendar boundary.
+        if (chronological and first.month >= second.month) or (target_first and first.month <= second.month):
+            return None
+        year = first.year or second.year
+        if year is None:
+            return None
+        first, second = replace(first, year=year), replace(second, year=year)
+    if first == second:
+        return None
+    if chronological:
+        return _comparison_operation(first, second, text)
+    return _comparison_operation(second, first, text)
+
+
+def _operation(
+    text: str, measure: Measure, requested_statistic: Statistic, unit: Unit | None, *, elliptical: bool = False,
+) -> Operation | None:
+    if requested_statistic == "average":
+        return "temporal_average"
+    if requested_statistic == "point":
+        return "observed_level"
+    if requested_statistic != "change":
+        return None
+    if measure == "hicp_annual" and has(_RATE_RATIO, text):
+        return "rate_ratio"
+    if measure == "hicp_annual" and (elliptical or has(_RATE_TARGET, text) or unit == "percentage_points"):
+        if unit == "percentage_points":
+            return "percentage_point_difference"
+        if unit == "percent" or has(
+            r"\b(?:relative (?:change|increase|decrease)|proportional change|(?:cambio|variacion) relativ[oa])\b", text,
+        ):
+            return "percentage_change"
+        return "rate_difference"
+    return "level_change"
+
+
+def _elliptical_hicp_rate(text: str) -> bool:
+    text = _DATES.sub("", text)
+    text = re.sub(r"\b(?:in|for|en|de|del) +(?=(?:[.?]|$))", "", text)
+    return re.fullmatch(
+        r"(?:(?:what (?:was|is)|give|report|cual fue|indica|indique) )?(?:the |la )?"
+        r"(?:headline (?:annual |year[- ]on[- ]year )?rate|(?:annual|year[- ]on[- ]year) (?:headline )?rate|"
+        r"tasa (?:interanual(?: general)?|general interanual))"
+        r"(?: (?:in percent(?:age)?|en porcentaje))?\s*[.?]?",
+        normalize(text),
+    ) is not None
+
+
+def _elliptical_rate_comparison(text: str, local: Times, antecedent: Requirement) -> RateComparison | None:
+    if len(antecedent.timing.reference) != 1:
+        return None
+    target, = antecedent.timing.reference
+    if target.year is None or target.month is None or target.day is not None:
+        return None
+    if not local.reference:
+        return _rate_comparison(text, Times(reference=(target,)))
+    if len(local.reference) != 1:
+        return None
+    base, = local.reference
+    if base.month is None or base.day is not None:
+        return None
+    if base.year is None:
+        if base.month >= target.month:
+            return None
+        base = replace(base, year=target.year)
+    return _comparison_operation(base, target, text)
+
+
+def _policy_timing(text: str, timing: Times, measure: Measure) -> Times:
+    if measure not in {"deposit_decision", "deposit_effective"} or not has(_ANNOUNCED, text):
+        return timing
+    target = tuple(when for role, when, start, _ in _time_mentions(text)
+                   if role == "reference" and has(r"\b(?:for|para(?: el)?)\s*$", text[:start]))
+    if target:
+        return replace(timing, reference=tuple(when for when in timing.reference if when not in target),
+                       effective=tuple(dict.fromkeys((*timing.effective, *target))))
+    return timing
+
+
+def _vintage_requirements(text: str, timing: Times, measure: Measure) -> tuple[tuple[Times, bool, bool], ...]:
+    revised = has(_REVISED, text)
+    flash = has(r"\b(?:flash|primera estimacion|first estimate)\b", text)
+    if len(timing.publication) <= 1 or measure != "gdp_quarterly":
+        periods = ((timing,) if measure in {"deposit_intention", "deposit_effective", "deposit_in_force", "series_change", "spot_move"}
+                   else _coordinated_periods(text, timing))
+        return tuple((period, revised, flash) for period in periods)
+    publications = [(when, left, right) for role, when, left, right in _time_mentions(text) if role == "publication"]
+    splits = []
+    for index, (when, left, right) in enumerate(publications):
+        # Local vintage words must belong to the publication operand, not to the preceding one.
+        before = text[publications[index - 1][2] if index else 0:left]
+        after = text[right:publications[index + 1][1] if index + 1 < len(publications) else len(text)]
+        before = re.split(r"\b(?:and|y)\b", before)[-1]
+        after = re.split(r"\b(?:and|y)\b", after)[0]
+        local = f"{before} {after}"
+        year = when.year
+        if year is None and len(timing.reference) == 1:
+            year = timing.reference[0].year
+        publication = replace(when, year=year)
+        splits.append((replace(timing, publication=(publication,)), has(_REVISED, local),
+                       has(r"\b(?:flash|primera estimacion|first estimate)\b", local)))
+    return tuple(splits)
+
+
+def _interpret_clause(
+    text: str, scope: Scope, inherited: Times, *, hicp_antecedent: Requirement | None = None,
+) -> Intent:
     is_counterfactual = counterfactual(text)
     causal = is_counterfactual or _causal_request(text)
     if not _scope_matches(text, scope) or exclusive(text):
@@ -684,7 +1081,8 @@ def _interpret_clause(text: str, scope: Scope, inherited: Times) -> Intent:
     requested_adjustment = adjustment(text)
     if requested_adjustment == "other":
         return Intent((), causal, unsupported=True)
-    timing = times(text)
+    local_timing = times(text)
+    timing = local_timing
     timing = Times(timing.reference or inherited.reference, timing.publication or inherited.publication,
                    timing.effective or inherited.effective, timing.as_of or inherited.as_of)
     if timing.as_of and not all(day.includes_day(date.fromisoformat(scope.cutoff)) for day in timing.as_of):
@@ -693,15 +1091,31 @@ def _interpret_clause(text: str, scope: Scope, inherited: Times) -> Intent:
     if len(institutions) > 1:
         return Intent((), causal, unsupported=True)
     measures = _requested_measures(text, scope)
-    adoption_objects = _adoption_objects(text) if _ADOPTION_MEASURES.intersection(measures) else None
-    unknown_parts = False
-    if adoption_objects:
-        measures, unknown_parts = adoption_objects
+    comparison_ellipsis = (
+        not measures and hicp_antecedent is not None and hicp_antecedent.measure == "hicp_annual"
+        and _COMPARISON_ELLIPSIS.match(text) is not None
+    )
+    elliptical = not measures and hicp_antecedent is not None and (
+        comparison_ellipsis or _elliptical_hicp_rate(text)
+    )
+    if elliptical:
+        measures = ("hicp_annual",)
+        if not timing.publication:
+            timing = replace(timing, publication=hicp_antecedent.timing.publication)
+    objects: tuple[tuple[Measure, Purpose | None], ...] = tuple((measure, None) for measure in measures)
+    unmatched: tuple[str, ...] = ()
+    if _ADOPTION_MEASURES.intersection(measures):
+        objects, unmatched = _adoption_objects(text)
+        measures = tuple(measure for measure, _ in objects)
     elif {"hicp_energy", "hicp_food"}.intersection(measures):
         contribution_objects = _contribution_objects(text)
         if contribution_objects:
             measures, unknown_parts = contribution_objects
-        unknown_parts |= has(_NARROW_PRICE, text)
+            if unknown_parts:
+                unmatched = (_contribution_actors(text) or text,)
+            objects = tuple((measure, None) for measure in measures)
+        if has(_NARROW_PRICE, text) and not unmatched:
+            unmatched = (text,)
 
     if "deposit_intention" in measures and len(timing.reference) > 1 and not timing.publication:
         timing = Times(timing.reference[1:], timing.reference[:1], timing.effective, timing.as_of)
@@ -709,6 +1123,7 @@ def _interpret_clause(text: str, scope: Scope, inherited: Times) -> Intent:
         return Intent((), causal, unsupported=True)
     if _series_requested(text, scope.indicator, measures):
         measures = ("series_change",)
+        objects = (("series_change", None),)
     explicit_units = units(text, adoption=bool(_ADOPTION_MEASURES.intersection(measures)))
     unit = explicit_units[0] if len(explicit_units) == 1 else None
     if len(explicit_units) > 1:
@@ -717,25 +1132,46 @@ def _interpret_clause(text: str, scope: Scope, inherited: Times) -> Intent:
     premise = re.search(r"(?<![\d.])-?\d+[.,]\d+\s*%", text) if "deposit_effective" in measures else None
     area = re.search(r"\bea(?:19|20|21)\b", text)
     population = _adoption_population(text)
-    requirements = tuple(
-        Requirement(
-            measure, measure_timing, unit, revised=has(_REVISED, text),
-            flash=has(r"\b(?:flash|primera estimacion|first estimate)\b", text),
-            institution=institutions[0] if institutions else None,
-            premise=Decimal(premise.group().removesuffix("%").strip().replace(",", ".")) if premise else None,
-            modality=_modality(text, measure),
-            population=population if measure in _ADOPTION_MEASURES else None,
-            area_definition=area.group() if area else None,
-            polarity="affirmative" if is_counterfactual else polarity(text),
-            adjustment=requested_adjustment,
+    requested_variant = statistical_variant(text)
+    requirements = []
+    for measure, purpose in objects:
+        requested_statistic = _measure_statistic(text, measure, requested=True)
+        if comparison_ellipsis and requested_statistic == "point":
+            requested_statistic = "change"
+        operation = _operation(text, measure, requested_statistic, unit, elliptical=elliptical)
+        comparison = (
+            _rate_comparison(text, timing)
+            if operation in {"rate_difference", "percentage_point_difference", "percentage_change"} else None
         )
-        for measure in measures
-        for measure_timing in (
-            (timing,) if measure in {"deposit_intention", "deposit_effective", "series_change", "spot_move"}
-            else _coordinated_periods(text, timing)
-        )
-    )
-    return Intent(requirements, causal, unsupported=not requirements, whole_period=whole_period, unknown_parts=unknown_parts)
+        if comparison_ellipsis:
+            comparison = _elliptical_rate_comparison(text, local_timing, hicp_antecedent)
+            if hicp_antecedent.timing.publication and timing.publication != hicp_antecedent.timing.publication:
+                comparison = None
+        policy_timing = _policy_timing(text, timing, measure)
+        vintages = _vintage_requirements(text, policy_timing, measure)
+        if measure == "hicp_annual" and requested_statistic == "change":
+            vintages = ((policy_timing, has(_REVISED, text), False),)
+        for measure_timing, revised, flash in vintages:
+            requirements.append(Requirement(
+                measure, measure_timing, unit, revised=revised, flash=flash,
+                institution=institutions[0] if institutions else hicp_antecedent.institution if elliptical else None,
+                premise=Decimal(premise.group().removesuffix("%").strip().replace(",", ".")) if premise else None,
+                modality=_modality(text, measure),
+                population=population if measure in _ADOPTION_MEASURES else None,
+                area_definition=area.group() if area else hicp_antecedent.area_definition if elliptical else None,
+                polarity="affirmative" if is_counterfactual else polarity(text),
+                adjustment=requested_adjustment or (hicp_antecedent.adjustment if elliptical else None),
+                variant=requested_variant or (hicp_antecedent.variant if elliptical else None) or measure_variant(measure),
+                statistic=requested_statistic,
+                subgroup=_adoption_subgroup(text, population) if measure in _ADOPTION_MEASURES else None,
+                purpose=purpose, technology=_technology(measure), indicator=scope.indicator, geography=scope.geography,
+                description=text, whole_period=whole_period,
+                announced=has(_ANNOUNCED, text) and not has(_ACTUAL_POLICY, text),
+                denominator=_adoption_denominator(text) if measure in _ADOPTION_MEASURES else None,
+                average_method=average_method(text) if requested_statistic == "average" else None,
+                operation=operation, comparison=comparison,
+            ))
+    return Intent(tuple(requirements), causal, unsupported=not requirements, unknown_parts=bool(unmatched), unmatched_parts=unmatched)
 
 
 def interpret(question: str, scope: Scope) -> Intent:
@@ -749,22 +1185,116 @@ def interpret(question: str, scope: Scope) -> Intent:
     if any(role not in {"as_of", "effective"} and relative_time(text, start, end)
            for role, _, start, end in _time_mentions(text)):
         return Intent((), counterfactual(text) or _causal_request(text), unsupported=True)
+    inherited = times(text)
+    if scope.indicator == "real-gdp-qoq" and len(inherited.publication) == 2 and len(inherited.reference) == 1 and has(
+        r"\b(?:flash|preliminary|preliminar)\b", text,
+    ) and has(_REVISED, text) and len(re.findall(_GDP, text)) == 1 and not has(
+        r"\b(?:and|y) (?:what|which|how|why|que|cual|cuando|como|cuant[oa]s?)\b", text,
+    ):
+        return _interpret_clause(text, scope, Times())
     # Preserve conjunctive questions as independent requirements. A recognized
     # clause cannot erase another requested fact.
     parts = re.split(
-        r"\b(?:and|y) (?=(?:what|which|how|when|why|did|does|que|cual|cuando|como|cuant[oa]s?|por que|"
-        r"the|la|el|spot|eur.?usd|exchange rate|real gdp|pib|m3)\b)", text,
+        rf"(?:\b(?:and|y|plus|as well as|asi como) |;\s*)(?=(?:what|which|how|{_COMPARISON_PROMPT}|when|why|did|does|"
+        r"que|cual|cuando|como|cuant[oa]s?|en cuanto|por que|"
+        r"its (?:change|difference)|su (?:variacion|diferencia)|"
+        r"the|la|el|spot|eur.?usd|exchange rate|real gdp|pib|m3|headline|constant[- ]tax|"
+        r"net (?:of|after) tax|after[- ]tax|despues de impuestos|net[oa] de impuestos|a cuanto)\b)", text,
     )
     if len(parts) == 1:
         return _interpret_clause(text, scope, Times())
-    inherited = times(text)
     if len(inherited.reference) > 1 or len(inherited.publication) > 1:
-        inherited = Times(as_of=inherited.as_of)
-    clauses = tuple(_interpret_clause(part, scope, inherited) for part in parts)
+        leading_source = has(r"^[¿? ]*(?:based on|according to|using|segun|con base en|a partir del)\b", text)
+        publication = inherited.publication if leading_source and len(inherited.publication) == 1 else ()
+        inherited = Times(publication=publication, as_of=inherited.as_of)
+    if scope.indicator == "deposit-rate" and has(_DEPOSIT, parts[0]) and has(_ANNOUNCED, parts[0]):
+        # A same-date companion can elide the named instrument but not its qualifier.
+        parts = [parts[0], *(
+            f"{part.rstrip(' ?')} deposit facility rate at the decision?"
+            if statistical_variant(part) in {"net_of_tax", "gross_of_tax"} and not has(_DEPOSIT, part) else part
+            for part in parts[1:]
+        )]
+    clauses = []
+    hicp_antecedent = None
+    for part in parts:
+        clause = _interpret_clause(part, scope, inherited, hicp_antecedent=hicp_antecedent)
+        clauses.append(clause)
+        hicp_antecedent = (clause.requirements[0] if scope.indicator == "hicp-yoy" and has(_HICP, part)
+                           and clause.requirements and not clause.causal else None)
     requirements = tuple(dict.fromkeys(req for clause in clauses for req in clause.requirements))
+    unmatched = tuple(item for part, clause in zip(parts, clauses, strict=True)
+                      for item in (clause.unmatched_parts or ((part,) if clause.unsupported else ())))
     return Intent(requirements, any(c.causal for c in clauses), unsupported=not requirements,
-                  whole_period=any(c.whole_period for c in clauses),
-                  unknown_parts=any(c.unsupported or c.unknown_parts for c in clauses))
+                  unknown_parts=bool(unmatched), unmatched_parts=unmatched)
+
+
+_COVERAGE_DATE = rf"{_YEAR}-\d{{2}}-\d{{2}}"
+_RATE_VALUE = r"(?P<value>-?\d{1,5}(?:[.,]\d{1,12})?)\s*%"
+_RATE_INTERVAL = re.compile(
+    rf"(?:the )?ecb deposit facility rate (?P<verb>was|averaged) {_RATE_VALUE} "
+    rf"from (?P<start>{_COVERAGE_DATE}) through (?P<end>{_COVERAGE_DATE})"
+    r"(?: on a calendar-day-weighted basis)?\.?"
+)
+_RATE_DAY = re.compile(
+    rf"on (?P<start>{_COVERAGE_DATE}), (?:the )?ecb deposit facility rate (?P<verb>was) {_RATE_VALUE}\.?"
+)
+
+
+def _reported_rate(claim: Claim, text: str) -> tuple[RateCoverage, Statistic] | None:
+    """Admit only explicit, completed calendar-day coverage in reviewed observations."""
+    match = _RATE_INTERVAL.fullmatch(text) or _RATE_DAY.fullmatch(text)
+    if not match or claim.type != "observed":
+        return None
+    start = match["start"]
+    end = match.groupdict().get("end") or start
+    if (start, end) != (claim.historical_period.start, claim.historical_period.end) or not start <= end <= claim.publication_date:
+        return None
+    coverage = RateCoverage(date.fromisoformat(start), date.fromisoformat(end), Decimal(match["value"].replace(",", ".")))
+    return coverage, "average" if match["verb"] == "averaged" else "point"
+
+
+def _day_in(mentions: tuple[When, ...], published: date, *, effective: bool = False) -> date | None:
+    days = set()
+    for mention in mentions:
+        if mention.day is None or mention.month is None:
+            continue
+        year = published.year + int(effective and mention.month < published.month)
+        try:
+            days.add(mention.bounds(year)[0])
+        except ValueError:
+            return None
+    return next(iter(days)) if len(days) == 1 else None
+
+
+def _claim_purposes(measure: Measure, text: str) -> tuple[Purpose | None, ...]:
+    if measure == "ai_automation":
+        combined = re.search(rf"(?:{_WORKFLOW} (?:or|o) {_DECISION_SUPPORT}|{_DECISION_SUPPORT} (?:or|o) {_WORKFLOW})", text)
+        if combined:
+            return ("workflow_or_decision_support",)
+        # A single category must be attributable as the requested measured purpose.
+        if has(_WORKFLOW, text) and not has(_DECISION_SUPPORT, text):
+            return ("workflow",)
+        if has(_DECISION_SUPPORT, text) and not has(_WORKFLOW, text):
+            return ("decision_support",)
+        return ()
+    if measure == "ai_purpose":
+        categories = re.findall(
+            r"\b(personal purposes?|work(?: purposes?)?|formal education) by \d+(?:\.\d+)?%"
+            r"|\b(work(?: purposes?)?|formal education) by \d+(?:\.\d+)?%", text,
+        )
+        return tuple(purpose for left, right in categories if (purpose := survey_purpose(left or right)))
+    return (None,)
+
+
+def _claim_units(measure: Measure, stated: tuple[Unit, ...]) -> tuple[Unit, ...]:
+    expected = {
+        "ai_enterprise": "percent", "ai_language": "percent", "ai_automation": "percent", "ai_household": "percent",
+        "ai_purpose": "percent", "hicp_energy": "percentage_points", "hicp_food": "percentage_points",
+        "hicp_annual": "percent", "gdp_quarterly": "percent", "gdp_consumption": "percentage_points",
+        "m3_annual": "percent", "m1_annual": "percent", "m1_contribution": "percentage_points",
+        "deposit_decision": "percent", "deposit_in_force": "percent",
+    }.get(measure)
+    return tuple(unit for unit in stated if unit == expected) if expected else stated
 
 
 def claim_predicates(claim: Claim) -> tuple[Predicate, ...]:
@@ -772,6 +1302,11 @@ def claim_predicates(claim: Claim) -> tuple[Predicate, ...]:
     text = normalize(claim.text)
     timing = times(text)
     stated = units(text)
+    qualifiers = normalize(claim.qualifiers)
+    reported = _reported_rate(claim, text) if "deposit-rate" in claim.indicators else None
+    published = date.fromisoformat(claim.publication_date)
+    effective = _day_in(timing.effective, published, effective=True)
+    decision = _day_in(timing.reference, published)
     measures: tuple[Measure, ...] = ()
     if claim.type == "observed":
         if "eur-usd" in claim.indicators:
@@ -786,8 +1321,10 @@ def claim_predicates(claim: Claim) -> tuple[Predicate, ...]:
             measures = _hicp_measures(text)
         elif has(_DEPOSIT, text) or has(r"\b(?:tltro|ltro)\b", text):
             measures = _policy_measures(text)
-            if measures == ("deposit_effective",):
+            if measures == ("deposit_decision",) and effective:
                 measures = ("deposit_decision", "deposit_effective")
+            elif measures == ("deposit_in_force",) and not reported:
+                measures = ()
     elif claim.type == "projection_or_expectation":
         measures = _policy_measures(text)
     elif claim.type == "institutional_interpretation":
@@ -797,11 +1334,29 @@ def claim_predicates(claim: Claim) -> tuple[Predicate, ...]:
             measures = ("hicp_diagnosis",)
     elif claim.type == "unconfirmed_hypothesis":
         measures = _ai_measures(text)
+    population = _adoption_population(text)
+    variant = statistical_variant(text)
+    text_adjustment, editorial_adjustment = adjustment(text), adjustment(qualifiers)
+    stated_adjustment = (
+        "other" if text_adjustment and editorial_adjustment and text_adjustment != editorial_adjustment
+        else text_adjustment or editorial_adjustment
+    )
     return tuple(
-        Predicate(measure, stated, timing,
+        Predicate(measure, _claim_units(measure, stated), timing,
                   previous_reference=has(r"\b(?:after|from|compared with|same september release)\b", text),
                   flash=has(r"\bflash\b", text),
-                  population=_adoption_population(text) if measure in _ADOPTION_MEASURES else None,
-                  polarity=polarity(text), adjustment=adjustment(text))
+                  population=population if measure in _ADOPTION_MEASURES else None,
+                  polarity=polarity(text), adjustment=stated_adjustment,
+                  variant=variant or measure_variant(measure),
+                  statistic=reported[1] if reported else _measure_statistic(text, measure),
+                  subgroup=_adoption_subgroup(text, population) if measure in _ADOPTION_MEASURES else None,
+                  purpose=purpose, technology=_technology(measure),
+                  rate_coverage=reported[0] if reported else None,
+                  decision_date=decision if measure in {"deposit_decision", "deposit_effective", "deposit_in_force"} else None,
+                  revised=has(_REVISED, text) or has(r"^revised\b", qualifiers), effective_date=effective,
+                  denominator=_adoption_denominator(text) if measure in _ADOPTION_MEASURES else None,
+                  average_method="calendar_day_weighted" if reported and reported[1] == "average"
+                  and text.rstrip(".").endswith("on a calendar-day-weighted basis") else None)
         for measure in measures
+        for purpose in _claim_purposes(measure, text)
     )

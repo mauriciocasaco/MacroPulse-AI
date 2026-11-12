@@ -26,12 +26,33 @@ _EXCLUSIVE = re.compile(
     r"solo|solamente|unicamente|exclusivamente|restringid[oa]s? a|limitad[oa]s? a)\b",
 )
 _UNADJUSTED = re.compile(
-    r"\b(?:unadjusted|non.adjusted|not (?:seasonally |calendar )?adjusted|"
-    r"no ajustad[oa]s?|sin ajuste|sin desestacionalizar)\b",
+    r"\b(?:raw|unadjusted|non[- ](?:seasonally[- ])?adjusted|not (?:seasonally[- ])?adjusted|"
+    r"without (?:any |the )?(?:seasonal[- ])?adjustments?|"
+    r"without (?:adjusting|correcting) for seasonality|"
+    r"(?:before|prior to|pre[- ])\s*(?:any |the |applying (?:the )?)?(?:seasonal[- ])?adjustments?|"
+    r"before (?:being|it (?:was|is)|(?:the )?data (?:were|are)) seasonally adjusted|"
+    r"(?:before|prior to|without) (?:deseasonali[sz]ing|seasonally (?:adjusting|correcting)|"
+    r"(?:adjusting|correcting) for (?:seasonality|seasonal (?:effects?|variation))|"
+    r"removing (?:seasonality|seasonal (?:effects?|variation)))|"
+    r"no (?:desestacionalizad[oa]s?|ajustad[oa]s?(?: (?:por estacionalidad|estacionalmente))?)|"
+    r"sin (?:aplicar (?:el )?)?(?:ajustes?(?: estacional(?:es)?)?|desestacionalizar|desestacionalizacion)|"
+    r"(?:antes del?|previ[oa] al?) (?:aplicar (?:el )?|el |la )?"
+    r"(?:ajuste estacional|desestacionalizacion|desestacionalizar|ajustar estacionalmente)|"
+    r"(?:antes de|sin|previo a) (?:ajustar|corregir|eliminar|quitar) "
+    r"(?:(?:por )?(?:el |la )?(?:efectos? estacional(?:es)?|estacionalidad)|estacionalmente)|"
+    r"en bruto|datos brut[oa]s?|serie brut[oa])\b",
+)
+_CALENDAR_NEGATION = re.compile(
+    r"\b(?:(?:not|non[- ])\s*calendar[- ]adjusted|(?:before|prior to|without) (?:the )?calendar adjustment|"
+    r"sin ajuste (?:de |del )?calendario|antes del ajuste (?:de |del )?calendario)\b",
+)
+_DIRECTIONAL_ADJUSTMENT = re.compile(
+    r"\b(?:before|prior to|without|antes del?|previ[oa] al?|sin)\b[^,;?.]{0,55}"
+    r"\b(?:seasonal\w*|calendar[- ]adjust\w*|desestacionaliz\w*|estacional\w*)\b",
 )
 _ADJUSTMENT = re.compile(
-    r"\b(?:adjusted|adjustment|corrected|correction for|"
-    r"ajustad[oa]s?|ajuste|corregid[oa]s?|desestacionaliz\w*)\b",
+    r"\b(?:adjusted|adjustments?|corrected|correction for|"
+    r"ajustad[oa]s?|ajustes?|corregid[oa]s?|desestacionaliz\w*)\b",
 )
 _SEASONAL = re.compile(r"\b(?:seasonal\w*|estacional\w*|desestacionaliz\w*)\b")
 _CALENDAR = re.compile(r"\b(?:calendar|calendario|working days?|dias habiles)\b")
@@ -57,7 +78,7 @@ def counterfactual(text: str) -> bool:
 
 
 def polarity(text: str) -> Polarity:
-    text = _UNADJUSTED.sub("", text)
+    text = _UNADJUSTED.sub("", _CALENDAR_NEGATION.sub("", text))
     return "negative" if _NEGATIVE.search(text) else "affirmative"
 
 
@@ -66,10 +87,16 @@ def exclusive(text: str) -> bool:
 
 
 def adjustment(text: str) -> Adjustment | None:
-    if _UNADJUSTED.search(text):
-        return "unadjusted"
+    if _CALENDAR_NEGATION.search(text):
+        return "other"
+    unadjusted = _UNADJUSTED.search(text) is not None
+    text = _UNADJUSTED.sub("", text)
+    if _DIRECTIONAL_ADJUSTMENT.search(text):
+        return "other"
     if not _ADJUSTMENT.search(text):
-        return None
+        return "unadjusted" if unadjusted else None
+    if unadjusted:
+        return "other"
     seasonal = _SEASONAL.search(text) is not None
     calendar = _CALENDAR.search(text) is not None
     if seasonal and calendar:
