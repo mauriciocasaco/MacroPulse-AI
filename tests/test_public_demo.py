@@ -4,6 +4,7 @@ from decimal import Decimal
 from hashlib import sha256
 import json
 import os
+from types import SimpleNamespace
 import subprocess
 import sys
 from threading import Event
@@ -304,6 +305,7 @@ def test_shared_startup_connection_failure_never_retries_or_falls_back(demo_env,
 def test_connection_requires_tls_and_read_only_privileges(monkeypatch, tls, role, scope):
     connection = MagicMock()
     connection.pgconn.ssl_in_use = tls
+    connection.pgconn.info = [SimpleNamespace(keyword=b"sslmode", val=b"verify-full")]
     cursor = connection.cursor.return_value.__enter__.return_value
     cursor.execute.return_value.fetchone.side_effect = [(role,), (scope,)]
     connect = MagicMock(return_value=connection)

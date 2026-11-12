@@ -186,6 +186,21 @@ def test_shared_database_enforces_effective_role_and_privileges(shared_demo_data
     with shared_demo_database() as (dsn, owner):
         if not owner.pgconn.ssl_in_use:
             pytest.skip("requires TLS disposable PostgreSQL fixture")
+        owner.execute("""
+            CREATE SCHEMA macro_data;
+            CREATE SCHEMA market_data;
+            CREATE SCHEMA news;
+            CREATE SCHEMA vault;
+            CREATE TABLE macro_data.fixture_private AS SELECT 'synthetic private row' AS value;
+            CREATE TABLE public.fixture_private AS SELECT 'synthetic private row' AS value;
+            CREATE EXTENSION pgcrypto;
+            CREATE EXTENSION pg_stat_statements;
+            CREATE ROLE marketpulse_demo_ro NOINHERIT;
+            GRANT USAGE ON SCHEMA public TO marketpulse_demo_ro;
+        """)
+        owner.execute(sql.SQL("GRANT TEMPORARY ON DATABASE {} TO marketpulse_demo_ro").format(
+            sql.Identifier(owner.info.dbname)
+        ))
         install_demo(owner)
         with owner.transaction():
             _load_synthetic_projection(owner)
@@ -197,26 +212,8 @@ def _check_shared_database(owner, dsn, tmp_path):
     role_dsn = make_conninfo(dsn, user="marketpulse_demo_ro", gssencmode="disable")
     separate = demo.DemoSettings(role_dsn, SECRET)
     shared = demo.DemoSettings(role_dsn, SECRET, shared_project=True)
-    with demo.connect_demo(separate):
-        pass
-
-    for schema in ("macro_data", "market_data", "news", "vault"):
-        name = sql.Identifier(schema)
-        owner.execute(sql.SQL("CREATE SCHEMA {}").format(name))
-        owner.execute(sql.SQL("CREATE TABLE {}.fixture_private AS SELECT 'synthetic private row' AS value").format(name))
     owner.execute("CREATE SEQUENCE marketpulse_demo.private_counter")
-    owner.execute("REVOKE ALL ON SCHEMA public FROM PUBLIC")
-    with pytest.raises(ProjectionError, match="unexpected shared database privileges"):
-        demo.connect_demo(shared)  # Default PUBLIC large-object creation is writable outside the app.
-    persistent_writes = owner.execute("""
-        SELECT oid::regprocedure::text FROM pg_proc
-        WHERE pronamespace = 'pg_catalog'::regnamespace
-            AND proname IN ('lo_creat', 'lo_create', 'lo_from_bytea', 'pg_logical_emit_message')
-    """).fetchall()
-    for (signature,) in persistent_writes:
-        owner.execute(sql.SQL("REVOKE EXECUTE ON FUNCTION {} FROM PUBLIC").format(sql.SQL(signature)))
-
-    with pytest.raises(ProjectionError, match="projection is unavailable"):
+    with pytest.raises(demo.DemoConfigurationError, match="required read-only scope"):
         demo.connect_demo(separate)
     with demo.connect_demo(shared) as reader:
         assert reader.execute("""
@@ -232,10 +229,21 @@ def _check_shared_database(owner, dsn, tmp_path):
         with pytest.raises(psycopg.errors.ReadOnlySqlTransaction), reader.transaction():
             reader.execute("DELETE FROM marketpulse_demo.macro_catalog WHERE false")
 
-    with psycopg.connect(role_dsn, autocommit=True) as reader:
-        reader.execute("SET default_transaction_read_only = off")
-        with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            reader.execute("SELECT lo_create(0)")
+    with psycopg.connect(role_dsn, autocommit=True) as reader, reader.transaction(force_rollback=True):
+        reader.execute("SET TRANSACTION READ WRITE")
+        reader.execute("CREATE TEMP TABLE fixture_local AS SELECT 1 AS value")
+        assert reader.execute("SELECT value FROM fixture_local").fetchone() == (1,)
+        assert reader.execute("SELECT public.digest('fixture', 'sha256') IS NOT NULL").fetchone() == (True,)
+        (owned_large_object,) = reader.execute("SELECT lo_from_bytea(0, 'synthetic'::bytea)").fetchone()
+        assert reader.execute("SELECT lo_get(%s)", (owned_large_object,)).fetchone() == (b"synthetic",)
+        for statement in (
+            "DELETE FROM marketpulse_demo.macro_catalog WHERE false",
+            "DELETE FROM marketpulse_demo.macro_observations WHERE false",
+            "SELECT * FROM public.fixture_private",
+            "UPDATE macro_data.fixture_private SET value = 'changed' WHERE false",
+        ):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege), reader.transaction():
+                reader.execute(statement)
     bad_identity = demo.DemoSettings(make_conninfo(dsn, options="-c role=marketpulse_demo_ro"), SECRET,
                                     shared_project=True)
     with pytest.raises(demo.DemoConfigurationError, match="required read-only scope"):
@@ -249,7 +257,20 @@ def _check_shared_database(owner, dsn, tmp_path):
          "REVOKE SET ON PARAMETER lo_compat_privileges FROM PUBLIC"),
         ("GRANT ALTER SYSTEM ON PARAMETER log_min_duration_statement TO PUBLIC",
          "REVOKE ALTER SYSTEM ON PARAMETER log_min_duration_statement FROM PUBLIC"),
-        ("GRANT USAGE ON SCHEMA vault TO PUBLIC", "REVOKE USAGE ON SCHEMA vault FROM PUBLIC"),
+        ("GRANT USAGE ON SCHEMA vault TO PUBLIC; CREATE FUNCTION vault.private_read() RETURNS integer "
+         "LANGUAGE sql SECURITY DEFINER AS 'SELECT 1'",
+         "DROP FUNCTION vault.private_read(); REVOKE USAGE ON SCHEMA vault FROM PUBLIC"),
+        ("GRANT SELECT (value) ON public.fixture_private TO PUBLIC",
+         "REVOKE SELECT (value) ON public.fixture_private FROM PUBLIC"),
+        ("GRANT SELECT ON macro_data.fixture_private TO PUBLIC",
+         "REVOKE SELECT ON macro_data.fixture_private FROM PUBLIC"),
+        ("GRANT SELECT ON pg_catalog.pg_statistic TO PUBLIC",
+         "REVOKE SELECT ON pg_catalog.pg_statistic FROM PUBLIC"),
+        ("CREATE SCHEMA net; CREATE TABLE net.http_request_queue (secret text); "
+         "GRANT SELECT (secret) ON net.http_request_queue TO PUBLIC", "DROP SCHEMA net CASCADE"),
+        ("CREATE FUNCTION macro_data.private_callback(integer) RETURNS boolean LANGUAGE sql AS 'SELECT true'; "
+         "CREATE DOMAIN macro_data.private_domain AS integer CHECK (macro_data.private_callback(VALUE))",
+         "DROP DOMAIN macro_data.private_domain; DROP FUNCTION macro_data.private_callback(integer)"),
         ("GRANT USAGE ON SCHEMA news TO marketpulse_demo_ro", "REVOKE USAGE ON SCHEMA news FROM marketpulse_demo_ro"),
         ("GRANT SELECT ON macro_data.fixture_private TO marketpulse_demo_ro",
          "REVOKE SELECT ON macro_data.fixture_private FROM marketpulse_demo_ro"),
@@ -264,8 +285,6 @@ def _check_shared_database(owner, dsn, tmp_path):
         ("CREATE FUNCTION pg_catalog.fixture_private() RETURNS text LANGUAGE sql AS 'SELECT ''synthetic private row'''",
          "DROP FUNCTION pg_catalog.fixture_private()"),
     ]
-    mutations.extend((f"GRANT EXECUTE ON FUNCTION {signature} TO PUBLIC",
-                      f"REVOKE EXECUTE ON FUNCTION {signature} FROM PUBLIC") for (signature,) in persistent_writes)
     for grant, revoke in mutations:
         owner.execute(grant)
         try:
@@ -281,6 +300,10 @@ def _check_shared_database(owner, dsn, tmp_path):
     with pytest.raises(ProjectionError, match="unexpected shared database privileges"):
         demo.connect_demo(shared)
     owner.execute("SELECT lo_unlink(%s)", (large_object,))
+
+    unverified_tls = demo.DemoSettings(make_conninfo(role_dsn, sslmode="require"), SECRET, shared_project=True)
+    with pytest.raises(demo.DemoConfigurationError, match="requires TLS verify-full"):
+        demo.connect_demo(unverified_tls)
 
     wrong_host = demo.DemoSettings(
         make_conninfo(role_dsn, host="wrong.fixture.invalid", sslmode="verify-full"), SECRET, shared_project=True,

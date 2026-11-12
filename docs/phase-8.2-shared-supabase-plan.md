@@ -8,23 +8,20 @@ DEV y DEMO comparten capacidad de PostgreSQL. La separación de datos depende
 del alcance efectivo del rol, incluidos los permisos otorgados a `PUBLIC`.
 
 El [runbook de despliegue](public-deployment-runbook.md) contiene el
-procedimiento operativo. El cambio de infraestructura local se prepara en
-`feat/m8-shared-deployment`. La promoción requiere un SHA integrado y
+procedimiento operativo. La promoción requiere el SHA integrado y
 autorización para operar en cada destino.
 
-## Contratos pendientes de integración
+## Contratos de integración
 
 | Trabajo | Contrato esperado | Evidencia que debe acompañar la integración |
 | --- | --- | --- |
-| A — Base de datos | Migración y reversión acotadas a objetos DEMO. Esquema fuera de PostgREST, rol dedicado sin membresías ni propiedad, dos tablas de lectura, carga de las cinco series y restauración protegida por SHA activo. | Prueba con esquemas DEV sintéticos coexistentes, comparación de ACL antes y después, inventario efectivo del rol DEMO y procedimiento de carga, revocación y restauración verificado. |
+| A — Base de datos | Migración y reversión acotadas a objetos DEMO. Esquema fuera de PostgREST, rol dedicado sin membresías salientes ni propiedad de objetos de aplicación, dos tablas de lectura, carga de las cinco series y restauración protegida por SHA activo y carga con SHA aprobado. | Prueba con esquemas DEV sintéticos coexistentes, comparación de ACL antes y después, inventario efectivo del rol DEMO y procedimiento de carga, revocación y restauración verificado. |
 | B — Backend | El perfil público requiere el opt-in literal `MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT=true` para la referencia compartida. Valida DSN del rol DEMO directo o por pooler de sesión, TLS `verify-full`, identidad efectiva, alcance de solo lectura e integridad de la proyección. Conserva el secreto Worker → Render, las rutas y la disponibilidad condicionada de Research v2. | Pruebas de rechazo con opt-in ausente o incorrecto, referencia/rol incorrectos, TLS inválido y alcance excesivo. Prueba con la proyección de A y esquemas DEV coexistentes. Confirmación conjunta del mecanismo y CLI de carga administrativa compartida. |
 | C — Infraestructura | Blueprint de Render con referencia fijada, opt-in explícito y Research apagado. CA en archivo secreto, DSN y secreto de origen inyectados en Render. La clave Gemini se carga durante 8.2D. Worker y Durable Object conservan su contrato de Fase 8.1. | Validación local del Blueprint, configuración Worker, PWA pública, pruebas del Worker y referencias del runbook. |
 
-En `8eedcb3`, el validador de destino rechaza la referencia compartida, el
-lector y el importador requieren ausencia de esquemas DEV y el SQL dedicado
-incluye revocaciones globales de `PUBLIC`. Las variables de Render preparan el
-contrato con B. La compatibilidad de A y B, incluido el caso de privilegios
-efectivos concedidos a `PUBLIC`, se debe demostrar antes de arrancar el origen.
+El [contrato de PostgreSQL de 8.2A](m8-shared-db-contract.md) define los
+permisos admitidos. La comprobación alojada de los privilegios efectivos de
+`pg_net` sigue pendiente y condiciona la promoción pública.
 
 ## Orden de promoción
 

@@ -9,8 +9,11 @@ sin credenciales, consultas de usuarios ni datos DEV.
 
 La [preparación de Fase 8.1](phase-8.1-public-ai-readiness.md) documenta los
 controles de aplicación. El [plan de Fase 8.2](phase-8.2-shared-supabase-plan.md)
-define las condiciones de integración. En el SHA de Fase 8.1 el SQL, el
-importador y el backend todavía presuponen un proyecto dedicado.
+define las condiciones de promoción. El [contrato de PostgreSQL compartido](m8-shared-db-contract.md)
+define el mínimo privilegio lógico que permite usar la misma base que DEV.
+El GO de integración local y el GO de despliegue público requieren verificaciones
+distintas. Sigue pendiente comprobar los permisos efectivos de `pg_net` en
+el proyecto alojado.
 
 ## Preparación local
 
@@ -53,11 +56,12 @@ validación sin red.
    defecto representativos. Comparar antes y después los permisos y objetos
    ajenos a DEMO. Revisar tanto los grants directos como los efectivos. Un
    privilegio concedido a `PUBLIC` también llega al rol DEMO aunque se revoque
-   del rol individualmente. Si `TEMP`, `CREATE`, lecturas o funciones accesibles
-   rompen el aislamiento o el contrato de B, detener el aprovisionamiento y
-   resolverlo con A y B. Cualquier cambio que afecte DEV requiere autorización
-   específica. El SQL dedicado de 8.1 incluye revocaciones globales de
-   `PUBLIC` y queda excluido de este procedimiento.
+   del rol individualmente. Se admiten `TEMPORARY`, `USAGE` en `public`,
+   rutinas estándar sujetas a ACL y las vistas oficiales de
+   `pg_stat_statements` de solo lectura. Detener el aprovisionamiento si
+   el lector puede crear objetos permanentes o acceder a datos, secretos u
+   operaciones privilegiadas de DEV. Usar el SQL compartido de 8.2 y conservar
+   los permisos de DEV.
 5. Aplicar únicamente la migración compartida revisada de A en el destino
    verificado. En el proceso aislado de `psql`, establecer
    `PGSSLMODE=verify-full` y `PGSSLROOTCERT` con la ruta absoluta a la CA
@@ -66,13 +70,19 @@ validación sin red.
    el endpoint directo:
 
    ```powershell
-   psql -X -v ON_ERROR_STOP=1 --host=db.swpithkjviavycrxpwed.supabase.co --port=5432 --dbname=postgres --username=postgres --password -f "<sql-aprobado-de-A>"
+   psql -X -v ON_ERROR_STOP=1 --host=db.swpithkjviavycrxpwed.supabase.co --port=5432 --dbname=postgres --username=postgres --password -f "supabase/demo/macro_projection.sql"
    ```
 
    La migración debe crear `marketpulse_demo`, sus dos tablas y
    `marketpulse_demo_ro` con `NOLOGIN` inicial. Mantener el esquema fuera de
    los esquemas expuestos por PostgREST. Verificar el resultado de la
-   transacción antes de cargar.
+   transacción antes de cargar con `SELECT marketpulse_demo.assert_isolated();`
+   como propietario. Antes de habilitar el lector, verificar por metadatos que
+   carezca de acceso efectivo a solicitudes, respuestas, secuencia de cola y
+   operaciones HTTP o de control sensibles de `pg_net`. Si se detecta un grant
+   efectivo que expone información o credenciales de DEV, detener la activación.
+   Registrar únicamente los privilegios y tipos de objeto. El procedimiento
+   detallado se encuentra en el [contrato de PostgreSQL compartido](m8-shared-db-contract.md#comprobación-de-pg_net).
 6. En una estación autorizada con `backend/requirements-demo-import.txt`,
    capturar únicamente los endpoints oficiales aprobados. Usar un directorio
    nuevo y privado fuera de Git. Validar sin DSN el manifiesto, los bytes
@@ -81,11 +91,12 @@ validación sin red.
    (2020-02-01 a 2020-12-31), Ucrania (2022-02-01 a 2024-02-29) e IA generativa
    (2023-09-01 a 2026-09-30) y conservar la cobertura de la tasa de depósito.
    El SHA del bundle identifica la captura revisada. Conservar la evidencia
-   de su origen HTTPS.
+   de su origen HTTPS y registrar la huella aprobada por un canal independiente.
 
    ```powershell
    python -m backend.macro_data.demo_import capture "<bundle-privado>" --start 2018-01-01
    python -m backend.macro_data.demo_import import "<bundle-privado>"
+   python -m backend.macro_data.demo_import import "<bundle-privado>" --expected-sha256 "<sha256-aprobado>"
    ```
 
    | ID público | Serie oficial |
@@ -95,17 +106,15 @@ validación sin red.
    | `deposit-rate` | ECB `FM.B.U2.EUR.4F.KR.DFR.LEV` |
    | `real-gdp-qoq` | Eurostat `namq_10_gdp`, `Q / CLV_PCH_PRE / SCA / B1GQ / EA21` |
    | `hicp-yoy` | Eurostat `prc_hicp_minr`, `M / RCH_A / TOTAL / EA` |
-7. Cargar con el importador compartido aprobado por A y B. El contrato
-   conserva la validación offline y la confirmación explícita del proyecto
-   para escritura. Usar el mecanismo de opt-in administrativo que confirmen
-   A y B. En el proceso administrativo aislado, proporcionar
+7. Cargar con el importador del contrato 8.2A y confirmar explícitamente el
+   proyecto y el SHA-256 aprobado. En el proceso administrativo aislado, proporcionar
    `MARKETPULSE_DEMO_PROJECT_REF`, `MARKETPULSE_DEMO_SSL_ROOT_CERT` y
    `MARKETPULSE_DEMO_ADMIN_DSN` mediante el gestor de secretos. Mantener vacío
    el entorno `PG*` del importador. La DSN contiene sólo `host`, `port`,
-   `dbname`, `user` y `password`. El contrato de comando a confirmar con A y B es:
+   `dbname`, `user` y `password`.
 
    ```powershell
-   python -m backend.macro_data.demo_import import "<bundle-privado>" --apply --project-ref swpithkjviavycrxpwed
+   python -m backend.macro_data.demo_import import "<bundle-privado>" --expected-sha256 "<sha256-aprobado>" --apply --project-ref swpithkjviavycrxpwed
    ```
 
    Comprobar que la transacción sólo modifica las dos tablas DEMO, que las
@@ -136,17 +145,19 @@ validación sin red.
    ```
 
    Esperar la base `postgres`, ambos usuarios iguales al rol DEMO, lectura
-   activa por defecto y exactamente las dos relaciones DEMO. Desde la sesión
-   administrativa, comparar con el inventario inicial. Comprobar ausencia de
-   membresías, propiedad de objetos, atributos elevados, privilegios efectivos
-   de escritura o delegación y acceso a datos, secuencias o funciones ajenas
-   a DEMO. Comprobar `USAGE` y `SELECT` efectivos de `anon`,
+   activa por defecto y las dos tablas DEMO como únicos datos de aplicación
+   legibles. Se admiten las vistas oficiales de estadísticas indicadas en el
+   paso 4. Desde la sesión administrativa, repetir el verificador del
+   propietario y comparar con el inventario inicial. Comprobar ausencia de
+   membresías salientes, propiedad de objetos de aplicación, atributos
+   elevados, escrituras DEMO y acceso no autorizado a datos u operaciones DEV.
+   Comprobar `USAGE` y `SELECT` efectivos de `anon`,
    `authenticated` y `service_role` sobre DEMO. Deben quedar denegados.
    Confirmar que los roles y accesos DEV conservan el resultado del preflight.
    Usar las pruebas negativas de A/B con fixtures para operaciones de escritura.
-   Durante el despliegue, abrir una nueva transacción con `BEGIN READ ONLY`,
+   Durante el despliegue, abrir una nueva transacción con `BEGIN READ WRITE`,
    ejecutar `DELETE FROM marketpulse_demo.macro_observations WHERE FALSE` y
-   esperar un error de privilegios o de transacción de solo lectura. Ejecutar
+   esperar `42501` por falta de privilegios. Ejecutar
    `ROLLBACK` tras la prueba. Mantener el origen apagado y volver el rol a
    `NOLOGIN` si falla alguna comprobación.
 
@@ -298,7 +309,9 @@ validación sin red.
 | Desactivar Research | Aplicar primero `MACROPULSE_RESEARCH_ENABLED=false` en Worker y después `MARKETPULSE_DEMO_RESEARCH_ENABLED=false` en Render. Las solicitudes ya admitidas pueden completar dentro de su plazo. Verificar 503 en el borde, catálogo sin clave Turnstile y gráficos disponibles. |
 | Revertir Worker | Seleccionar una versión conocida compatible con los bindings y la configuración actual, con Research apagado. Mantener el hostname, el binding, la clase, el nombre y el almacenamiento del Durable Object. Si la versión anterior exponía Research, publicar el artefacto conocido con el interruptor apagado. Validar HTTPS, catálogo, históricos y rutas cerradas. |
 | Revertir Render | Desplegar un SHA conocido que ya sea compatible con el destino compartido. Verificar manualmente variables, archivo CA, secreto y Research apagado. Si falta una versión compatible, suspender Render y retirar el hostname público mientras se recupera el servicio. Repetir las pruebas TLS y HTTP de 8.2B. |
-| Restaurar la proyección DEMO | Leer el SHA activo único de las cinco filas de `marketpulse_demo.macro_catalog.bundle_sha256`. Validar offline el bundle anterior. Con el importador compartido aprobado, repetir 8.2A.7 con el bundle anterior y `--restore-from <sha256-activo>`. Exigir comparación bajo el bloqueo de escritura y abortar si cambió el SHA. Comprobar de nuevo conteos, huellas, grants y catálogos. Si falla la primera carga y falta un bundle previo, detener el origen y usar el rollback de A limitado a objetos DEMO aprobados. |
+| Restaurar una proyección DEMO con bundle previo | Leer el SHA activo único de las cinco filas de `marketpulse_demo.macro_catalog.bundle_sha256`. Validar offline el bundle anterior. Ejecutar `python -m backend.macro_data.demo_import import "<bundle-anterior>" --expected-sha256 "<sha256-anterior-aprobado>" --apply --project-ref swpithkjviavycrxpwed --restore-from "<sha256-activo>"`. La comparación del SHA activo se realiza bajo bloqueo de escritura. Comprobar de nuevo conteos, huellas, grants y catálogos. |
+| Verificar una primera carga fallida | Mantener el origen suspendido. Si la transacción del importador falló, PostgreSQL revierte la carga. Desde una sesión administrativa nueva y de solo lectura, confirmar que ambas tablas DEMO están vacías. Si aparecen filas, mantener el origen suspendido y verificar si la carga se confirmó antes de decidir la recuperación. |
+| Retirar una primera carga confirmada sin bundle previo | Retirar la ruta pública, suspender Render y revocar el acceso del lector según la fila siguiente. Si se necesita eliminar la proyección, obtener autorización específica para retirar únicamente los objetos DEMO identificados y conservar los permisos y objetos de DEV. |
 | Revocar credenciales DEMO | Retirar la ruta pública y suspender Render. Mediante el procedimiento administrativo aprobado por A, aplicar `ALTER ROLE marketpulse_demo_ro NOLOGIN PASSWORD NULL` tras comprobar el proyecto y la identidad del rol. Verificar o cerrar sólo sesiones de ese rol, incluidas las del pooler según corresponda, y confirmar que una conexión nueva falla. Retirar la DSN de Render y rotar el secreto de origen coordinadamente si corresponde. |
 
 Para cualquier operación sobre PostgreSQL, volver a comprobar destino, CA,

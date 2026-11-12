@@ -143,8 +143,9 @@ def resolve_demo_settings(env: Mapping[str, str]) -> DemoSettings:
 def connect_demo(settings: DemoSettings) -> psycopg.Connection:
     connection = psycopg.connect(settings.dsn, row_factory=dict_row)
     try:
-        if not connection.pgconn.ssl_in_use:
-            raise DemoConfigurationError("Public demo PostgreSQL requires TLS")
+        sslmode = next((option.val for option in connection.pgconn.info if option.keyword == b"sslmode"), None)
+        if not connection.pgconn.ssl_in_use or sslmode != b"verify-full":
+            raise DemoConfigurationError("Public demo PostgreSQL requires TLS verify-full")
         connection.read_only = True
         connection.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
         connection.execute("SET LOCAL statement_timeout = '2s'")
@@ -155,14 +156,16 @@ def connect_demo(settings: DemoSettings) -> psycopg.Connection:
             verified = cursor.execute(_ROLE_CHECK, (_WRITE_PRIVILEGES,)).fetchone()
             scope = cursor.execute("""
                 SELECT current_user = %s
-                    AND NOT has_database_privilege(current_database(), 'TEMP')
                     AND COALESCE(has_schema_privilege(to_regnamespace('marketpulse_demo'), 'USAGE'), false)
-                    AND NOT EXISTS (
-                        SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-                        WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_'
-                            AND has_schema_privilege(n.oid, 'USAGE') AND has_function_privilege(p.oid, 'EXECUTE')
-                    )
-                """, (RO_ROLE,)).fetchone()
+                    AND (%s OR (
+                        NOT has_database_privilege(current_database(), 'TEMP')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_'
+                                AND has_schema_privilege(n.oid, 'USAGE') AND has_function_privilege(p.oid, 'EXECUTE')
+                        )
+                    ))
+                """, (RO_ROLE, settings.shared_project)).fetchone()
         if verified != (True,) or scope != (True,):
             raise DemoConfigurationError("Public demo PostgreSQL role lacks required read-only scope")
         verify_projection(connection, shared_project=settings.shared_project)

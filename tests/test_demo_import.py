@@ -6,12 +6,15 @@ from datetime import date, datetime, timedelta
 from hashlib import sha256
 from io import StringIO
 import json
+from time import time
 
+from fastapi.testclient import TestClient
 import psycopg
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.rows import dict_row
 import pytest
 
+from backend import public_demo as demo
 from backend.macro_data import demo_import as importer, ecb, eurostat
 from backend.macro_data.api import MacroWindow
 from backend.macro_data.contracts import CATALOG, format_period
@@ -190,7 +193,9 @@ def test_projection_refuses_a_capture_missing_later_event_windows(tmp_path):
                                 transport=lambda *_: pytest.fail("Invalid window reached transport"))
 
 
-def test_snapshot_import_idempotence_stale_guard_and_rollback(captured, shared_demo_database, install_demo):
+def test_snapshot_import_idempotence_stale_guard_and_rollback(
+    captured, shared_demo_database, install_demo, monkeypatch,
+):
     manifest_path = captured / "manifest.json"
     raw_manifest = manifest_path.read_bytes()
     manifest, digest, rows = importer.read_bundle(captured)
@@ -273,3 +278,93 @@ def test_snapshot_import_idempotence_stale_guard_and_rollback(captured, shared_d
             result = read_history(reader, CATALOG["deposit-rate"], MacroWindow(start=START, end=END), max_points=2600)
             assert result.coverage_start == date(2019, 12, 2) and result.coverage_end == END
             assert [row.period_raw for row in result.observations] == ["2019-12-02", "2020-02-10", "2024-06-12"]
+        _check_imported_public_app(dsn, manifest, rows, monkeypatch)
+
+
+def _check_imported_public_app(dsn, manifest, publications, monkeypatch):
+    from backend.macro_ai import v2_retrieval, v2_service
+    from backend.macro_ai.public_gemini import PublicGemini
+
+    origin_secret = sha256(b"synthetic shared DEMO origin").hexdigest()
+    password = sha256(b"synthetic shared DEMO password").hexdigest()
+    role_dsn = make_conninfo(dsn, user=demo.RO_ROLE, password=password)
+    host = f"db.{demo.SHARED_PROJECT_REF}.supabase.co"
+    monkeypatch.setattr(demo.os, "environ", {
+        "MARKETPULSE_MODE": "public_demo",
+        "MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT": "true",
+        "MARKETPULSE_DEMO_PROJECT_REF": demo.SHARED_PROJECT_REF,
+        "MARKETPULSE_DEMO_DSN": make_conninfo(
+            host=host, port=5432, dbname="postgres", user=demo.RO_ROLE, password=password,
+        ),
+        "MARKETPULSE_DEMO_SSL_ROOT_CERT": conninfo_to_dict(dsn)["sslrootcert"],
+        "MARKETPULSE_DEMO_ORIGIN_SECRET": origin_secret,
+        "MARKETPULSE_DEMO_RESEARCH_ENABLED": "true",
+        "MARKETPULSE_DEMO_GEMINI_API_KEY": "AIza" + "f" * 35,
+    })
+    connect = psycopg.connect
+
+    def loopback_only(candidate, **kwargs):
+        # Preserve production configuration validation. Only the socket
+        # destination of the approved synthetic connection is replaced.
+        parsed = conninfo_to_dict(candidate)
+        assert parsed["host"] == host and parsed["user"] == demo.RO_ROLE
+        assert parsed["sslmode"] == "verify-full"
+        return connect(role_dsn, **kwargs)
+
+    question = "How did the war in Ukraine relate to euro-area inflation?"
+    gemini_calls = []
+
+    def interpret(_provider, request):
+        assert request.question == question
+        gemini_calls.append("interpret")
+        return {
+            "event": "ukraine", "purpose": "causal", "requirements": [{
+                "excerpt": question, "indicator": "hicp-yoy", "geography": "euro_area",
+                "measure": "annual_inflation", "operation": "trend",
+            }],
+        }
+
+    def compose(_provider, evidence):
+        from backend.macro_ai.v2_models import Draft
+
+        gemini_calls.append("compose")
+        return Draft.model_validate({
+            "sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in evidence],
+        })
+
+    monkeypatch.setattr(demo.psycopg, "connect", loopback_only)
+    monkeypatch.setattr(PublicGemini, "interpret", interpret)
+    monkeypatch.setattr(PublicGemini, "compose", compose)
+    monkeypatch.setattr(v2_service, "read_statistics", lambda *_: pytest.fail("DEV reader used"))
+    monkeypatch.setattr(v2_retrieval, "semantic", lambda *_: pytest.fail("Local model loaded"))
+    headers = {demo.ORIGIN_HEADER: origin_secret, demo.CLIENT_IP_HEADER: "192.0.2.30"}
+    catalog_path = "/macro/indicators"
+    with TestClient(demo.create_public_app()) as client:
+        assert client.get(catalog_path).status_code == 403
+        catalog = client.get(catalog_path, headers=headers)
+        assert catalog.status_code == 200 and catalog.headers[demo.RESEARCH_HEADER] == "true"
+        assert catalog.json() == [
+            demo.indicator_metadata(indicator).model_dump(mode="json") for indicator in CATALOG.values()
+        ]
+        for publication in publications:
+            key = publication.item.id
+            response = client.get(f"{catalog_path}/{key}/history?start={START}&end={END}", headers=headers)
+            assert response.status_code == 200 and response.headers["Cache-Control"] == "no-store"
+            history = demo.MacroHistory.model_validate(response.json())
+            assert history.updated_at == manifest.captures[key].captured_at
+            assert history.observations == list(publication.rows)
+        params = {
+            "question": question, "indicator_id": "hicp-yoy", "event_id": "ukraine",
+            "start": "2022-02-01", "end": "2024-02-29", "research_version": "v2",
+        }
+        research = "/macro/analysis"
+        assert client.post(research, json=params).status_code == 403
+        assert client.post(research, headers=headers, json=params).status_code == 403
+        assert gemini_calls == []
+        headers["X-MacroPulse-Research-Expires"] = str(int(time() * 1000) + 60_000)
+        result = client.post(research, headers=headers, json=params)
+        assert result.status_code == 200 and result.headers["X-MacroPulse-Research-Complete"] == "true"
+        payload = result.json()
+        assert payload["research_v2"] is True and payload["support"] == "partial"
+        assert {row["kind"] for row in payload["evidence"]} == {"series", "document"}
+        assert gemini_calls == ["interpret", "compose"]
