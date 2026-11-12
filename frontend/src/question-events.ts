@@ -12,7 +12,7 @@ export type HistoricalEventId = typeof historicalEvents[number]['id'];
 export interface QuestionSubmission {
   question: string;
   indicatorId: string;
-  eventId: HistoricalEventId;
+  eventId?: HistoricalEventId;
   start: string;
   end: string;
 }

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { ResearchQuota } from './public-demo.mjs';
+import { readResearchPayload } from './research.mjs';
 
 const host = 'https://demo.example';
 const analyze = '/api/macro/analysis';
@@ -17,6 +18,16 @@ const payload = {
   question: 'What happened during COVID-19?', indicator_id: 'eur-usd', event_id: 'covid', research_version: 'v2',
   start: '2020-02-01', end: '2020-12-31',
 };
+
+test('Research admits custom windows and retains strict event and date validation', () => {
+  const bytes = (body) => new TextEncoder().encode(JSON.stringify(body));
+  const { indicator_id: indicator, event_id: event, ...custom } = payload;
+  const request = { ...custom, start: '2017-01-01', end: '2026-01-01' };
+  assert.deepEqual(JSON.parse(readResearchPayload(bytes(request))), request);
+  assert.throws(() => readResearchPayload(bytes({ ...request, event_id: event, indicator_id: indicator })));
+  assert.throws(() => readResearchPayload(bytes({ ...request, start: '2017-02-30' })));
+  assert.throws(() => readResearchPayload(bytes({ ...request, start: '2010-01-01' })));
+});
 
 function sqliteFixture(t) {
   const db = new DatabaseSync(':memory:');

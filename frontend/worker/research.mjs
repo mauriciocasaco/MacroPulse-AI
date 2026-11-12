@@ -6,7 +6,16 @@ const eventWindows = new Map([
   ['generative-ai', ['2023-09-01', '2026-09-30']],
 ]);
 const indicators = new Set(['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy']);
-const keys = ['question', 'indicator_id', 'event_id', 'research_version', 'start', 'end'];
+const requiredKeys = ['question', 'research_version', 'start', 'end'];
+const allowedKeys = new Set([...requiredKeys, 'indicator_id', 'event_id']);
+const isoDate = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const maxWindowMs = 3660 * 86_400_000;
+
+function calendarDay(value) {
+  const stamp = isoDate.test(value) ? Date.parse(value) : NaN;
+  return Number.isFinite(stamp) && !value.startsWith('0000-')
+    && new Date(stamp).toISOString().slice(0, 10) === value ? stamp : NaN;
+}
 const tokenPattern = /^[a-zA-Z0-9_.-]{1,2048}$/;
 const timePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/;
 const encoder = new TextEncoder();
@@ -44,12 +53,17 @@ export function readResearchPayload(bytes) {
   const entries = Array.from(raw.matchAll(/"(?:[^"\\]|\\.)*"\s*(:)?/gs))
     .filter((match) => match[1]).length;
   if (!value || typeof value !== 'object' || Array.isArray(value)
-    || Object.keys(value).length !== keys.length || entries !== keys.length
-    || keys.some((key) => typeof value[key] !== 'string')) throw new Error('Invalid request');
+    || Object.keys(value).length !== entries
+    || requiredKeys.some((key) => !Object.hasOwn(value, key))
+    || Object.entries(value).some(([key, field]) => !allowedKeys.has(key) || typeof field !== 'string')) {
+    throw new Error('Invalid request');
+  }
   const window = eventWindows.get(value.event_id);
+  const days = calendarDay(value.end) - calendarDay(value.start);
   const questionLength = Array.from(value.question.trim()).length;
-  if (!window || value.start !== window[0] || value.end !== window[1]
-    || !indicators.has(value.indicator_id) || value.research_version !== 'v2'
+  if (!(days >= 0 && days <= maxWindowMs)
+    || (value.event_id !== undefined && (!window || value.start !== window[0] || value.end !== window[1]))
+    || (value.indicator_id !== undefined && !indicators.has(value.indicator_id)) || value.research_version !== 'v2'
     || questionLength < 5 || Array.from(value.question).length > 500
     || /[\u0000-\u001f]/.test(value.question)) throw new Error('Invalid request');
   return raw;

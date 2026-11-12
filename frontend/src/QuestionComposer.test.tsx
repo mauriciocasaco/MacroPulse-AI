@@ -52,6 +52,19 @@ it.each([
   });
 });
 
+it('submits custom dates without an event preset', () => {
+  const props = setup({ allowCustomWindow: true });
+  render(<QuestionComposer {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Custom dates' }));
+  fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2019-01-01' } });
+  fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-01-01' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  expect(props.onSubmit).toHaveBeenCalledWith({
+    question: 'What happened to EUR/USD rate?', indicatorId: 'eur-usd',
+    start: '2019-01-01', end: '2026-01-01',
+  });
+});
+
 it('keeps the chart as the controlled selection and regenerates for external indicator changes', () => {
   const props = setup();
   const view = render(<QuestionComposer {...props} />);
