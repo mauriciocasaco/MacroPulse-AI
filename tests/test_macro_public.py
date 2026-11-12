@@ -1,6 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
-from pathlib import Path
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
@@ -100,12 +99,9 @@ def test_macro_opt_in_protects_routes_dates_origin_quota_and_methods(monkeypatch
         assert result.json()["coverage_end"] == "2024-02-08"
 
 
-def test_projection_sql_exact_catalog_and_restricted_reader(disposable_database):
-    with disposable_database("MACRO_DATA_TEST_DSN") as dsn, psycopg.connect(dsn, row_factory=dict_row) as db:
-        source = Path("supabase/demo/macro_projection.sql").read_text(encoding="utf-8")
-        body = source.split("BEGIN;\n", 1)[1].rsplit("COMMIT;", 1)[0]
-        body = body.replace("current_database() <> 'postgres'", "current_database() <> '" + db.info.dbname + "'")
-        db.execute(body.replace("DATABASE postgres", f"DATABASE {db.info.dbname}"))
+def test_projection_sql_exact_catalog_and_restricted_reader(shared_demo_database, install_demo):
+    with shared_demo_database() as (dsn, admin), psycopg.connect(dsn, row_factory=dict_row) as db:
+        install_demo(admin)
         for item in CATALOG.values():
             coverage = "{[2024-01-01,2024-02-06),[2024-02-10,2024-02-13)}" if item.id == "deposit-rate" else None
             db.execute("""
@@ -127,6 +123,8 @@ def test_projection_sql_exact_catalog_and_restricted_reader(disposable_database)
         """)
         stamp_projection(db)
         db.execute("SET LOCAL ROLE marketpulse_demo_ro")
+        assert db.execute("SELECT count(*) AS count FROM marketpulse_demo.macro_catalog").fetchone() == {"count": 5}
+        assert db.execute("SELECT count(*) AS count FROM marketpulse_demo.macro_observations").fetchone() == {"count": 7}
         db.execute("SET LOCAL TIME ZONE 'Pacific/Auckland'")
         db.execute("SET LOCAL DateStyle TO 'SQL, DMY'")
         verify_projection(db)
@@ -170,6 +168,7 @@ def test_projection_sql_exact_catalog_and_restricted_reader(disposable_database)
         with pytest.raises(ProjectionError, match="read scope"):
             verify_projection(db)
         db.execute("RESET ROLE")
+        # The Phase 8.1 runtime guard is still used by this checkout.
         db.execute("CREATE SCHEMA macro_data")
         db.execute("SET LOCAL ROLE marketpulse_demo_ro")
         with pytest.raises(ProjectionError, match="unavailable"):
