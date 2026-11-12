@@ -8,13 +8,16 @@ from ipaddress import IPv4Address
 import os
 import re
 from threading import BoundedSemaphore
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 
 from ..macro_data.api import _require_local
+from .config import research_v2_enabled
 from .models import ResearchRequest, ResearchResponse
+from .v2_models import ResearchV2Response
 
 
 MAX_BODY = 4096
@@ -95,12 +98,24 @@ class _ResearchRoute(APIRoute):
 router = APIRouter(prefix="/macro", route_class=_ResearchRoute)
 
 
+class ResearchSubmission(ResearchRequest):
+    research_version: Literal["v2"] | None = None
+
+
 @router.post("/analysis")
-def analysis(request: ResearchRequest) -> ResearchResponse:
+def analysis(submission: ResearchSubmission, http_request: Request) -> ResearchV2Response | ResearchResponse:
+    if submission.research_version == "v2" and (
+        not research_v2_enabled() or _LAN_AUTH in http_request.headers
+    ):
+        raise HTTPException(status_code=404, detail="Research v2 unavailable")
     if not _SLOT.acquire(blocking=False):
         raise HTTPException(status_code=503, detail="Macro research is busy")
     try:
         # Keep optional dependencies outside application startup and DEMO.
+        request = ResearchRequest.model_validate(submission.model_dump(exclude={"research_version"}))
+        if submission.research_version == "v2":
+            from .v2_service import run
+            return run(request)
         from .service import workflow
         return workflow().run(request)
     except Exception:

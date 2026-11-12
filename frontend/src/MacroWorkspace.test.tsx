@@ -113,6 +113,48 @@ it('submits the event window and chart indicator after Ask LLM Model, independen
   });
 });
 
+it('opts into Research v2 only after the catalog advertises it and renders cited partial results', async () => {
+  const historyFetch = stubMacroApi([]);
+  const analysis = vi.fn(async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    const citation = 'series:eur-usd';
+    return Response.json({
+      ...body, research_v2: true, support: 'partial', publication_cutoff: body.end,
+      status: 'answered', narrative_kind: 'deterministic', facts: [], calculations: [], interpretation: [],
+      narrative: [{ text: 'The euro rose over the selected observations.', citations: [citation], category: 'official observation' }],
+      limitations: ['The approved corpus has no applicable documentary context.'], graph_steps: ['finish'],
+      evidence: [{
+        id: citation, kind: 'series', title: 'ECB reference rate', url: 'https://data.ecb.europa.eu/',
+        attribution: 'ECB statistics', period_start: '2020-02-03', period_end: '2020-12-31', published_on: null,
+        series_key: 'EXR.D.USD.EUR.SP00.A', unit: 'USD/EUR', multiplier: 0, geography: 'bilateral',
+        adjustment: 'not_applicable',
+      }],
+    });
+  });
+  vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
+    if (url === '/api/macro/indicators') {
+      return Response.json(catalog, { headers: { 'X-MarketPulse-Research-V2': 'true' } });
+    }
+    return url === '/api/macro/analysis' ? analysis(url, init) : historyFetch(url);
+  });
+  render(<App macroAiEnabled />);
+  const selector = await screen.findByRole('checkbox', { name: 'Use experimental Research v2' });
+  expect(selector).toHaveProperty('checked', false);
+  expect(screen.getByText(/sends your original question to Google Gemini/)).toBeTruthy();
+  expect(analysis).not.toHaveBeenCalled();
+  fireEvent.click(selector);
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  await screen.findByText('Partial answer');
+  expect(JSON.parse(String(analysis.mock.calls[0][1].body)).research_version).toBe('v2');
+  const summary = screen.getByRole('region', { name: 'Data summary' });
+  expect(within(summary).getByText('Official data')).toBeTruthy();
+  expect(within(summary).getByRole('link', { name: 'ECB reference rate' }).getAttribute('href'))
+    .toBe('https://data.ecb.europa.eu/');
+  expect(within(summary).getByText(/no applicable documentary context/)).toBeTruthy();
+  expect(screen.getByLabelText('Indicator')).toHaveProperty('value', 'eur-usd');
+  expect(screen.getByRole('heading', { name: 'Official history' })).toBeTruthy();
+});
+
 it('keeps the chart, composer and custom question synchronized across selection and period changes', async () => {
   stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
   render(<App macroAiEnabled />);

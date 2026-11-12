@@ -12,6 +12,7 @@ const frequencyLabels = {
 };
 export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }) {
   const [indicators, setIndicators] = useState<Awaited<ReturnType<typeof getMacroIndicators>>>();
+  const [researchV2, setResearchV2] = useState(false);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [id, setId] = useState('eur-usd');
@@ -30,7 +31,7 @@ export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }
   }, [id, historyAttempt]);
   useEffect(() => {
     const controller = new AbortController();
-    getMacroIndicators(controller.signal).then((data) => {
+    getMacroIndicators(controller.signal, setResearchV2).then((data) => {
       if (!controller.signal.aborted) setIndicators(data);
     }, () => {
       if (!controller.signal.aborted) setFailed(true);
@@ -81,6 +82,7 @@ export function MacroWorkspace({ analysisEnabled }: { analysisEnabled: boolean }
       </p>
     </section>
     <MacroResearch enabled={analysisEnabled} indicatorId={id} indicators={indicators ?? []}
+      researchV2Available={researchV2 && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)}
       onIndicatorChange={(next) => { setHistoryFailed(false); setId(next); }} />
   </>;
 }

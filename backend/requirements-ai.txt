@@ -5,3 +5,4 @@ langgraph==1.2.20
 langchain-google-genai==4.4.3
 google-genai==3.0.0
 langsmith==0.14.17
+numpy==2.5.4

@@ -10,7 +10,7 @@ import re
 import ssl
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 import psycopg
@@ -242,9 +242,14 @@ router = APIRouter(prefix="/macro", dependencies=[Depends(_require_local)], rout
 
 
 @router.get("/indicators")
-def indicators(request: Request) -> list[MacroIndicator]:
+def indicators(request: Request, response: Response) -> list[MacroIndicator]:
     if request.query_params:
         raise HTTPException(status_code=422, detail="Invalid macro request")
+    from ..macro_ai.config import research_v2_enabled
+
+    if research_v2_enabled():
+        response.headers["X-MarketPulse-Research-V2"] = "true"
+        response.headers["Cache-Control"] = "no-store"
     return [indicator_metadata(item) for item in CATALOG.values()]
 
 

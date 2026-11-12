@@ -41,7 +41,12 @@ export interface MacroHistory {
 export interface ResearchClaim {
   text: string;
   citations: string[];
+  category?: ResearchCategory;
 }
+
+const researchCategories = ['official observation', 'calculated from official observations',
+  'documentary context', 'institutional interpretation', 'proxy context'] as const;
+export type ResearchCategory = typeof researchCategories[number];
 
 export interface ResearchEvidence {
   id: string;
@@ -56,6 +61,19 @@ export interface ResearchEvidence {
   rights_url?: string | null;
   similarity_score?: number | null;
   similarity_metric?: 'cosine' | null;
+  claim_id?: string;
+  document_id?: string;
+  event?: string;
+  indicator?: string;
+  geography?: string;
+  relation?: 'direct' | 'context' | 'proxy';
+  locator?: string;
+  qualifiers?: string;
+  claim_type?: 'observed' | 'institutional_interpretation';
+  series_key?: string;
+  unit?: string;
+  multiplier?: number;
+  adjustment?: string;
 }
 
 export interface ObservedChange {
@@ -85,6 +103,9 @@ export interface MacroAnalysis {
   model_id?: string | null;
   indicator_id?: string | null;
   event_id?: string | null;
+  research_v2?: true;
+  support?: 'supported' | 'partial' | 'insufficient';
+  publication_cutoff?: string;
 }
 
 const ids = new Set(['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy']);
@@ -169,22 +190,43 @@ function observedChange(value: unknown, start: string, end: string): value is Ob
     : value.direction === 'flat' || value.direction === 'up' || value.direction === 'down';
 }
 
-async function get(path: string, signal: AbortSignal): Promise<unknown> {
+function hasV2Provenance(item: ResearchEvidence, cutoff: string): boolean {
+  if (item.kind === 'series') {
+    return ['series_key', 'unit', 'geography', 'adjustment'].every((key) =>
+      typeof item[key as keyof ResearchEvidence] === 'string') && Number.isInteger(item.multiplier);
+  }
+  const sha256 = /^[a-f0-9]{64}$/;
+  return typeof item.claim_id === 'string' && sha256.test(item.claim_id) && item.id === `claim:${item.claim_id}`
+    && typeof item.document_id === 'string' && sha256.test(item.document_id)
+    && item.published_on !== null && item.published_on <= cutoff
+    && typeof item.indicator === 'string' && ids.has(item.indicator)
+    && typeof item.geography === 'string' && typeof item.locator === 'string' && typeof item.qualifiers === 'string'
+    && ['covid', 'ukraine', 'genai'].includes(item.event ?? '')
+    && ['direct', 'context', 'proxy'].includes(item.relation ?? '')
+    && ['observed', 'institutional_interpretation'].includes(item.claim_type ?? '');
+}
+
+async function get(path: string, signal: AbortSignal, onResponse?: (response: Response) => void): Promise<unknown> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (import.meta.env.MODE === 'windows-launcher') headers[launcherReadHeader] = '1';
   const response = await fetch(`/api/macro/indicators${path}`, {
     signal, cache: 'no-store', headers,
   });
   if (!response.ok) throw new Error('Official data is currently unavailable.');
+  onResponse?.(response);
   return response.json();
 }
 
-export async function getMacroIndicators(signal: AbortSignal): Promise<MacroIndicator[]> {
-  const result = await get('', signal);
+export async function getMacroIndicators(signal: AbortSignal, onResearchV2?: (enabled: boolean) => void): Promise<MacroIndicator[]> {
+  let researchV2 = false;
+  const result = await get('', signal, (response) => {
+    researchV2 = response.headers?.get('X-MarketPulse-Research-V2') === 'true';
+  });
   if (!Array.isArray(result) || result.length !== ids.size || !result.every(indicator)
     || new Set(result.map(({ id }) => id)).size !== ids.size) {
     throw new Error('Unexpected macro catalog.');
   }
+  if (!signal.aborted) onResearchV2?.(researchV2);
   return result;
 }
 
@@ -212,7 +254,7 @@ export async function getMacroHistory(
 
 export async function askMacroAnalysis(
   question: string, start: string, end: string, signal: AbortSignal,
-  context?: { indicator_id: string; event_id: 'covid' | 'ukraine' | 'generative-ai' },
+  context?: { indicator_id: string; event_id: 'covid' | 'ukraine' | 'generative-ai'; research_version?: 'v2' },
 ): Promise<MacroAnalysis> {
   const response = await fetch('/api/macro/analysis', {
     method: 'POST', signal, cache: 'no-store',
@@ -235,7 +277,18 @@ export async function askMacroAnalysis(
     || !Array.isArray(result.evidence) || !result.evidence.every(researchEvidence)) {
     throw new Error('Unexpected research response.');
   }
+  const researchV2 = context?.research_version === 'v2';
+  if (researchV2 && (result.research_v2 !== true || !date(result.publication_cutoff)
+    || result.publication_cutoff > end || !['supported', 'partial', 'insufficient'].includes(String(result.support))
+    || (result.support === 'insufficient') !== (result.status === 'insufficient_evidence')
+    || !claims(result.narrative) || !result.narrative.every(({ category }) =>
+      category !== undefined && researchCategories.includes(category)))) {
+    throw new Error('Unexpected Research v2 response.');
+  }
   const evidence = result.evidence as ResearchEvidence[];
+  if (researchV2 && !evidence.every((item) => hasV2Provenance(item, result.publication_cutoff as string))) {
+    throw new Error('Unexpected Research v2 provenance.');
+  }
   const changes = result.observed_changes ?? [];
   if (!Array.isArray(changes) || !changes.every((item) => observedChange(item, start, end)
     && (!context || item.indicator_id === context.indicator_id)
@@ -254,6 +307,11 @@ export async function askMacroAnalysis(
     && documents[index - 1].similarity_score != null
     && entry.similarity_score > documents[index - 1].similarity_score!)) throw new Error('Unexpected retrieval order.');
   return {
+    ...(researchV2 ? {
+      research_v2: true as const,
+      support: result.support as MacroAnalysis['support'],
+      publication_cutoff: result.publication_cutoff as string,
+    } : {}),
     narrative: result.narrative as ResearchClaim[] | undefined,
     narrative_kind: result.narrative_kind as MacroAnalysis['narrative_kind'],
     observed_changes: changes,

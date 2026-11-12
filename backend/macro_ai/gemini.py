@@ -9,7 +9,7 @@ from google.genai.types import HttpOptions, HttpRetryOptions
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langsmith import tracing_context
-from pydantic import SecretStr
+from pydantic import BaseModel, SecretStr
 
 from .models import GeminiDraft
 
@@ -40,23 +40,28 @@ def configured_model() -> str:
 
 
 def invoke_gemini(question: str, evidence: str) -> GeminiDraft:
+    return invoke_structured(_PROMPT, {"question": question, "evidence": evidence}, GeminiDraft)
+
+
+def invoke_structured[T: BaseModel](prompt: ChatPromptTemplate, inputs: dict[str, str], schema: type[T]) -> T:
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     model = configured_model()
     if not api_key:
         raise ValueError("local Gemini configuration unavailable")
     with tracing_context(enabled=False):
         chat = ChatGoogleGenerativeAI(
-            model=model, api_key=SecretStr(api_key), vertexai=False, temperature=0,
+            model=model, api_key=SecretStr(api_key), vertexai=False,
+            **({} if model == "gemini-3.6-flash" else {"temperature": 0}),
             candidate_count=1, max_tokens=2400, max_retries=0, timeout=18, cache=False,
             thinking_level="minimal" if model == "gemini-3.6-flash" else None,
             client_options="https://generativelanguage.googleapis.com",
             client_args={"trust_env": False, "follow_redirects": False},
         )
         try:
-            structured = chat.with_structured_output(GeminiDraft, method="json_schema").bind(
+            structured = chat.with_structured_output(schema, method="json_schema").bind(
                 http_options=HttpOptions(timeout=18_000, retry_options=HttpRetryOptions(attempts=1)),
             )
-            return (_PROMPT | structured).invoke({"question": question, "evidence": evidence})
+            return schema.model_validate((prompt | structured).invoke(inputs))
         finally:
             if chat.client is not None:
                 chat.client.close()
