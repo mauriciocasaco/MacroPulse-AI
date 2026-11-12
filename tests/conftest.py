@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import os
+from pathlib import Path
 from uuid import uuid4
 
 import psycopg
@@ -43,3 +44,32 @@ def disposable_database(local_test_dsn):
                 admin.execute(sql.SQL("DROP DATABASE {}").format(identifier))
 
     return create
+
+
+@pytest.fixture
+def shared_demo_database(disposable_database, local_test_dsn):
+    """Disposable DEMO database with stock PostgreSQL ACLs and role cleanup."""
+    @contextmanager
+    def create():
+        variable = "MACRO_DATA_TEST_DSN"
+        with psycopg.connect(local_test_dsn(variable), autocommit=True) as admin:
+            if admin.execute("SELECT to_regrole('marketpulse_demo_ro')").fetchone() != (None,):
+                pytest.fail("DEMO integration tests require their own cluster without a reader role")
+            try:
+                with disposable_database(variable) as dsn:
+                    with psycopg.connect(dsn, autocommit=True) as db:
+                        yield dsn, db
+            finally:
+                admin.execute("DROP ROLE IF EXISTS marketpulse_demo_ro")
+
+    return create
+
+
+@pytest.fixture
+def install_demo():
+    source = Path(__file__).resolve().parents[1] / "supabase/demo/macro_projection.sql"
+
+    def install(db):
+        db.execute(source.read_text(encoding="utf-8"))
+
+    return install
