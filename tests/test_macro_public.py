@@ -4,6 +4,8 @@ from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 import psycopg
+from psycopg import sql
+from psycopg.conninfo import make_conninfo
 from psycopg.rows import dict_row
 import pytest
 
@@ -99,29 +101,33 @@ def test_macro_opt_in_protects_routes_dates_origin_quota_and_methods(monkeypatch
         assert result.json()["coverage_end"] == "2024-02-08"
 
 
+def _load_synthetic_projection(db):
+    for item in CATALOG.values():
+        coverage = "{[2024-01-01,2024-02-06),[2024-02-10,2024-02-13)}" if item.id == "deposit-rate" else None
+        db.execute("""
+            INSERT INTO marketpulse_demo.macro_catalog
+              (indicator_id, series_key, captured_at, requested_start, requested_end, response_sha256,
+               bundle_sha256, deposit_coverage, projected_rows, projection_sha256)
+            VALUES (%s, %s, '2024-04-01T10:30:00+00:00', '2024-01-01', '2024-04-01', repeat('a', 64),
+                    repeat('b', 64), %s, %s, repeat('0', 64))
+        """, (item.id, item.series_key, coverage, 2 if item.id in {"deposit-rate", "hicp-yoy"} else 1))
+    db.execute("""
+        INSERT INTO marketpulse_demo.macro_observations VALUES
+        ('eur-usd', '2024-02-01', '2024-02-01', '2024-02-01', NULL, 1.2340, 'normal', 'A'),
+        ('m3-stock', '2024-01', '2024-01-01', '2024-01-31', NULL, 12000000, 'provisional', 'P'),
+        ('real-gdp-qoq', '2024-Q1', '2024-01-01', '2024-03-31', NULL, 0.4, 'normal', NULL),
+        ('hicp-yoy', '2024-01', '2024-01-01', '2024-01-31', NULL, 2.1, 'normal', NULL),
+        ('hicp-yoy', '2024-02', '2024-02-01', '2024-02-29', NULL, NULL, 'withheld', NULL),
+        ('deposit-rate', '2024-01-03', '2024-01-03', '2024-01-03', '2024-01-03', 2.0, 'normal', 'A'),
+        ('deposit-rate', '2024-02-10', '2024-02-10', '2024-02-10', '2024-02-10', 2.25, 'normal', 'A')
+    """)
+    stamp_projection(db)
+
+
 def test_projection_sql_exact_catalog_and_restricted_reader(shared_demo_database, install_demo):
     with shared_demo_database() as (dsn, admin), psycopg.connect(dsn, row_factory=dict_row) as db:
         install_demo(admin)
-        for item in CATALOG.values():
-            coverage = "{[2024-01-01,2024-02-06),[2024-02-10,2024-02-13)}" if item.id == "deposit-rate" else None
-            db.execute("""
-                INSERT INTO marketpulse_demo.macro_catalog
-                  (indicator_id, series_key, captured_at, requested_start, requested_end, response_sha256,
-                   bundle_sha256, deposit_coverage, projected_rows, projection_sha256)
-                VALUES (%s, %s, '2024-04-01T10:30:00+00:00', '2024-01-01', '2024-04-01', repeat('a', 64),
-                        repeat('b', 64), %s, %s, repeat('0', 64))
-            """, (item.id, item.series_key, coverage, 2 if item.id in {"deposit-rate", "hicp-yoy"} else 1))
-        db.execute("""
-            INSERT INTO marketpulse_demo.macro_observations VALUES
-            ('eur-usd', '2024-02-01', '2024-02-01', '2024-02-01', NULL, 1.2340, 'normal', 'A'),
-            ('m3-stock', '2024-01', '2024-01-01', '2024-01-31', NULL, 12000000, 'provisional', 'P'),
-            ('real-gdp-qoq', '2024-Q1', '2024-01-01', '2024-03-31', NULL, 0.4, 'normal', NULL),
-            ('hicp-yoy', '2024-01', '2024-01-01', '2024-01-31', NULL, 2.1, 'normal', NULL),
-            ('hicp-yoy', '2024-02', '2024-02-01', '2024-02-29', NULL, NULL, 'withheld', NULL),
-            ('deposit-rate', '2024-01-03', '2024-01-03', '2024-01-03', '2024-01-03', 2.0, 'normal', 'A'),
-            ('deposit-rate', '2024-02-10', '2024-02-10', '2024-02-10', '2024-02-10', 2.25, 'normal', 'A')
-        """)
-        stamp_projection(db)
+        _load_synthetic_projection(db)
         db.execute("SET LOCAL ROLE marketpulse_demo_ro")
         assert db.execute("SELECT count(*) AS count FROM marketpulse_demo.macro_catalog").fetchone() == {"count": 5}
         assert db.execute("SELECT count(*) AS count FROM marketpulse_demo.macro_observations").fetchone() == {"count": 7}
@@ -174,3 +180,119 @@ def test_projection_sql_exact_catalog_and_restricted_reader(shared_demo_database
         with pytest.raises(ProjectionError, match="unavailable"):
             verify_projection(db)
         db.rollback()
+
+
+def test_shared_database_enforces_effective_role_and_privileges(shared_demo_database, install_demo, tmp_path):
+    with shared_demo_database() as (dsn, owner):
+        if not owner.pgconn.ssl_in_use:
+            pytest.skip("requires TLS disposable PostgreSQL fixture")
+        install_demo(owner)
+        with owner.transaction():
+            _load_synthetic_projection(owner)
+            owner.execute("ALTER ROLE marketpulse_demo_ro LOGIN")
+        _check_shared_database(owner, dsn, tmp_path)
+
+
+def _check_shared_database(owner, dsn, tmp_path):
+    role_dsn = make_conninfo(dsn, user="marketpulse_demo_ro", gssencmode="disable")
+    separate = demo.DemoSettings(role_dsn, SECRET)
+    shared = demo.DemoSettings(role_dsn, SECRET, shared_project=True)
+    with demo.connect_demo(separate):
+        pass
+
+    for schema in ("macro_data", "market_data", "news", "vault"):
+        name = sql.Identifier(schema)
+        owner.execute(sql.SQL("CREATE SCHEMA {}").format(name))
+        owner.execute(sql.SQL("CREATE TABLE {}.fixture_private AS SELECT 'synthetic private row' AS value").format(name))
+    owner.execute("CREATE SEQUENCE marketpulse_demo.private_counter")
+    owner.execute("REVOKE ALL ON SCHEMA public FROM PUBLIC")
+    with pytest.raises(ProjectionError, match="unexpected shared database privileges"):
+        demo.connect_demo(shared)  # Default PUBLIC large-object creation is writable outside the app.
+    persistent_writes = owner.execute("""
+        SELECT oid::regprocedure::text FROM pg_proc
+        WHERE pronamespace = 'pg_catalog'::regnamespace
+            AND proname IN ('lo_creat', 'lo_create', 'lo_from_bytea', 'pg_logical_emit_message')
+    """).fetchall()
+    for (signature,) in persistent_writes:
+        owner.execute(sql.SQL("REVOKE EXECUTE ON FUNCTION {} FROM PUBLIC").format(sql.SQL(signature)))
+
+    with pytest.raises(ProjectionError, match="projection is unavailable"):
+        demo.connect_demo(separate)
+    with demo.connect_demo(shared) as reader:
+        assert reader.execute("""
+            SELECT current_user = session_user AND session_user = 'marketpulse_demo_ro'
+                AND current_setting('transaction_read_only') = 'on' AS verified
+        """).fetchone() == {"verified": True}
+        history = read_history(
+            reader, CATALOG["hicp-yoy"], MacroWindow(start=date(2024, 1, 1), end=date(2024, 2, 29)), max_points=2600,
+        )
+        assert [row.period_raw for row in history.observations] == ["2024-01", "2024-02"]
+        with pytest.raises(psycopg.errors.InsufficientPrivilege), reader.transaction():
+            reader.execute("SELECT * FROM macro_data.fixture_private")
+        with pytest.raises(psycopg.errors.ReadOnlySqlTransaction), reader.transaction():
+            reader.execute("DELETE FROM marketpulse_demo.macro_catalog WHERE false")
+
+    with psycopg.connect(role_dsn, autocommit=True) as reader:
+        reader.execute("SET default_transaction_read_only = off")
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            reader.execute("SELECT lo_create(0)")
+    bad_identity = demo.DemoSettings(make_conninfo(dsn, options="-c role=marketpulse_demo_ro"), SECRET,
+                                    shared_project=True)
+    with pytest.raises(demo.DemoConfigurationError, match="required read-only scope"):
+        demo.connect_demo(bad_identity)
+
+    mutations = [
+        ("GRANT CREATE ON SCHEMA information_schema TO PUBLIC", "REVOKE CREATE ON SCHEMA information_schema FROM PUBLIC"),
+        ("GRANT SELECT ON SEQUENCE marketpulse_demo.private_counter TO PUBLIC",
+         "REVOKE SELECT ON SEQUENCE marketpulse_demo.private_counter FROM PUBLIC"),
+        ("GRANT SET ON PARAMETER lo_compat_privileges TO PUBLIC",
+         "REVOKE SET ON PARAMETER lo_compat_privileges FROM PUBLIC"),
+        ("GRANT ALTER SYSTEM ON PARAMETER log_min_duration_statement TO PUBLIC",
+         "REVOKE ALTER SYSTEM ON PARAMETER log_min_duration_statement FROM PUBLIC"),
+        ("GRANT USAGE ON SCHEMA vault TO PUBLIC", "REVOKE USAGE ON SCHEMA vault FROM PUBLIC"),
+        ("GRANT USAGE ON SCHEMA news TO marketpulse_demo_ro", "REVOKE USAGE ON SCHEMA news FROM marketpulse_demo_ro"),
+        ("GRANT SELECT ON macro_data.fixture_private TO marketpulse_demo_ro",
+         "REVOKE SELECT ON macro_data.fixture_private FROM marketpulse_demo_ro"),
+        ("GRANT UPDATE ON marketpulse_demo.macro_observations TO marketpulse_demo_ro",
+         "REVOKE UPDATE ON marketpulse_demo.macro_observations FROM marketpulse_demo_ro"),
+        ("GRANT SELECT (indicator_id) ON marketpulse_demo.macro_observations TO marketpulse_demo_ro",
+         "REVOKE SELECT (indicator_id) ON marketpulse_demo.macro_observations FROM marketpulse_demo_ro"),
+        ("GRANT pg_read_all_data TO marketpulse_demo_ro", "REVOKE pg_read_all_data FROM marketpulse_demo_ro"),
+        ("ALTER ROLE marketpulse_demo_ro BYPASSRLS", "ALTER ROLE marketpulse_demo_ro NOBYPASSRLS"),
+        ("GRANT EXECUTE ON FUNCTION pg_read_file(text) TO PUBLIC",
+         "REVOKE EXECUTE ON FUNCTION pg_read_file(text) FROM PUBLIC"),
+        ("CREATE FUNCTION pg_catalog.fixture_private() RETURNS text LANGUAGE sql AS 'SELECT ''synthetic private row'''",
+         "DROP FUNCTION pg_catalog.fixture_private()"),
+    ]
+    mutations.extend((f"GRANT EXECUTE ON FUNCTION {signature} TO PUBLIC",
+                      f"REVOKE EXECUTE ON FUNCTION {signature} FROM PUBLIC") for (signature,) in persistent_writes)
+    for grant, revoke in mutations:
+        owner.execute(grant)
+        try:
+            with pytest.raises((ProjectionError, demo.DemoConfigurationError), match="privileges|read-only scope"):
+                demo.connect_demo(shared)
+        finally:
+            owner.execute(revoke)
+        with demo.connect_demo(shared):
+            pass
+
+    large_object = owner.execute("SELECT lo_from_bytea(0, %s)", (b"synthetic private data",)).fetchone()[0]
+    owner.execute(sql.SQL("GRANT SELECT ON LARGE OBJECT {} TO PUBLIC").format(sql.Literal(large_object)))
+    with pytest.raises(ProjectionError, match="unexpected shared database privileges"):
+        demo.connect_demo(shared)
+    owner.execute("SELECT lo_unlink(%s)", (large_object,))
+
+    wrong_host = demo.DemoSettings(
+        make_conninfo(role_dsn, host="wrong.fixture.invalid", sslmode="verify-full"), SECRET, shared_project=True,
+    )
+    with pytest.raises(psycopg.OperationalError, match="certificate.*does not match"):
+        demo.connect_demo(wrong_host)
+    bad_ca = tmp_path / "invalid-ca.pem"
+    bad_ca.write_text("synthetic invalid CA file", encoding="utf-8")
+    wrong_ca = demo.DemoSettings(make_conninfo(role_dsn, sslrootcert=str(bad_ca)), SECRET, shared_project=True)
+    with pytest.raises(psycopg.OperationalError, match="root certificate file"):
+        demo.connect_demo(wrong_ca)
+
+    owner.execute("UPDATE marketpulse_demo.macro_observations SET value_decimal = 9 WHERE value_decimal IS NOT NULL")
+    with pytest.raises(ProjectionError, match="integrity check failed"):
+        demo.connect_demo(shared)

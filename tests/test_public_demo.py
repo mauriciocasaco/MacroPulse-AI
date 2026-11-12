@@ -27,8 +27,10 @@ from backend.market_data.dev_import import DEV_PROJECT_REF
 
 SECRET = sha256(b"MarketPulse synthetic test fixture").hexdigest()
 REF = "abcdefghijklmnopqrst"
+SHARED_FLAG = "MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT"
 PASSWORD = "fixture-0123456789-ABCDEFG"
 DSN = f"host=db.{REF}.supabase.co port=5432 dbname=postgres user=marketpulse_demo_ro password={PASSWORD}"
+SHARED_DSN = DSN.replace(REF, DEV_PROJECT_REF)
 SETTINGS = {
     "MARKETPULSE_DEMO_PROJECT_REF": REF,
     "MARKETPULSE_DEMO_DSN": DSN,
@@ -108,6 +110,52 @@ def test_supported_tls_target_and_private_settings(demo_env):
         "gssencmode": "disable", "connect_timeout": "5",
     }
     assert SECRET not in repr(settings) and PASSWORD not in repr(settings)
+    assert not settings.shared_project
+
+
+@pytest.mark.parametrize("pooler", [False, True])
+def test_shared_settings_pin_project_role_and_tls(demo_env, pooler):
+    dsn = SHARED_DSN
+    if pooler:
+        dsn = dsn.replace(f"db.{DEV_PROJECT_REF}.supabase.co", "aws-0-fixture.pooler.supabase.com").replace(
+            "user=marketpulse_demo_ro", f"user=marketpulse_demo_ro.{DEV_PROJECT_REF}"
+        )
+    ca = os.environ["MARKETPULSE_DEMO_SSL_ROOT_CERT"]
+    settings = demo.resolve_demo_settings({
+        **os.environ, SHARED_FLAG: "true", "MARKETPULSE_DEMO_PROJECT_REF": DEV_PROJECT_REF, "MARKETPULSE_DEMO_DSN": dsn,
+    })
+    assert settings.shared_project
+    assert conninfo_to_dict(settings.dsn) == {
+        **conninfo_to_dict(dsn), "sslmode": "verify-full", "sslrootcert": ca,
+        "gssencmode": "disable", "connect_timeout": "5",
+    }
+
+
+@pytest.mark.parametrize("overrides", [
+    {},
+    {SHARED_FLAG: "false"},
+    {SHARED_FLAG: "True"},
+    {SHARED_FLAG: "1"},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_PROJECT_REF": REF, "MARKETPULSE_DEMO_DSN": DSN},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": DSN},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": SHARED_DSN.replace("marketpulse_demo_ro", "marketpulse_api_ro")},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": SHARED_DSN.replace("marketpulse_demo_ro", "postgres")},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": SHARED_DSN.replace(
+        f"db.{DEV_PROJECT_REF}.supabase.co", "aws-0-fixture.pooler.supabase.com"
+    ).replace("marketpulse_demo_ro", f"marketpulse_demo_ro.{REF}")},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": SHARED_DSN + " sslmode=require"},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": "", "MARKET_API_DSN": SHARED_DSN},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": "", "MACRO_API_DSN": SHARED_DSN},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": "", "DATABASE_URL": SHARED_DSN},
+    {SHARED_FLAG: "true", "MARKETPULSE_DEMO_DSN": "", "PASS_USER_RO": PASSWORD},
+])
+def test_shared_settings_reject_unapproved_or_private_configuration(demo_env, overrides):
+    with pytest.raises(demo.DemoConfigurationError) as error:
+        demo.resolve_demo_settings({
+            **os.environ, "MARKETPULSE_DEMO_PROJECT_REF": DEV_PROJECT_REF, "MARKETPULSE_DEMO_DSN": SHARED_DSN,
+            **overrides,
+        })
+    assert PASSWORD not in str(error.value)
 
 
 @pytest.mark.parametrize("mode,expected", [("local", "200"), ("test", "503"), ("public_demo", "")])
@@ -238,6 +286,19 @@ def test_startup_refuses_unverified_database(demo_env, monkeypatch):
     assert PASSWORD not in str(error.value) and error.value.__suppress_context__
 
 
+def test_shared_startup_connection_failure_never_retries_or_falls_back(demo_env, monkeypatch):
+    monkeypatch.setenv(SHARED_FLAG, "true")
+    monkeypatch.setenv("MARKETPULSE_DEMO_PROJECT_REF", DEV_PROJECT_REF)
+    monkeypatch.setenv("MARKETPULSE_DEMO_DSN", SHARED_DSN)
+    connect = MagicMock(side_effect=psycopg.OperationalError("synthetic connection failure"))
+    monkeypatch.setattr(demo.psycopg, "connect", connect)
+    with pytest.raises(demo.DemoConfigurationError, match="database startup verification failed"):
+        with TestClient(demo.create_public_app()):
+            pytest.fail("Failed shared connection did not block startup")
+    connect.assert_called_once()
+    assert conninfo_to_dict(connect.call_args.args[0])["host"] == f"db.{DEV_PROJECT_REF}.supabase.co"
+
+
 @pytest.mark.parametrize("tls,role,scope", [(True, True, True), (False, True, True),
                                           (True, False, True), (True, True, False)])
 def test_connection_requires_tls_and_read_only_privileges(monkeypatch, tls, role, scope):
@@ -247,28 +308,41 @@ def test_connection_requires_tls_and_read_only_privileges(monkeypatch, tls, role
     cursor.execute.return_value.fetchone.side_effect = [(role,), (scope,)]
     connect = MagicMock(return_value=connection)
     monkeypatch.setattr(demo.psycopg, "connect", connect)
-    monkeypatch.setattr(demo, "verify_projection", lambda _connection: None)
+    settings = demo.DemoSettings(DSN, SECRET)
+    verify = MagicMock()
+    monkeypatch.setattr(demo, "verify_projection", verify)
     if tls and role and scope:
-        assert demo.connect_demo(DSN) is connection
+        assert demo.connect_demo(settings) is connection
+        verify.assert_called_once_with(connection, shared_project=False)
         assert connection.read_only
         assert "statement_timeout" in connection.execute.call_args_list[0].args[0]
         assert "lock_timeout" in connection.execute.call_args_list[1].args[0]
         assert not connection.close.called
     else:
         with pytest.raises(demo.DemoConfigurationError):
-            demo.connect_demo(DSN)
+            demo.connect_demo(settings)
         connection.close.assert_called_once()
+        verify.assert_not_called()
 
 
-def test_public_research_uses_only_verified_demo_and_cites_evidence(research_client, monkeypatch):
+@pytest.mark.parametrize("shared", [False, True])
+def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, monkeypatch, shared):
     question = "How did the war in Ukraine relate to euro-area inflation?"
     connections = []
     connection = object()
+    ref = DEV_PROJECT_REF if shared else REF
+    if shared:
+        monkeypatch.setenv(SHARED_FLAG, "true")
+        monkeypatch.setenv("MARKETPULSE_DEMO_PROJECT_REF", ref)
+        monkeypatch.setenv("MARKETPULSE_DEMO_DSN", SHARED_DSN)
+    monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+    monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "f" * 35)
 
     @contextmanager
-    def connect(dsn):
-        assert conninfo_to_dict(dsn)["host"] == f"db.{REF}.supabase.co"
-        connections.append(dsn)
+    def connect(settings):
+        assert settings.shared_project is shared
+        assert conninfo_to_dict(settings.dsn)["host"] == f"db.{ref}.supabase.co"
+        connections.append(settings)
         yield connection
 
     def read(db, item, window, *, max_points):
@@ -325,26 +399,28 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(research_cli
     ))
     params = {**ANALYSIS, "question": question, "indicator_id": "hicp-yoy", "event_id": "ukraine",
               "start": "2022-02-01", "end": "2024-02-29"}
-    reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
+    with TestClient(demo.create_public_app()) as research_client:
+        assert len(connections) == 1  # Startup verifies the same dedicated target.
+        connections.clear()
+        reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
+        assert len(connections) == 1 and len(requests) == 4
+        monkeypatch.setattr(demo, "read_history", lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            psycopg.OperationalError("Synthetic DEMO failure"),
+        ))
+        requests.clear()
+        failure = research_client.post(RESEARCH, headers=research_headers(), json=params)
     assert reply.status_code == 200, reply.text
     assert reply.headers["X-MacroPulse-Research-Complete"] == "true"
     result = reply.json()
     assert result["research_v2"] is True and result["support"] == "partial"
-    assert result["narrative_kind"] == "gemini" and len(connections) == 1
+    assert result["narrative_kind"] == "gemini"
     assert {row["kind"] for row in result["evidence"]} == {"series", "document"}
     assert {ref for claim in result["narrative"] for ref in claim["citations"]} <= {
         row["id"] for row in result["evidence"]
     }
-    assert len(requests) == 4
     assert any("does not identify" in limitation for limitation in result["limitations"])
-
-    monkeypatch.setattr(demo, "read_history", lambda *_args, **_kwargs: (_ for _ in ()).throw(
-        psycopg.OperationalError("Synthetic DEMO failure"),
-    ))
-    requests.clear()
-    reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
-    assert reply.status_code == 503
-    assert len(requests) == 2
+    assert failure.status_code == 503
+    assert len(connections) == 2 and len(requests) == 2
 
 
 @pytest.mark.parametrize("failure,code", [("input limit", 503), ("provider failure", 503), ("timeout", 504)])
