@@ -15,10 +15,10 @@ services:
         value: 'false'
       - key: MARKETPULSE_DEMO_GEMINI_MODEL
         value: gemini-3.6-flash
-      - key: MARKETPULSE_DEMO_GEMINI_API_KEY
-        sync: false
       - key: MARKETPULSE_DEMO_PROJECT_REF
-        sync: false
+        value: swpithkjviavycrxpwed
+      - key: MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT
+        value: 'true'
       - key: MARKETPULSE_DEMO_DSN
         sync: false
       - key: MARKETPULSE_DEMO_SSL_ROOT_CERT

@@ -38,6 +38,7 @@ MAX_BODY = 4096
 MAX_RESEARCH_RESPONSE = 64 * 1024
 RESEARCH_SECONDS = 23
 RO_ROLE = "marketpulse_demo_ro"
+SHARED_PROJECT_REF = "swpithkjviavycrxpwed"
 _MACRO_CATALOG_PATH = "/macro/indicators"
 _MACRO_HISTORY_PATHS = frozenset(f"{_MACRO_CATALOG_PATH}/{key}/history" for key in CATALOG)
 _RESEARCH_PATH = "/macro/analysis"
@@ -63,6 +64,7 @@ class DemoSettings:
     catalog_per_minute: int = 30
     history_per_minute: int = 20
     concurrency: int = 4
+    shared_project: bool = False
 
 
 def _limit(env: Mapping[str, str], key: str, default: int) -> int:
@@ -72,10 +74,17 @@ def _limit(env: Mapping[str, str], key: str, default: int) -> int:
     return int(raw)
 
 
-def demo_target(value: str, ref: str, role: str, *, direct_only: bool = False) -> dict[str, str]:
+def demo_target(
+    value: str, ref: str, role: str, *, direct_only: bool = False, shared_project: bool = False,
+) -> dict[str, str]:
     """Validate explicit connection parameters before constructing a DEMO DSN."""
-    if (not re.fullmatch(r"[a-z]{20}", ref) or is_dev_target(ref, "") or len(set(ref)) < 6
+    if (not re.fullmatch(r"[a-z]{20}", ref) or len(set(ref)) < 6
             or re.search(r"example|placeholder|replace|dummy|sample", ref)):
+        raise DemoConfigurationError("Public demo project reference is missing or invalid")
+    if shared_project:
+        if ref != SHARED_PROJECT_REF or role != RO_ROLE:
+            raise DemoConfigurationError("Public demo shared project reference or role is invalid")
+    elif ref == SHARED_PROJECT_REF or is_dev_target(ref, ""):
         raise DemoConfigurationError("Public demo project reference is missing or invalid")
     try:
         options = conninfo_to_dict(value)
@@ -84,7 +93,8 @@ def demo_target(value: str, ref: str, role: str, *, direct_only: bool = False) -
     if options.keys() != {"host", "port", "user", "password", "dbname"}:
         raise DemoConfigurationError("Public demo DSN must specify only the required connection fields")
     host, user, password = options["host"], options["user"], options["password"]
-    if (is_dev_target(host, user) or options["port"] != "5432" or options["dbname"] != "postgres"
+    if ((not shared_project and is_dev_target(host, user))
+            or options["port"] != "5432" or options["dbname"] != "postgres"
             or len(password) < 24 or len(set(password)) < 12
             or re.search(r"example|placeholder|replace|changeme|password|dummy|sample", password, re.I)):
         raise DemoConfigurationError("Public demo DSN target or role is invalid")
@@ -117,18 +127,25 @@ def resolve_demo_settings(env: Mapping[str, str]) -> DemoSettings:
     if (not re.fullmatch(r"[a-f0-9]{64}", secret) or len(set(secret)) < 12
             or re.fullmatch(r"(.{1,32})\1+", secret)):
         raise DemoConfigurationError("Public demo origin secret is missing or invalid")
-    options = demo_target(env.get("MARKETPULSE_DEMO_DSN", ""), env.get("MARKETPULSE_DEMO_PROJECT_REF", ""), RO_ROLE)
+    shared = env.get("MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT", "false")
+    if shared not in ("false", "true"):
+        raise DemoConfigurationError("Public demo shared project flag is invalid")
+    options = demo_target(
+        env.get("MARKETPULSE_DEMO_DSN", ""), env.get("MARKETPULSE_DEMO_PROJECT_REF", ""), RO_ROLE,
+        shared_project=shared == "true",
+    )
     dsn = tls_dsn(options, env.get("MARKETPULSE_DEMO_SSL_ROOT_CERT", ""))
     return DemoSettings(dsn, secret, _limit(env, "MARKETPULSE_DEMO_CATALOG_PER_MINUTE", 30),
                         _limit(env, "MARKETPULSE_DEMO_HISTORY_PER_MINUTE", 20),
-                        _limit(env, "MARKETPULSE_DEMO_CONCURRENCY", 4))
+                        _limit(env, "MARKETPULSE_DEMO_CONCURRENCY", 4), shared_project=shared == "true")
 
 
-def connect_demo(dsn: str) -> psycopg.Connection:
-    connection = psycopg.connect(dsn, row_factory=dict_row)
+def connect_demo(settings: DemoSettings) -> psycopg.Connection:
+    connection = psycopg.connect(settings.dsn, row_factory=dict_row)
     try:
-        if not connection.pgconn.ssl_in_use:
-            raise DemoConfigurationError("Public demo PostgreSQL requires TLS")
+        sslmode = next((option.val for option in connection.pgconn.info if option.keyword == b"sslmode"), None)
+        if not connection.pgconn.ssl_in_use or sslmode != b"verify-full":
+            raise DemoConfigurationError("Public demo PostgreSQL requires TLS verify-full")
         connection.read_only = True
         connection.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
         connection.execute("SET LOCAL statement_timeout = '2s'")
@@ -139,17 +156,19 @@ def connect_demo(dsn: str) -> psycopg.Connection:
             verified = cursor.execute(_ROLE_CHECK, (_WRITE_PRIVILEGES,)).fetchone()
             scope = cursor.execute("""
                 SELECT current_user = %s
-                    AND NOT has_database_privilege(current_database(), 'TEMP')
                     AND COALESCE(has_schema_privilege(to_regnamespace('marketpulse_demo'), 'USAGE'), false)
-                    AND NOT EXISTS (
-                        SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-                        WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_'
-                            AND has_schema_privilege(n.oid, 'USAGE') AND has_function_privilege(p.oid, 'EXECUTE')
-                    )
-                """, (RO_ROLE,)).fetchone()
+                    AND (%s OR (
+                        NOT has_database_privilege(current_database(), 'TEMP')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_'
+                                AND has_schema_privilege(n.oid, 'USAGE') AND has_function_privilege(p.oid, 'EXECUTE')
+                        )
+                    ))
+                """, (RO_ROLE, settings.shared_project)).fetchone()
         if verified != (True,) or scope != (True,):
             raise DemoConfigurationError("Public demo PostgreSQL role lacks required read-only scope")
-        verify_projection(connection)
+        verify_projection(connection, shared_project=settings.shared_project)
     except Exception:
         connection.close()
         raise
@@ -216,14 +235,14 @@ def _research_config(env: Mapping[str, str]) -> tuple[str, str] | None:
     return key, model
 
 
-def run_public_research(dsn: str, request: ResearchRequest, key: str, model: str, deadline: float):
+def run_public_research(settings: DemoSettings, request: ResearchRequest, key: str, model: str, deadline: float):
     from .macro_ai.public_gemini import PublicGemini
     from .macro_ai.v2_service import ResearchRuntime, run
 
     provider = PublicGemini(api_key=key, model=model, deadline=deadline)
     # A single verified read-only transaction supplies all deterministic
     # operands for this investigation. No local reader is registered.
-    with connect_demo(dsn) as connection:
+    with connect_demo(settings) as connection:
         def read(indicator: IndicatorId, window: MacroWindow) -> MacroHistory:
             if monotonic() >= deadline:
                 raise TimeoutError
@@ -252,7 +271,7 @@ def create_public_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         try:
-            with connect_demo(settings.dsn):
+            with connect_demo(settings):
                 pass
         except Exception:
             raise DemoConfigurationError("Public demo database startup verification failed") from None
@@ -286,7 +305,7 @@ def create_public_app() -> FastAPI:
             return _error(503, "Public Research is busy", 1)
         deadline = monotonic() + RESEARCH_SECONDS
         task = get_running_loop().run_in_executor(
-            None, run_public_research, settings.dsn, params, *research, deadline,
+            None, run_public_research, settings, params, *research, deadline,
         )
         research_tasks.add(task)
 
@@ -388,7 +407,7 @@ def create_public_app() -> FastAPI:
 
     @app.get(_MACRO_CATALOG_PATH)
     def macro_catalog(response: Response) -> list[MacroIndicator]:
-        with connect_demo(settings.dsn):
+        with connect_demo(settings):
             if research is not None:
                 response.headers[RESEARCH_HEADER] = "true"
             return [indicator_metadata(item) for item in CATALOG.values()]
@@ -397,7 +416,7 @@ def create_public_app() -> FastAPI:
     def macro_history(indicator_id: str, window: Annotated[MacroWindow, Query()]) -> MacroHistory:
         if (window.end - window.start).days >= MAX_WINDOW_DAYS:
             raise HTTPException(status_code=422, detail="Invalid request parameters")
-        with connect_demo(settings.dsn) as connection:
+        with connect_demo(settings) as connection:
             return read_history(connection, CATALOG[indicator_id], window, max_points=MAX_WINDOW_DAYS)
 
     return app
