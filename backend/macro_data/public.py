@@ -1,4 +1,4 @@
-"""Read and verify the separate, sanitized DEMO macro projection."""
+"""Read and verify the sanitized DEMO macro projection."""
 
 from __future__ import annotations
 
@@ -90,17 +90,106 @@ def stamp_projection(connection: psycopg.Connection) -> None:
         """, hashes)
 
 
-def verify_projection(connection: psycopg.Connection) -> None:
+_SHARED_SCOPE_CHECK = """
+    WITH role_and_database AS (
+        SELECT r.oid AS role_id, d.oid AS database_id
+        FROM pg_roles r CROSS JOIN pg_database d
+        WHERE r.rolname = current_user AND d.datname = current_database()
+    ), system_schemas AS (
+        SELECT oid, nspname FROM pg_namespace WHERE nspname IN ('pg_catalog', 'information_schema')
+    ), system_acls AS (
+        SELECT 'pg_proc'::regclass AS class_id, p.oid AS object_id, 0 AS column_id,
+            COALESCE(p.proacl, acldefault('f', p.proowner)) AS acl,
+            acldefault('f', p.proowner) AS default_acl, false AS metadata_select
+        FROM pg_proc p JOIN system_schemas n ON n.oid = p.pronamespace
+        WHERE p.proacl IS NOT NULL OR p.oid >= 16384
+        UNION ALL
+        SELECT 'pg_class'::regclass, c.oid, 0, c.relacl, NULL::aclitem[], n.nspname = 'information_schema'
+        FROM pg_class c JOIN system_schemas n ON n.oid = c.relnamespace WHERE c.relacl IS NOT NULL
+        UNION ALL
+        SELECT 'pg_class'::regclass, c.oid, a.attnum, a.attacl, NULL::aclitem[], false
+        FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid
+        JOIN system_schemas n ON n.oid = c.relnamespace WHERE a.attacl IS NOT NULL
+    )
+    SELECT NOT has_database_privilege(current_database(), 'CONNECT WITH GRANT OPTION')
+        AND NOT has_schema_privilege('marketpulse_demo', 'USAGE WITH GRANT OPTION')
+        AND NOT EXISTS (
+            SELECT 1 FROM pg_namespace n
+            WHERE has_schema_privilege(n.oid, 'CREATE') OR (
+                n.oid NOT IN (SELECT oid FROM system_schemas) AND n.nspname <> 'marketpulse_demo'
+                AND has_schema_privilege(n.oid, 'USAGE')
+            )
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM pg_class c
+            WHERE has_schema_privilege(c.relnamespace, 'USAGE') AND CASE WHEN c.relkind = 'S'
+                THEN has_sequence_privilege(c.oid, 'SELECT, USAGE, UPDATE') ELSE false END
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM pg_parameter_acl p
+            CROSS JOIN LATERAL aclexplode(p.paracl) a
+            WHERE a.grantee IN (0, r.role_id) AND a.privilege_type IN ('SET', 'ALTER SYSTEM')
+        )
+        AND NOT EXISTS (
+            -- Direct ACL dependencies also reveal dormant grants in inaccessible schemas.
+            SELECT 1 FROM pg_shdepend s
+            WHERE s.refclassid = 'pg_authid'::regclass AND s.refobjid = r.role_id
+                AND s.dbid IN (0, r.database_id) AND s.deptype IN ('a', 'o')
+                AND NOT (s.deptype = 'a' AND s.objsubid = 0 AND (
+                    (s.classid = 'pg_database'::regclass AND s.objid = r.database_id)
+                    OR (s.classid = 'pg_namespace'::regclass AND s.objid = 'marketpulse_demo'::regnamespace)
+                    OR (s.classid = 'pg_class'::regclass AND s.objid IN (
+                        'marketpulse_demo.macro_catalog'::regclass,
+                        'marketpulse_demo.macro_observations'::regclass
+                    ))
+                ))
+        )
+        AND NOT EXISTS (
+            -- Ordinary objects allocated after initdb start at OID 16384.
+            -- Keep bootstrap catalog access, but reject custom or expanded PUBLIC access.
+            SELECT 1 FROM system_acls s
+            LEFT JOIN pg_init_privs i ON i.classoid = s.class_id AND i.objoid = s.object_id
+                AND i.objsubid = s.column_id AND i.privtype = 'i'
+            CROSS JOIN LATERAL aclexplode(s.acl) a
+            WHERE a.grantee = 0 AND (s.object_id >= 16384 OR (
+                -- initdb does not record the information_schema metadata SELECT ACLs in pg_init_privs.
+                NOT (s.metadata_select AND a.privilege_type = 'SELECT') AND NOT EXISTS (
+                    SELECT 1 FROM aclexplode(COALESCE(i.initprivs, s.default_acl)) original
+                    WHERE original.grantee = 0 AND original.privilege_type = a.privilege_type
+                )
+            ))
+        )
+        AND NOT EXISTS (SELECT 1 FROM pg_foreign_server WHERE has_server_privilege(oid, 'USAGE'))
+        AND NOT EXISTS (SELECT 1 FROM pg_foreign_data_wrapper WHERE has_foreign_data_wrapper_privilege(oid, 'USAGE'))
+        AND NOT EXISTS (
+            SELECT 1 FROM pg_proc p WHERE p.pronamespace = 'pg_catalog'::regnamespace
+                AND p.proname IN ('lo_creat', 'lo_create', 'lo_from_bytea', 'pg_logical_emit_message')
+                AND has_function_privilege(p.oid, 'EXECUTE')
+        )
+        AND current_setting('lo_compat_privileges') = 'off'
+        AND NOT EXISTS (
+            SELECT 1 FROM pg_largeobject_metadata lo
+            WHERE lo.lomowner = r.role_id OR EXISTS (
+                SELECT 1 FROM aclexplode(lo.lomacl) a WHERE a.grantee IN (0, r.role_id)
+            )
+        )
+    FROM role_and_database r
+"""
+
+
+def verify_projection(connection: psycopg.Connection, *, shared_project: bool = False) -> None:
     with connection.cursor(row_factory=tuple_row) as cursor:
         permitted = cursor.execute("""
-            SELECT to_regnamespace('macro_data') IS NULL
+            SELECT (%s OR (to_regnamespace('macro_data') IS NULL
                 AND to_regnamespace('market_data') IS NULL
-                AND to_regnamespace('news') IS NULL
+                AND to_regnamespace('news') IS NULL))
                 AND has_table_privilege(to_regclass('marketpulse_demo.macro_catalog'), 'SELECT')
                 AND has_table_privilege(to_regclass('marketpulse_demo.macro_observations'), 'SELECT')
-        """).fetchone()
+        """, (shared_project,)).fetchone()
         if permitted != (True,):
             raise ProjectionError("Public demo macro projection is unavailable")
+        if shared_project and cursor.execute(_SHARED_SCOPE_CHECK).fetchone() != (True,):
+            raise ProjectionError("Public demo macro role has unexpected shared database privileges")
         readable = cursor.execute("""
             SELECT n.nspname, c.relname, c.relkind
             FROM pg_class AS c JOIN pg_namespace AS n ON n.oid = c.relnamespace
