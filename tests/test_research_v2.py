@@ -1,6 +1,7 @@
 """HTTP and graph integration with synthetic observations and a simulated Gemini."""
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from dataclasses import replace
 from decimal import Decimal
 import json
 from types import SimpleNamespace
@@ -117,7 +118,8 @@ def post(research, question, key, event, *, v2=True, headers=None):
     (DIFFERENCE, "hicp-yoy", "ukraine", "difference", "descriptive", [], "supported"),
     (COVID_GDP, "real-gdp-qoq", "covid", "trend", "descriptive", [GDP_RELEASE], "supported"),
     (GENAI, "real-gdp-qoq", "generative-ai", "causal_effect", "causal", [AI_ADOPTION], "partial"),
-    (FX, "eur-usd", "covid", "trend", "descriptive", [], "partial"),
+    (FX, "eur-usd", "covid", "trend", "descriptive",
+     ["2e7e326e3d124605f20ddcad4e9f791b1f663d93af146341fb6974d4099e0c35"], "supported"),
 ])
 def test_five_examples(research, question, key, event, operation, purpose, claims, expected):
     item = requirement(question, key, operation)
@@ -180,7 +182,7 @@ def test_five_examples(research, question, key, event, operation, purpose, claim
     else:
         assert body["evidence"][0]["series_key"] == "EXR.D.USD.EUR.SP00.A"
         assert "10.909091%" in body["calculations"][0]["text"]
-        assert any("no applicable documentary context" in note for note in body["limitations"])
+        assert body["evidence"][1]["geography"] == "Euro area and United States"
 
 
 @pytest.mark.parametrize("event,prefix,periods", [
@@ -417,3 +419,48 @@ def test_langchain_structured_schema_and_provider_budget(research, monkeypatch):
     assert len(provider_calls) == 2
     assert set(provider_calls[0]["properties"]) == {"event", "purpose", "requirements", "unresolved"}
     assert set(provider_calls[1]["properties"]) == {"sentences"}
+
+
+@pytest.mark.parametrize("event,released", [
+    ("covid", date(2020, 10, 8)),
+    ("ukraine", date(2022, 5, 19)),
+])
+def test_spot_context_requires_bilateral_measure_and_full_period(monkeypatch, event, released):
+    start, end = EVENT_WINDOWS[event]
+    scope = data.MacroWindow(start=start, end=end)
+    question = "What happened to the EUR/USD spot exchange rate?"
+    assert not v2_retrieval.retrieve(question, event, "eur-usd", scope, released - timedelta(days=1))
+    [(source, _)] = v2_retrieval.retrieve(question, event, "eur-usd", scope, released)
+    truncated = data.MacroWindow(start=source.period_start + timedelta(days=1), end=end)
+    assert not v2_retrieval.retrieve(question, event, "eur-usd", truncated, released)
+
+    corpus = v2_retrieval.approved_corpus()
+    original = corpus.claims[source.claim_id]
+    for text in ("EUR/USD spot and swap liquidity moved.", "The trade-weighted exchange rate rose."):
+        claims = {**corpus.claims, source.claim_id: original.model_copy(update={"text": text})}
+        monkeypatch.setattr(v2_retrieval, "approved_corpus", lambda: replace(corpus, claims=claims))
+        assert not v2_retrieval.retrieve(question, event, "eur-usd", scope, released)
+
+
+@pytest.mark.parametrize("indicator,event,dates", [
+    ("m3-stock", "covid", [date(2020, 5, 29)]),
+    ("m3-stock", "ukraine", [date(2022, 10, 26)]),
+    ("deposit-rate", "ukraine", [date(2022, 3, 10), date(2022, 10, 27)]),
+])
+def test_public_preset_ranking(indicator, event, dates):
+    question = next(q for q, scope in v2_service._PRESET_QUESTIONS.items() if scope == (indicator, event))
+    start, end = EVENT_WINDOWS[event]
+    results = v2_retrieval.retrieve(question, event, indicator, data.MacroWindow(start=start, end=end), end)
+    assert [source.published_on for source, _ in results] == dates
+    assert len({source.document_id for source, _ in results}) == len(dates)
+
+
+def test_ukraine_gdp_flash_is_eligible_for_its_quarter():
+    scope = data.MacroWindow(start=date(2022, 4, 1), end=date(2022, 6, 30))
+    question = "How did real GDP grow in the second quarter of 2022?"
+    assert not v2_retrieval.retrieve(question, "ukraine", "real-gdp-qoq", scope, date(2022, 7, 28))
+    [(source, claim)] = v2_retrieval.retrieve(
+        question, "ukraine", "real-gdp-qoq", scope, date(2022, 7, 29),
+    )
+    assert source.geography == "euro area (EA19)"
+    assert "0.7% quarter on quarter" in claim.text

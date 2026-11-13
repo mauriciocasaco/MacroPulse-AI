@@ -14,6 +14,7 @@ from scripts.m7b_schema import Claim, Day, Decision, Document, Event, ID, Indica
 
 Geography = Literal["euro-area", "eu", "us"]
 GEO = {
+    "Euro area and United States": "euro-area",
     "euro area": "euro-area",
     "euro area (EA19)": "euro-area",
     "European Union (EU27)": "eu",

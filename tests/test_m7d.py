@@ -306,7 +306,7 @@ def test_frozen_m7c_benchmark_meets_claim_recall_and_intent_abstention():
     report = evaluate(M7B, ROOT / "docs/m7c/evaluation.jsonl", "regression", model=None, repeats=1)
     summary = report["metrics"]["gate_lexical"]
     assert summary["cases"] == 28
-    assert summary["claim_hit_at_3"] >= 15 / 17
+    assert summary["claim_hit_at_3"] >= 16 / 18
     assert summary["false_answers"] == 0
     assert summary["cases_without_relevant_claims_with_hits"] == 0
     assert summary["multi_claim_cases_with_all_groups"] == 1
