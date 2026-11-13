@@ -8,19 +8,6 @@ from psycopg.rows import dict_row
 from .models import Claim
 from .v2_models import CuratedEvidence
 
-ECB_RIGHTS = "https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html"
-ECB_FX = {
-    "covid": (
-        "2020-06-18", "2020-03-12", "2020-06-03", "202004",
-        "The ECB reported that the euro weakened slightly against the US dollar from 12 March to 3 June 2020.",
-    ),
-    "ukraine": (
-        "2022-08-04", "2022-06-09", "2022-07-20", "202205",
-        "The ECB reported a weaker euro against the US dollar amid expectations of faster US monetary tightening.",
-    ),
-}
-
-
 def _evidence(row, event, indicator):
     url = row["canonical_url"]
     document_id = sha256(url.encode()).hexdigest()
@@ -37,19 +24,10 @@ def _evidence(row, event, indicator):
 
 def retrieve_online(connection, _question, event, indicator, window, cutoff):
     scope = "genai" if event == "generative-ai" else event
-    if indicator == "eur-usd" and event in ECB_FX:
-        released, start, end, issue, summary = ECB_FX[event]
-        published, first, last = map(date.fromisoformat, (released, start, end))
-        if window.start <= first <= last <= window.end and published <= cutoff:
-            return [_evidence({
-                "canonical_url": f"https://www.ecb.europa.eu/press/economic-bulletin/html/eb{issue}.en.html",
-                "title": f"ECB Economic Bulletin {int(issue[-2:])}/{issue[:4]}",
-                "attribution": "European Central Bank · MacroPulse AI paraphrase", "rights_url": ECB_RIGHTS,
-                "published_on": published, "period_start": first, "period_end": last,
-                "geography": "Euro area and United States", "locator": "Financial developments",
-                "qualifiers": "Bilateral exchange-rate context for the bulletin's review period.",
-                "summary": summary,
-            }, scope, indicator)]
+    if indicator == "eur-usd":
+        # The news table does not certify that the stored measure is bilateral spot.
+        # Reviewed spot evidence comes from M7.B.
+        return []
     with connection.cursor(row_factory=dict_row) as cursor:
         row = cursor.execute("""
             SELECT * FROM macropulse_online.news_evidence

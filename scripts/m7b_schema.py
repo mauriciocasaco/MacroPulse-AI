@@ -169,6 +169,14 @@ class Review(Strict):
     reviewed_policy_sha256: ID | None = None
 
 
+class PolicyCheck(Strict):
+    url: URL
+    verified: bool
+    sha256: ID | None = None
+    basis: Text | None = None
+    error: Text | None = None
+
+
 class SourceCheck(Strict):
     id: ID
     url: URL
@@ -187,15 +195,8 @@ class SourceCheck(Strict):
     text_sha256: ID | None = None
     comparison_sha256: ID | None = None
     document_reproduction_notice: bool | None = None
+    rights_policy: PolicyCheck | None = None
     blocks: dict[ID, ID] = Field(default_factory=dict)
-    error: Text | None = None
-
-
-class PolicyCheck(Strict):
-    url: URL
-    verified: bool
-    sha256: ID | None = None
-    basis: Text | None = None
     error: Text | None = None
 
 
@@ -205,3 +206,4 @@ class Snapshot(Strict):
     policies: dict[Institution, PolicyCheck]
     documents: dict[ID, SourceCheck]
     m7a_sha256: dict[Literal["manifest.json", "candidates.jsonl"], ID] | None = None
+    expansion_sha256: ID | None = None

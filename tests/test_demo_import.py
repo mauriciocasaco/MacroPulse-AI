@@ -329,7 +329,7 @@ def _check_imported_public_app(dsn, manifest, publications, monkeypatch):
 
         gemini_calls.append("compose")
         return Draft.model_validate({
-            "sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in evidence],
+            "paragraphs": [{"statement_id": row["statement_id"], "style": "direct"} for row in evidence],
         })
 
     monkeypatch.setattr(demo.psycopg, "connect", loopback_only)

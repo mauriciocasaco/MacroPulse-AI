@@ -27,7 +27,7 @@ it.each(names.flatMap(([id, name]) => historicalEvents.map((event) => ({ id, nam
     render(<QuestionComposer {...props} />);
     fireEvent.click(screen.getByRole('button', { name: event.label }));
     const field = screen.getByRole('textbox', { name: 'Research question' });
-    expect(field).toHaveProperty('value', `${event.prefix} ${name}?`);
+    expect(field).toHaveProperty('value', `How did ${name} evolve during ${event.period}?`);
     expect(props.onSubmit).not.toHaveBeenCalled();
     fireEvent.change(field, { target: { value: 'My own research question?' } });
     expect(field).toHaveProperty('value', 'My own research question?');
@@ -60,7 +60,7 @@ it('submits custom dates without an event preset', () => {
   fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-01-01' } });
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   expect(props.onSubmit).toHaveBeenCalledWith({
-    question: 'What happened to EUR/USD rate?', indicatorId: 'eur-usd',
+    question: 'How did EUR/USD rate evolve during the selected period?', indicatorId: 'eur-usd',
     start: '2019-01-01', end: '2026-01-01',
   });
 });
@@ -77,7 +77,7 @@ it('keeps the chart as the controlled selection and regenerates for external ind
   view.rerender(<QuestionComposer {...props} indicatorId="hicp-yoy" />);
   expect(screen.getByRole('button', { name: 'Eurozone Inflation' }).getAttribute('aria-pressed')).toBe('true');
   expect(screen.getByLabelText('Research question')).toHaveProperty('value',
-    'How did the COVID-19 pandemic affect Eurozone Inflation?');
+    'How did Eurozone Inflation evolve during the COVID-19 pandemic?');
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   expect(vi.mocked(props.onSubmit).mock.calls[1][0].indicatorId).toBe('hicp-yoy');
 });
@@ -95,7 +95,7 @@ it('preserves custom edits across context changes and offers explicit regenerati
     eventId: 'ukraine', start: '2022-02-01', end: '2024-02-29' });
   fireEvent.click(screen.getByRole('button', { name: 'Use generated question' }));
   expect(screen.getByLabelText('Research question')).toHaveProperty('value',
-    'How did the war in Ukraine affect Eurozone M3?');
+    'How did Eurozone M3 evolve during the war in Ukraine?');
   expect(screen.queryByRole('status')).toBeNull();
 });
 

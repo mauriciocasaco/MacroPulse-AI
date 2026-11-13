@@ -176,7 +176,7 @@ def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch
         }],
     }))
     monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, evidence: Draft.model_validate({
-        "sentences": [{"evidence_id": item["evidence_id"], "text": item["sentences"][0]} for item in evidence],
+        "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in evidence],
     }))
     with TestClient(public_online.create_online_app()) as client:
         assert client.get("/macro/indicators").status_code == 403
@@ -205,7 +205,7 @@ def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeyp
     monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "a" * 35)
     monkeypatch.setattr(public_gemini.PublicGemini, "interpret", lambda *_: pytest.fail("Preset sent to Gemini"))
     monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, evidence: Draft.model_validate({
-        "sentences": [{"evidence_id": item["evidence_id"], "text": item["sentences"][0]} for item in evidence],
+        "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in evidence],
     }))
     with TestClient(public_online.create_online_app()) as client:
         response = client.post("/macro/analysis", headers={
@@ -226,3 +226,8 @@ def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeyp
         "first_observed_on": "2020-02-01", "last_observed_on": "2020-12-31", "citation": "series:hicp-yoy",
     }]
     assert len(result["interpretation"]) == 2
+
+
+def test_spot_retrieval_does_not_consult_untyped_news():
+    window = MacroWindow(start=date(2022, 2, 1), end=date(2024, 2, 29))
+    assert online_evidence.retrieve_online(None, "EUR/USD", "ukraine", "eur-usd", window, window.end) == []

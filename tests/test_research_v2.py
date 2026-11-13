@@ -1,6 +1,7 @@
 """HTTP and graph integration with synthetic observations and a simulated Gemini."""
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from dataclasses import replace
 from decimal import Decimal
 import json
 from types import SimpleNamespace
@@ -12,8 +13,8 @@ import pytest
 
 from backend.api import app
 from backend.macro_ai import api, gemini, service, v2_gemini, v2_retrieval, v2_service
-from backend.macro_ai.models import EVENT_WINDOWS, ResearchResponse
-from backend.macro_ai.v2_models import Draft, Intent
+from backend.macro_ai.models import Claim, EVENT_WINDOWS, ResearchResponse
+from backend.macro_ai.v2_models import Draft, Intent, SeriesEvidence
 from backend.macro_ai.v2_statistics import DEFINITIONS
 from backend.macro_data import api as data
 from backend.macro_data.contracts import CATALOG, parse_period
@@ -33,6 +34,11 @@ COVID_HICP_CLAIMS = {
     "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
     "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
 }
+PRESET_DOCUMENT_COUNTS = {
+    "covid": {"eur-usd": 1, "m3-stock": 1, "deposit-rate": 1, "real-gdp-qoq": 1, "hicp-yoy": 2},
+    "ukraine": {"eur-usd": 1, "m3-stock": 1, "deposit-rate": 2, "real-gdp-qoq": 2, "hicp-yoy": 2},
+    "generative-ai": {"eur-usd": 0, "m3-stock": 0, "deposit-rate": 0, "real-gdp-qoq": 1, "hicp-yoy": 0},
+}
 
 
 def requirement(question, key, operation):
@@ -43,6 +49,10 @@ def requirement(question, key, operation):
 
 def window(start, end):
     return {"start": start, "end": end}
+
+
+def paragraph_plan(payload, style="direct"):
+    return {"paragraphs": [{"statement_id": row["statement_id"], "style": style} for row in payload]}
 
 
 @pytest.fixture
@@ -77,7 +87,7 @@ def research(monkeypatch):
         payload = json.loads(inputs["evidence"])
         if fixture.draft:
             return fixture.draft(payload)
-        return {"sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][-1]} for row in payload]}
+        return paragraph_plan(payload)
 
     def fake_read(keys, request):
         key, = keys
@@ -117,7 +127,8 @@ def post(research, question, key, event, *, v2=True, headers=None):
     (DIFFERENCE, "hicp-yoy", "ukraine", "difference", "descriptive", [], "supported"),
     (COVID_GDP, "real-gdp-qoq", "covid", "trend", "descriptive", [GDP_RELEASE], "supported"),
     (GENAI, "real-gdp-qoq", "generative-ai", "causal_effect", "causal", [AI_ADOPTION], "partial"),
-    (FX, "eur-usd", "covid", "trend", "descriptive", [], "partial"),
+    (FX, "eur-usd", "covid", "trend", "descriptive",
+     ["2e7e326e3d124605f20ddcad4e9f791b1f663d93af146341fb6974d4099e0c35"], "supported"),
 ])
 def test_five_examples(research, question, key, event, operation, purpose, claims, expected):
     item = requirement(question, key, operation)
@@ -180,7 +191,7 @@ def test_five_examples(research, question, key, event, operation, purpose, claim
     else:
         assert body["evidence"][0]["series_key"] == "EXR.D.USD.EUR.SP00.A"
         assert "10.909091%" in body["calculations"][0]["text"]
-        assert any("no applicable documentary context" in note for note in body["limitations"])
+        assert body["evidence"][1]["geography"] == "Euro area and United States"
 
 
 @pytest.mark.parametrize("event,prefix,periods", [
@@ -217,8 +228,11 @@ def test_preset_questions(research, event, prefix, periods, key, label, expected
         values = ("1.6", "1.2") if expected_unit == "percent" else ("1.1", "0.7")
         research.values[key] = list(zip((first, last), values))
 
-    body = post(research, question, key, event).json()
+    response = post(research, question, key, event)
+    assert response.status_code == 200
+    body = response.json()
     assert body["status"] == "answered" and body["support"] == "partial"
+    assert body["narrative_kind"] == "gemini"
     assert body["graph_steps"][0] == "interpret_preset"
     assert [schema for schema, _ in research.calls] == [Draft]
     assert research.reads == [(key, start.isoformat(), end.isoformat())]
@@ -227,14 +241,41 @@ def test_preset_questions(research, event, prefix, periods, key, label, expected
     assert body["observed_changes"][0]["value"] == expected_value
     assert ("-25%" if expected_unit == "percent" else "percentage points") in body["calculations"][0]["text"]
     assert any("causal effect" in note for note in body["limitations"])
+    assert body["narrative"][-1]["text"].endswith("This analysis does not estimate the event's causal effect.")
+    assert body["narrative"][0]["text"].startswith("The official series for ")
+    if key == "m3-stock":
+        assert "1.6 million EUR" in body["narrative"][0]["text"]
+    assert {citation for paragraph in body["narrative"] for citation in paragraph["citations"]} == {
+        source["id"] for source in body["evidence"]
+    }
+    assert body["observed_changes"][0]["citation"] == f"series:{key}"
+    assert body["evidence"][0]["url"] == CATALOG[key].source_url
+    documents = [item for item in body["evidence"] if item["kind"] == "document"]
+    assert len(documents) == PRESET_DOCUMENT_COUNTS[event][key]
+    assert body["corpus_sha256"] == (v2_retrieval.APPROVED_SNAPSHOT if documents else None)
+    corpus = v2_retrieval.approved_corpus()
+    for source in documents:
+        claim = corpus.claims[source["claim_id"]]
+        document = corpus.documents[claim.document_id]
+        assert source["document_id"] == document.id and source["indicator"] == key
+        assert source["relation"] == document.indicators[key]
+        assert source["url"] == claim.primary_source and source["locator"] == claim.locator
+        assert source["rights_url"] == document.rights.policy_url
+        assert source["period_start"] == claim.historical_period.start
+        assert source["period_end"] == claim.historical_period.end
+        assert source["published_on"] == claim.publication_date <= body["publication_cutoff"]
+        assert start.isoformat() <= source["period_start"] <= source["period_end"] <= end.isoformat()
+        assert [row["text"] for row in body["narrative"] if row["citations"] == [source["id"]]] == [claim.text]
+        if event == "generative-ai":
+            assert source["relation"] == "proxy"
     if key == "deposit-rate":
         assert body["observed_changes"][0]["first_observed_on"] == start.isoformat()
         assert body["observed_changes"][0]["last_observed_on"] == end.isoformat()
         assert "effective 2019-09-18" in body["facts"][0]["text"]
+        assert body["narrative"][0]["text"].count("-0.50% per year") == 2
+        assert body["narrative"][0]["text"].count("effective 2019-09-18") == 2
     if question == COVID_HICP:
         assert body["publication_cutoff"] == "2020-12-31"
-        assert body["corpus_sha256"] == v2_retrieval.APPROVED_SNAPSHOT
-        documents = [item for item in body["evidence"] if item["kind"] == "document"]
         assert {item["claim_id"] for item in documents} == COVID_HICP_CLAIMS
         assert all("2020-02-01" <= item["period_start"] <= item["period_end"] <= item["published_on"]
                    <= body["publication_cutoff"] for item in documents)
@@ -311,7 +352,11 @@ def test_mixed_requirements_and_unknown_parts_remain_partial(research):
     assert any("Part of the question" in note for note in body["limitations"])
 
 
-@pytest.mark.parametrize("attack", ["new_number", "wrong_unit", "borrowed_claim", "unknown_id", "missing", "model_failure"])
+@pytest.mark.parametrize("attack", [
+    "wrong_number", "wrong_unit", "wrong_period", "wrong_attribution", "causal_rewrite", "links",
+    "unknown_id", "string_id", "boolean_id", "swapped_groups", "duplicate", "missing",
+    "unknown_style", "repeated_frame", "self_certification", "legacy_free_text", "model_failure",
+])
 def test_bad_draft_returns_only_server_statements(research, attack):
     research.intent = {"purpose": "causal", "event": "ukraine",
                        "requirements": [requirement(UKRAINE, "hicp-yoy", "trend")]}
@@ -319,25 +364,131 @@ def test_bad_draft_returns_only_server_statements(research, attack):
     def draft(payload):
         if attack == "model_failure":
             raise TimeoutError
-        rows = [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in payload]
-        if attack == "unknown_id":
-            rows[0]["evidence_id"] = 99
+        plan = paragraph_plan(payload)
+        rows = plan["paragraphs"]
+        injected_text = {
+            "wrong_number": "Euro-area HICP inflation was 99% year on year in 2022-02.",
+            "wrong_unit": "Euro-area HICP inflation was 5.9 percentage points in 2022-02.",
+            "wrong_period": "Euro-area HICP inflation was 5.9% year on year in 2024-02.",
+            "wrong_attribution": "The ECB reported euro-area HICP inflation of 5.9% in 2022-02.",
+            "causal_rewrite": "The war caused euro-area HICP inflation of 5.9% year on year in 2022-02.",
+            "links": "See https://example.test/made-up-source.",
+            "self_certification": payload[0]["statement"],
+        }
+        if attack in injected_text:
+            rows[0]["text"] = injected_text[attack]
+            if attack == "self_certification":
+                rows[0]["grounded"] = True
+                rows[0]["citations"] = ["series:hicp-yoy"]
+        elif attack in {"unknown_id", "string_id", "boolean_id"}:
+            rows[0]["statement_id"] = {"unknown_id": 16, "string_id": "1", "boolean_id": True}[attack]
+        elif attack == "swapped_groups":
+            rows[0], rows[-1] = rows[-1], rows[0]
+        elif attack == "duplicate":
+            rows[1] = rows[0]
         elif attack == "missing":
             rows.pop()
+        elif attack == "unknown_style":
+            rows[0]["style"] = "as a result"
+        elif attack == "repeated_frame":
+            rows[1]["style"] = rows[2]["style"] = "framed"
         else:
-            rows[0]["text"] = {
-                "new_number": "The war caused 99% inflation.",
-                "wrong_unit": rows[1]["text"].replace("percentage points", "percent"),
-                "borrowed_claim": rows[-1]["text"],
-            }[attack]
-        return {"sentences": rows}
+            return {"sentences": [{"evidence_id": 1, "text": payload[0]["statement"]}]}
+        return plan
 
     research.draft = draft
     body = post(research, UKRAINE, "hicp-yoy", "ukraine").json()
     assert body["narrative_kind"] == "deterministic" and body["model_id"] is None
-    assert [{key: row[key] for key in ("text", "citations")} for row in body["narrative"]] == (
-        body["facts"] + body["calculations"] + body["interpretation"]
+    fallback_note = "drafting was unavailable" if attack == "model_failure" else "failed evidence validation"
+    assert any(fallback_note in note for note in body["limitations"])
+    assert [row["citations"] for row in body["narrative"]] == [
+        row["citations"] for row in body["facts"] + body["interpretation"] + body["calculations"]
+    ]
+    assert body["narrative"][0]["text"].startswith("For the euro area's all-items HICP inflation rate")
+    assert body["narrative"][1]["text"].endswith(body["interpretation"][0]["text"])
+    assert body["narrative"][2]["text"] == body["interpretation"][1]["text"]
+    assert body["narrative"][-1]["text"] == (
+        "From 2022-02 to 2024-02, the change in the euro area's all-items HICP inflation rate "
+        "was -3.3 percentage points. This analysis does not estimate the event's causal effect."
     )
+    assert [schema for schema, _ in research.calls] == [Intent, Draft]
+
+
+def test_gemini_plan_reorders_context_and_rephrases_observations_and_calculation(research):
+    research.intent = {"purpose": "causal", "event": "ukraine",
+                       "requirements": [requirement(UKRAINE, "hicp-yoy", "trend")]}
+
+    def draft(payload):
+        rows = paragraph_plan(payload)["paragraphs"]
+        rows[1], rows[2] = rows[2], rows[1]
+        for index in (0, 1, 3):
+            rows[index]["style"] = "framed"
+        return {"paragraphs": rows}
+
+    research.draft = draft
+    body = post(research, UKRAINE, "hicp-yoy", "ukraine").json()
+    assert body["narrative_kind"] == "gemini"
+    assert body["narrative"][0] == {
+        "text": "For the euro area's all-items HICP inflation rate, the official series records "
+                "5.9% year on year in 2022-02, 10.6% year on year in 2022-10 and 2.6% year on year in 2024-02.",
+        "citations": ["series:hicp-yoy"],
+        "category": "official observation",
+    }
+    assert body["narrative"][1]["category"] == "institutional interpretation"
+    assert body["narrative"][1]["citations"] == [f"claim:{ECB_ASSESSMENT}"]
+    assert body["narrative"][1]["text"].endswith(body["interpretation"][1]["text"])
+    assert body["narrative"][2]["citations"] == [f"claim:{HICP_RELEASE}"]
+    assert body["narrative"][2]["text"] == body["interpretation"][0]["text"]
+    assert body["narrative"][-1]["text"].startswith(
+        "From 2022-02 to 2024-02, the change in the euro area's all-items HICP inflation rate was -3.3 percentage points."
+    )
+    assert body["narrative"][-1]["citations"] == ["series:hicp-yoy"]
+
+
+def test_multi_series_plan_preserves_precision_and_citations_when_reordered(research):
+    question = "How much was EUR/USD on 3 February 2020, and how did real GDP change during COVID?"
+    research.intent = {"purpose": "descriptive", "event": "covid", "requirements": [
+        {**requirement("EUR/USD on 3 February 2020", "eur-usd", "point"),
+         "period": window("2020-02-03", "2020-02-03")},
+        requirement("real GDP change during COVID", "real-gdp-qoq", "trend"),
+    ]}
+
+    def draft(payload):
+        rows = paragraph_plan(payload)["paragraphs"]
+        rows[0], rows[1] = rows[1], rows[0]
+        return {"paragraphs": rows}
+
+    research.draft = draft
+    body = post(research, question, None, "covid").json()
+    assert body["narrative_kind"] == "gemini"
+    gdp, fx, *_, conclusion = body["narrative"]
+    assert gdp["citations"] == ["series:real-gdp-qoq"]
+    assert "-11.8% quarter on quarter in 2020-Q2" in gdp["text"]
+    assert "12.5% quarter on quarter in 2020-Q3" in gdp["text"]
+    assert fx["citations"] == ["series:eur-usd"]
+    assert "1.10 USD per EUR in 2020-02-03" in fx["text"]
+    assert conclusion["citations"] == ["series:real-gdp-qoq"]
+    assert "11.4 percentage points from 2020-Q2 to 2020-Q4" in conclusion["text"]
+    assert len(body["calculations"]) == 1
+
+
+def test_missing_or_ambiguous_server_citations_fail_closed():
+    statement = v2_service.Statement(
+        Claim(text="A synthetic observation.", citations=["series:fixture"]),
+        "official observation", ("A synthetic observation.", "Another synthetic observation."),
+    )
+    source = SeriesEvidence(
+        id="series:fixture", kind="series", title="Fixture", url="https://example.test",
+        attribution="Fixture", series_key="fixture", unit="percent", multiplier=0,
+        geography="fixture", adjustment="fixture",
+    )
+    for evidence in ([], [source, source]):
+        result = v2_service.validate_answer({
+            "statements": [statement], "evidence": evidence, "limitations": [],
+            "draft": paragraph_plan([{"statement_id": 1}]), "model_id": "fixture",
+        })
+        assert result["statements"] == result["evidence"] == []
+        assert "narrative" not in result and result["model_id"] is None
 
 
 def test_missing_comparison_operand_cannot_use_adjacent_observation(research):
@@ -396,6 +547,7 @@ def test_langchain_structured_schema_and_provider_budget(research, monkeypatch):
     def generate_content(_self, *, model, contents, config):
         provider_calls.append(config.response_json_schema)
         assert model == "gemini-3.6-flash" and not config.tools
+        assert config.max_output_tokens == 2400
         assert config.http_options.timeout == 18_000 and config.http_options.retry_options.attempts == 1
         assert config.response_mime_type == "application/json"
         prompt = contents[-1].parts[0].text
@@ -406,7 +558,7 @@ def test_langchain_structured_schema_and_provider_budget(research, monkeypatch):
         else:
             assert FX not in prompt
             rows = json.loads(prompt.partition("\n")[2])
-            output = {"sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in rows]}
+            output = paragraph_plan(rows)
         return GenerateContentResponse(candidates=[
             Candidate(content=Content(role="model", parts=[Part(text=json.dumps(output))])),
         ])
@@ -416,4 +568,49 @@ def test_langchain_structured_schema_and_provider_budget(research, monkeypatch):
     assert body["narrative_kind"] == "gemini"
     assert len(provider_calls) == 2
     assert set(provider_calls[0]["properties"]) == {"event", "purpose", "requirements", "unresolved"}
-    assert set(provider_calls[1]["properties"]) == {"sentences"}
+    assert set(provider_calls[1]["properties"]) == {"paragraphs"}
+
+
+@pytest.mark.parametrize("event,released", [
+    ("covid", date(2020, 10, 8)),
+    ("ukraine", date(2022, 5, 19)),
+])
+def test_spot_context_requires_bilateral_measure_and_full_period(monkeypatch, event, released):
+    start, end = EVENT_WINDOWS[event]
+    scope = data.MacroWindow(start=start, end=end)
+    question = "What happened to the EUR/USD spot exchange rate?"
+    assert not v2_retrieval.retrieve(question, event, "eur-usd", scope, released - timedelta(days=1))
+    [(source, _)] = v2_retrieval.retrieve(question, event, "eur-usd", scope, released)
+    truncated = data.MacroWindow(start=source.period_start + timedelta(days=1), end=end)
+    assert not v2_retrieval.retrieve(question, event, "eur-usd", truncated, released)
+
+    corpus = v2_retrieval.approved_corpus()
+    original = corpus.claims[source.claim_id]
+    for text in ("EUR/USD spot and swap liquidity moved.", "The trade-weighted exchange rate rose."):
+        claims = {**corpus.claims, source.claim_id: original.model_copy(update={"text": text})}
+        monkeypatch.setattr(v2_retrieval, "approved_corpus", lambda: replace(corpus, claims=claims))
+        assert not v2_retrieval.retrieve(question, event, "eur-usd", scope, released)
+
+
+@pytest.mark.parametrize("indicator,event,dates", [
+    ("m3-stock", "covid", [date(2020, 5, 29)]),
+    ("m3-stock", "ukraine", [date(2022, 10, 26)]),
+    ("deposit-rate", "ukraine", [date(2022, 3, 10), date(2022, 10, 27)]),
+])
+def test_public_preset_ranking(indicator, event, dates):
+    question = next(q for q, scope in v2_service._PRESET_QUESTIONS.items() if scope == (indicator, event))
+    start, end = EVENT_WINDOWS[event]
+    results = v2_retrieval.retrieve(question, event, indicator, data.MacroWindow(start=start, end=end), end)
+    assert [source.published_on for source, _ in results] == dates
+    assert len({source.document_id for source, _ in results}) == len(dates)
+
+
+def test_ukraine_gdp_flash_is_eligible_for_its_quarter():
+    scope = data.MacroWindow(start=date(2022, 4, 1), end=date(2022, 6, 30))
+    question = "How did real GDP grow in the second quarter of 2022?"
+    assert not v2_retrieval.retrieve(question, "ukraine", "real-gdp-qoq", scope, date(2022, 7, 28))
+    [(source, claim)] = v2_retrieval.retrieve(
+        question, "ukraine", "real-gdp-qoq", scope, date(2022, 7, 29),
+    )
+    assert source.geography == "euro area (EA19)"
+    assert "0.7% quarter on quarter" in claim.text

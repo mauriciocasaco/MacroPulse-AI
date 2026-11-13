@@ -79,6 +79,15 @@ def inventory():
     proposal = load_json(M7A / "manifest.json")["proposal_ids"]
     if len(proposal) != len(set(proposal)) or not set(proposal) <= by_id.keys():
         raise ValueError("invalid proposal IDs")
+    for row in read_rows(M7B / "expansion-candidates.jsonl"):
+        id = row["id"]
+        if id in proposal or by_id.get(id, {}).get("m85_expansion"):
+            raise ValueError("duplicate expansion candidate")
+        if set(row) == {"id"}:
+            row = by_id[id]
+        elif id in by_id:
+            raise ValueError("expansion metadata cannot override M7.A")
+        by_id[id] = {**row, "m85_expansion": True}
     return by_id, proposal
 
 
@@ -169,7 +178,7 @@ def html_blocks(data, row):
     if not blocks:
         raise ValueError("no substantive prose")
     kind = {"m3": "statistical_release", "decision": "policy_decision", "bulletin": "bulletin",
-            "focus": "signed_analysis"}.get(row["kind"], "analysis")
+            "focus": "signed_analysis", "account": "policy_account"}.get(row["kind"], "analysis")
     if fed or "/speeches/" in row["original_url"] or "/press/key/" in row["original_url"]:
         kind = "speech"
     elif source == "Eurostat":
@@ -177,7 +186,36 @@ def html_blocks(data, row):
     return blocks, title, day, notices, kind, doc_text
 
 
-def extract(data, mime, row):
+def money_annex(data, row, http):
+    # The dated parent release establishes the annex's identity and reuse notice.
+    parent = row["parent_url"]
+    parent_data, final, _, _ = http.get(check_source(parent, "BCE"))
+    if parent != final:
+        raise ValueError("unexpected annex parent destination")
+    page = m7a.markup(parent_data)
+    if not page.find("a", href=urlsplit(row["original_url"]).path):
+        raise ValueError("annex not linked from parent release")
+    _, title, day, notices, _, parent_text = html_blocks(
+        parent_data, {**row, "kind": "m3", "original_url": parent},
+    )
+    reader = PdfReader(BytesIO(data), strict=True)
+    if reader.is_encrypted or len(reader.pages) != 4:
+        raise ValueError("unexpected ECB monetary annex layout")
+    page = reader.pages[0]
+    if len(page.get_contents().get_data()) > 4 * 1024 * 1024:
+        raise ValueError("PDF page stream limit")
+    content = normalize(page.extract_text() or "")
+    if len(content) > 100_000 or not content.startswith(f"1 {title}"):
+        raise ValueError("annex title or text size does not match")
+    if RESTRICT.search(content):
+        notices.append("restrictive_notice")
+    return [("p1", content), ("Parent release", parent_text)], title, day, notices, "monetary_annex", parent_text
+
+
+def extract(data, mime, row, *, http=None):
+    if row.get("kind") == "m3_annex":
+        return money_annex(data, row, http)
+
     return (pdf_blocks(data, row["title"], row["publication_date"])
             if mime == "application/pdf" else html_blocks(data, row))
 
@@ -210,12 +248,12 @@ def inspect_one(http, row):
               "access": "unverified", "identity": "unverified"}
     try:
         raw = check_source(row["original_url"], row["institution"])
-        data, url, mime, redirects = http.get(raw, "pdf" if row["kind"] == "stat_pdf" else "html")
+        data, url, mime, redirects = http.get(raw, "pdf" if row["kind"] in {"stat_pdf", "m3_annex"} else "html")
         result.update(access="accessible", final_url=check_source(url, row["institution"]),
                       media_type=mime, redirects=redirects, payload_sha256=digest(data))
         if m7a.identity(url) != row["canonical_url"]:
             raise ValueError("canonical destination changed from M7.A")
-        blocks, title, day, notices, kind, doc_text = extract(data, mime, row)
+        blocks, title, day, notices, kind, doc_text = extract(data, mime, row, http=http)
         old_style = comparison_hash(data, mime, row)
         result.update(identity="verified", title=title, page_date=day, kind=kind,
                       notices=notices, text_sha256=digest("\n".join(t for _, t in blocks)),
@@ -235,7 +273,8 @@ def inspect_one(http, row):
 
 def inspect(out, replacement_ids=(), *, inspect_ids=()):
     by_id, proposal = inventory()
-    selected = list(inspect_ids) or (proposal + list(replacement_ids))
+    reviewed_ids = load_json(M7B / "editorial-review.json")
+    selected = list(inspect_ids) or list(dict.fromkeys([*reviewed_ids, *replacement_ids]))
     if len(selected) != len(set(selected)) or not set(selected) <= by_id.keys():
         raise ValueError("invalid or repeated M7.A ID")
     http = m7a.HTTP()
@@ -272,7 +311,7 @@ def approval_eligible(row, check, policy):
         case "BCE":
             return ("named_authorship" not in check["notices"]
                     and (check["kind"] == "policy_decision" or (
-                        row["kind"] == "m3" and check.get("document_reproduction_notice"))))
+                        row["kind"] in {"m3", "m3_annex", "account"} and check.get("document_reproduction_notice"))))
         case "Eurostat":
             return check["kind"] == "statistical_release"
         case "Reserva Federal (Junta)":
@@ -294,9 +333,10 @@ def build_records(by_id, proposal, snapshot, authored):
         row = by_id[id]
         check = snapshot["documents"][id]
         source = row["institution"]
-        policy = snapshot["policies"][source]
+        policy = check.get("rights_policy", snapshot["policies"][source])
         is_original = id in proposal
-        if is_original and review.replaces or not is_original and (
+        is_expansion = row.get("m85_expansion") is True
+        if (is_original or is_expansion) and review.replaces or not (is_original or is_expansion) and (
             not review.replaces or review.replaces not in proposal
             or reviews[review.replaces].status != "rejected"
             or by_id[review.replaces]["event"] != row["event"]
@@ -404,6 +444,8 @@ def build(snapshot_path, review_path, out):
     for name, expected in hashes.items():
         if digest((M7A / name).read_text(encoding="utf-8")) != expected:
             raise ValueError("M7.A input differs from reviewed snapshot")
+    if snapshot.get("expansion_sha256") != digest((M7B / "expansion-candidates.jsonl").read_text(encoding="utf-8")):
+        raise ValueError("expansion inventory differs from reviewed snapshot")
     records = build_records(by_id, proposal, snapshot, load_json(review_path))
     out.mkdir(parents=True, exist_ok=True)
     for name, items in zip(OUT_TYPES, records, strict=True):
@@ -418,11 +460,15 @@ def verify_live(reviewed_path, live_path):
     issues = []
     for institution, policy in reviewed.policies.items():
         current = live.policies.get(institution)
-        if current != policy:
+        if current != policy and any(
+            check.institution == institution and check.rights_policy is None
+            for check in reviewed.documents.values()
+        ):
             issues.append(f"{institution}: rights policy verification or fingerprint changed")
     for id, check in reviewed.documents.items():
         current = live.documents.get(id)
-        if not current or any(getattr(current, field) != getattr(check, field) for field in (
+        policy_changed = check.rights_policy is not None and live.policies.get(check.institution) != check.rights_policy
+        if policy_changed or not current or any(getattr(current, field) != getattr(check, field) for field in (
             "access", "identity", "final_url", "payload_sha256", "text_sha256", "page_date",
             "notices", "document_reproduction_notice",
         )) or any(current.blocks.get(key) != digest for key, digest in check.blocks.items()):

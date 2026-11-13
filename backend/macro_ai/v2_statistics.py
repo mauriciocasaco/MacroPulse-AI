@@ -34,6 +34,13 @@ DEFINITIONS: dict[IndicatorId, Definition] = {
                                "percentage_points", "percentage points"),
 }
 _LEVEL_SERIES = {"eur-usd", "m3-stock"}
+_NARRATIVE_SUBJECTS = {
+    "eur-usd": "the ECB's EUR/USD reference rate",
+    "m3-stock": "the euro area's end-of-month M3 stock",
+    "deposit-rate": "the ECB deposit facility rate",
+    "real-gdp-qoq": "real GDP growth in the euro area (EA21)",
+    "hicp-yoy": "the euro area's all-items HICP inflation rate",
+}
 
 
 def matches_definition(key: IndicatorId, requirement: Requirement) -> bool:
@@ -73,6 +80,8 @@ class SeriesResult:
     calculation: Claim | None
     movement: ObservedChange | None
     provisional: bool
+    observation_prose: tuple[str, str]
+    calculation_prose: tuple[str, str] | None
 
 
 def _covered_rate_endpoints(
@@ -139,12 +148,21 @@ def summarize_requirement(
     first_label, last_label = first.period_raw, last.period_raw
     if covered_rate:
         first_label, last_label = window.start.isoformat(), window.end.isoformat()
-        observed = (f"{_decimal(first.value)}% per year in force on {first_label} (effective {first.period_raw}), "
-                    f"{_decimal(last.value)}% per year in force on {last_label} (effective {last.period_raw})")
+        readings = [
+            f"{_decimal(row.value)}% per year in force on {label} (effective {row.period_raw})"
+            for row, label in ((first, first_label), (last, last_label))
+        ]
     else:
-        observed = ", ".join(_observation_text(row, key) for row in selected)
-    fact = Claim(text=f"{item.title}: {observed}.", citations=[citation])
+        readings = [_observation_text(row, key) for row in selected]
+    fact = Claim(text=f"{item.title}: {', '.join(readings)}.", citations=[citation])
+    subject = _NARRATIVE_SUBJECTS[key]
+    observations = readings[0] if len(readings) == 1 else " and ".join((", ".join(readings[:-1]), readings[-1]))
+    observation_prose = (
+        f"The official series for {subject} records {observations}.",
+        f"For {subject}, the official series records {observations}.",
+    )
     calculation = None
+    calculation_prose = None
     if operation != "point":
         value = last.value - first.value
         unit = DEFINITIONS[key].display_difference_unit
@@ -156,10 +174,16 @@ def summarize_requirement(
             unit = "%"
         suffix = unit if unit == "%" else f" {unit}"
         change = "relative change" if relative else "change"
+        amount = f"{_decimal(value)}{suffix}"
         calculation = Claim(
             text=(f"From {first_label} to {last_label}, the {change} in "
-                  f"{_NAMES[key]} was {_decimal(value)}{suffix}."),
+                  f"{_NAMES[key]} was {amount}."),
             citations=[citation],
+        )
+        # Use the exact computed amount, not the independently rounded UI headline.
+        calculation_prose = (
+            f"The {change} in {subject} was {amount} from {first_label} to {last_label}.",
+            f"From {first_label} to {last_label}, the {change} in {subject} was {amount}.",
         )
     movement = (_observed_change(key, [first, last], citation)
                 if covered_rate or first.period_start < last.period_start else None)
@@ -173,11 +197,14 @@ def summarize_requirement(
                        series_key=item.series_key, unit=item.unit, multiplier=item.multiplier,
                        geography=item.geography, adjustment=item.adjustment),
         fact, calculation, movement, any(row.status_kind != "normal" for row in selected),
+        observation_prose, calculation_prose,
     )
 
 
 def _observation_text(row: MacroObservation, key: IndicatorId) -> str:
     unit = _UNITS[key]
+    if key == "m3-stock":
+        unit = "million EUR"
     suffix = unit if unit.startswith("%") else f" {unit}"
     return f"{_decimal(row.value)}{suffix} in {row.period_raw}"
 

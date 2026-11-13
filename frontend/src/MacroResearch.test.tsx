@@ -34,18 +34,18 @@ it.each(events)('submits %s dates and explicit chart context only after Ask LLM 
   fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'How did EUR/USD change?' } });
   expect(fetch).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
-  await screen.findByText('There is insufficient evidence for an answer.');
+  await screen.findByText('There is insufficient evidence to answer this question.');
   expect(JSON.parse(String(fetch.mock.calls[0][1].body))).toEqual({
     question: 'How did EUR/USD change?', start, end, indicator_id: 'eur-usd', event_id: eventId,
   });
   expect(fetch.mock.calls[0][0]).toBe('/api/macro/analysis');
   expect(fetch.mock.calls[0][1].cache).toBe('no-store');
-  expect(screen.getByRole('heading', { name: 'AI Analysis' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Economic analysis' })).toBeTruthy();
   expect(screen.getByText('No institutional documents were retrieved for this answer.')).toBeTruthy();
 });
 
-it('renders the KPI, one uncited paragraph, and deduplicated institutional sources below it', async () => {
-  const question = 'How did the COVID-19 pandemic affect EUR/USD rate?';
+it('renders a cited KPI and narrative above deduplicated institutional sources', async () => {
+  const question = 'How did EUR/USD rate evolve during the COVID-19 pandemic?';
   const series = { id: 'series:eur-usd', kind: 'series', title: 'ECB reference rate',
     url: 'https://data.ecb.europa.eu/', attribution: 'ECB statistics',
     period_start: '2020-02-03', period_end: '2020-12-31', published_on: null };
@@ -75,11 +75,13 @@ it('renders the KPI, one uncited paragraph, and deduplicated institutional sourc
   const kpi = screen.getByText('+10.89%');
   expect(kpi.classList.contains('up')).toBe(true);
   expect(screen.getByText('3 Feb 2020').getAttribute('datetime')).toBe('2020-02-03');
-  const analysis = screen.getByRole('region', { name: 'AI Analysis' });
+  const analysis = screen.getByRole('region', { name: 'Economic analysis' });
   expect(kpi.compareDocumentPosition(analysis) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(within(analysis).queryAllByRole('link')).toHaveLength(0);
-  expect(analysis.textContent).not.toMatch(/\[\d+\]/);
-  const sources = screen.getByRole('heading', { name: 'RAG Sources & Evidence' }).parentElement!;
+  expect(within(analysis).getAllByRole('link').map((link) => link.getAttribute('href')))
+    .toEqual([series.url, 'https://www.ecb.europa.eu/high']);
+  expect(within(kpi.parentElement!).getByRole('link', { name: 'Source 1, ECB reference rate' }).getAttribute('href'))
+    .toBe(series.url);
+  const sources = screen.getByRole('heading', { name: 'Institutional sources' }).parentElement!;
   expect(analysis.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(sources).getAllByRole('link').map((link) => link.textContent))
     .toEqual(['High relevance source', 'Lower relevance source', 'ECB reference rate']);
@@ -98,14 +100,14 @@ it('cancels old requests on chart indicator change and prevents stale rendering'
   expect(screen.getByText('Checking official evidence…')).toBeTruthy();
   view.rerender(<MacroResearch {...props} indicatorId="hicp-yoy" />);
   expect(fetch.mock.calls[0][1].signal?.aborted).toBe(true);
-  complete(Response.json(response('How did the COVID-19 pandemic affect EUR/USD rate?')));
+  complete(Response.json(response('How did EUR/USD rate evolve during the COVID-19 pandemic?')));
   await Promise.resolve();
   expect(screen.queryByText('Checking official evidence…')).toBeNull();
-  expect(screen.queryByRole('heading', { name: 'AI Analysis' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Economic analysis' })).toBeNull();
   expect(screen.getByLabelText('Research question')).toHaveProperty('value',
-    'How did the COVID-19 pandemic affect Eurozone Inflation?');
+    'How did Eurozone Inflation evolve during the COVID-19 pandemic?');
   view.rerender(<MacroResearch {...props} />);
-  expect(screen.queryByRole('heading', { name: 'AI Analysis' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Economic analysis' })).toBeNull();
   expect(screen.queryByText('Checking official evidence…')).toBeNull();
 });
 
@@ -135,7 +137,7 @@ it('labels a deterministic fallback without showing raw calculations', async () 
     url: 'https://data.ecb.europa.eu/', attribution: 'ECB statistics',
     period_start: '2020-02-03', period_end: '2020-12-31', published_on: null };
   vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-    ...response('How did the COVID-19 pandemic affect EUR/USD rate?'),
+    ...response('How did EUR/USD rate evolve during the COVID-19 pandemic?'),
     status: 'answered', narrative_kind: 'deterministic',
     narrative: [{ text: 'The euro rose over the selected period.', citations: [series.id] }],
     calculations: [{ text: 'Raw calculation.', citations: [series.id] }], evidence: [series],
@@ -143,7 +145,7 @@ it('labels a deterministic fallback without showing raw calculations', async () 
   render(<MacroResearch {...props} />);
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   const summary = await screen.findByRole('region', { name: 'Data summary' });
-  expect(within(summary).getByText('Generated from official data without Gemini.')).toBeTruthy();
+  expect(screen.getByText(/Summary generated from verified evidence without Gemini/).closest('details')?.open).toBe(false);
   expect(within(summary).getByText('The euro rose over the selected period.')).toBeTruthy();
   expect(screen.queryByText('Raw calculation.')).toBeNull();
 });
