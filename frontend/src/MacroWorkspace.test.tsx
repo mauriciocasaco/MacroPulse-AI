@@ -76,16 +76,16 @@ it.each([
   ['eur-usd', 'EUR/USD rate'], ['m3-stock', 'Eurozone M3'], ['deposit-rate', 'ECB rate'],
   ['real-gdp-qoq', 'Eurozone GDP'], ['hicp-yoy', 'Eurozone Inflation'],
 ].flatMap(([id, label]) => [
-  [id, label, 'COVID-19', 'How did the COVID-19 pandemic affect'],
-  [id, label, 'Ukraine War', 'How did the war in Ukraine affect'],
-  [id, label, 'Generative AI Boom', 'How did the rise of generative AI and LLMs affect'],
-]))('passes the selected indicator to research without submitting: %s / %s / %s', async (id, label, event, prefix) => {
+  [id, label, 'COVID-19', 'the COVID-19 pandemic'],
+  [id, label, 'Ukraine War', 'the war in Ukraine'],
+  [id, label, 'Generative AI Boom', 'the rise of generative AI and LLMs'],
+]))('passes the selected indicator to research without submitting: %s / %s / %s', async (id, label, event, period) => {
   const fetch = stubMacroApi([point('2026-06', '2026-06-01', '2026-06-30', '2')]);
   render(<App macroAiEnabled />);
   const selector = await screen.findByLabelText('Indicator');
   fireEvent.change(selector, { target: { value: id } });
   fireEvent.click(await screen.findByRole('button', { name: event }));
-  expect(screen.getByLabelText('Research question')).toHaveProperty('value', `${prefix} ${label}?`);
+  expect(screen.getByLabelText('Research question')).toHaveProperty('value', `How did ${label} evolve during ${period}?`);
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
 
@@ -106,7 +106,7 @@ it('submits the event window and chart indicator after Ask LLM Model, independen
   });
   expect(analysis).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
-  await screen.findByText('There is insufficient evidence for an answer.');
+  await screen.findByText('There is insufficient evidence to answer this question.');
   expect(analysis).toHaveBeenCalledTimes(1);
   expect(JSON.parse(String(analysis.mock.calls[0][1].body))).toEqual({
     question: 'How did the Federal Reserve change interest rates?', start: '2020-02-01', end: '2020-12-31',
@@ -145,11 +145,11 @@ it('opts into Research v2 only after the catalog advertises it and renders cited
   expect(analysis).not.toHaveBeenCalled();
   fireEvent.click(selector);
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
-  await screen.findByText('Partial answer');
+  await screen.findByText('Partial descriptive answer');
   expect(JSON.parse(String(analysis.mock.calls[0][1].body)).research_version).toBe('v2');
   const summary = screen.getByRole('region', { name: 'Data summary' });
-  expect(within(summary).getByText('Official data')).toBeTruthy();
-  expect(within(summary).getByRole('link', { name: 'ECB reference rate' }).getAttribute('href'))
+  expect(screen.getByText(/Paragraph 1 · Official data/).closest('details')?.open).toBe(false);
+  expect(within(summary).getByRole('link', { name: 'Source 1, ECB reference rate' }).getAttribute('href'))
     .toBe('https://data.ecb.europa.eu/');
   expect(within(summary).getByText(/no applicable documentary context/)).toBeTruthy();
   expect(screen.getByLabelText('Indicator')).toHaveProperty('value', 'eur-usd');
@@ -172,7 +172,7 @@ it('keeps the chart, composer and custom question synchronized across selection 
   expect(screen.getByText(/Your custom question is preserved\. Review it for the selected indicator/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Use generated question' }));
   expect(screen.getByLabelText('Research question')).toHaveProperty('value',
-    'How did the COVID-19 pandemic affect Eurozone Inflation?');
+    'How did Eurozone Inflation evolve during the COVID-19 pandemic?');
 });
 
 it('plots monthly observations without filling gaps and preserves source decimals and units', async () => {
@@ -277,19 +277,31 @@ it('limits the longest preset to seven years and preserves attribution without r
 });
 
 
-it('submits only consented and verified Research v2 in the public workspace', async () => {
+it.each(['insufficient', 'partial'] as const)('renders %s public Research v2 after consent and verification', async (support) => {
   vi.stubEnv('MODE', 'public-demo');
   const historyFetch = stubMacroApi([]);
   const renderWidget = vi.fn<NonNullable<Window['turnstile']>['render']>(() => 'widget-id');
   const remove = vi.fn();
   window.turnstile = { render: renderWidget, remove };
+  const partial = support === 'partial';
+  const series = {
+    id: 'series:eur-usd', kind: 'series', title: 'ECB reference rate', url: 'https://data.ecb.europa.eu/',
+    attribution: 'ECB statistics', series_key: 'fixture', unit: 'USD/EUR', geography: 'euro_area',
+    adjustment: 'none', multiplier: 0, period_start: '2020-02-03', period_end: '2020-12-31', published_on: null,
+  };
+  const claim = { text: 'The euro gained value over the observed period.', citations: [series.id],
+    category: 'calculated from official observations' };
   try {
     const analysis = vi.fn(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
       return Response.json({
-        ...body, status: 'insufficient_evidence', research_v2: true, support: 'insufficient',
-        publication_cutoff: body.end, evidence: [], narrative: [], facts: [], calculations: [], interpretation: [],
-        limitations: ['Synthetic fixture'], graph_steps: ['finish'],
+        ...body, status: partial ? 'answered' : 'insufficient_evidence', research_v2: true, support,
+        publication_cutoff: body.end, evidence: partial ? [series] : [],
+        narrative: partial ? [claim] : [], facts: [], calculations: partial ? [claim] : [], interpretation: [],
+        observed_changes: partial ? [{ indicator_id: 'eur-usd', direction: 'up', value: '5.00', unit: 'percent',
+          first_observed_on: series.period_start, last_observed_on: series.period_end, citation: series.id }] : [],
+        limitations: [partial ? 'No applicable documentary context.' : 'Required observations are missing.'],
+        graph_steps: ['finish'],
       });
     });
     vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
@@ -311,12 +323,25 @@ it('submits only consented and verified Research v2 in the public workspace', as
     act(() => options.callback('synthetic-token'));
     expect(submit).toHaveProperty('disabled', false);
     fireEvent.click(submit);
-    await screen.findByText('There is insufficient evidence for an answer.');
+    const result = await screen.findByRole('region', { name: 'Economic analysis' });
+    const missingEvidence = 'There is insufficient evidence to answer this question.';
+    if (partial) {
+      expect(within(result).getByText('Partial descriptive answer')).toBeTruthy();
+      expect(within(result).queryByText(missingEvidence)).toBeNull();
+      expect(within(result).getByText(claim.text).textContent).toBe(`${claim.text} [1]`);
+      expect(within(result).getByRole('link', { name: 'Source 1, ECB reference rate' }).getAttribute('href')).toBe(series.url);
+      expect(screen.getByText('+5.00%').compareDocumentPosition(result) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    } else {
+      expect(within(result).getByText(missingEvidence)).toBeTruthy();
+      expect(within(result).queryByText('Partial descriptive answer')).toBeNull();
+      expect(within(result).queryByRole('link')).toBeNull();
+    }
     expect(analysis).toHaveBeenCalledTimes(1);
     const init = analysis.mock.calls[0][1];
     expect(new Headers(init.headers).get('X-MacroPulse-Turnstile')).toBe('synthetic-token');
     expect(JSON.parse(String(init.body))).toMatchObject({
       research_version: 'v2', event_id: 'covid', indicator_id: 'eur-usd',
+      question: 'How did EUR/USD rate evolve during the COVID-19 pandemic?',
     });
     expect(submit).toHaveProperty('disabled', true);
     expect(remove).toHaveBeenCalledWith('widget-id');

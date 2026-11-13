@@ -27,8 +27,9 @@ export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, p
   const [custom, setCustom] = useState<{ question: string; indicatorId: string; eventId?: HistoricalEventId; start: string; end: string }>();
   const selectedEvent = historicalEvents.find((item) => item.id === eventId);
   const indicator = indicators.find((item) => item.id === indicatorId);
+  const indicatorLabel = indicator ? indicatorPresentation(indicator).label : '';
   const generated = indicator
-    ? `${selectedEvent?.prefix ?? 'What happened to'} ${indicatorPresentation(indicator).label}?` : '';
+    ? `How did ${indicatorLabel} evolve during ${selectedEvent?.period ?? 'the selected period'}?` : '';
   const start = selectedEvent?.start ?? customStart;
   const end = selectedEvent?.end ?? customEnd;
   const windowMs = Date.parse(end) - Date.parse(start);
