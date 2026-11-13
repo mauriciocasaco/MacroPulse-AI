@@ -1,9 +1,10 @@
+
 {
   "$schema": "https://unpkg.com/wrangler@4/config-schema.json",
   "name": "macropulse-public-demo",
   "main": "worker/public-demo.mjs",
   "compatibility_date": "2025-10-01",
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": false },
   "build": { "command": "npm run build:public" },
@@ -14,14 +15,33 @@
   },
   "vars": {
     "MARKETPULSE_DEMO_MACRO_ENABLED": "true",
-    "MACROPULSE_RESEARCH_ENABLED": "false"
+    "MACROPULSE_RESEARCH_ENABLED": "false",
+    "MARKETPULSE_DEMO_ORIGIN_URL": "https://macropulse-online.onrender.com"
   },
   "durable_objects": {
-    "bindings": [{ "name": "RESEARCH_QUOTA", "class_name": "ResearchQuota" }]
+    "bindings": [
+      {
+        "name": "RESEARCH_QUOTA",
+        "class_name": "ResearchQuota"
+      }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ResearchQuota"] }],
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ResearchQuota"]
+    }
+  ],
   "ratelimits": [
-    { "name": "CATALOG_RATE_LIMIT", "namespace_id": "4401", "simple": { "limit": 30, "period": 60 } },
-    { "name": "HISTORY_RATE_LIMIT", "namespace_id": "4402", "simple": { "limit": 20, "period": 60 } }
+    {
+      "name": "CATALOG_RATE_LIMIT",
+      "namespace_id": "4401",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
+      "name": "HISTORY_RATE_LIMIT",
+      "namespace_id": "4402",
+      "simple": { "limit": 20, "period": 60 }
+    }
   ]
 }
