@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { askMacroAnalysis, type MacroAnalysis, type MacroIndicator, type ObservedChange, type ResearchEvidence } from './macro-api';
 import { QuestionComposer, type QuestionSubmission } from './QuestionComposer';
 import { TurnstileCheck } from './TurnstileCheck';
@@ -18,7 +18,7 @@ const categoryLabels = {
   'proxy context': 'Proxy context',
 };
 
-function ChangeHeadline({ change }: { change: ObservedChange }) {
+function ChangeHeadline({ change, citation }: { change: ObservedChange; citation: ReactNode }) {
   const { direction, value, unit, indicator_id: id } = change;
   const sign = direction === 'up' ? '+' : direction === 'down' ? '−' : '';
   const arrow = direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→';
@@ -32,7 +32,7 @@ function ChangeHeadline({ change }: { change: ObservedChange }) {
     <div className={`research-change-value ${direction}`}>
       {tiny ? `<0.01${unitLabel}` : `${sign}${value.replace(/^-/, '')}${unitLabel}`} <span aria-hidden="true">{arrow}</span>
     </div>
-    <p>{label}</p>
+    <p>{label}{citation}</p>
     <p className="muted">
       <time dateTime={change.first_observed_on}>{displayDate.format(new Date(change.first_observed_on))}</time>
       {' – '}
@@ -95,6 +95,19 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
   const documents = result?.research_v2 ? result.evidence.filter(({ kind }) => kind === 'document')
     : uniqueDocuments(result?.evidence ?? []);
   const series = result?.evidence.filter(({ kind }) => kind === 'series') ?? [];
+  const narrative = result?.narrative ?? [];
+  const changes = result?.observed_changes ?? [];
+  const hasObservations = changes.length > 0 || narrative.some(({ category }) =>
+    category === 'official observation' || category === 'calculated from official observations');
+  const citations = new Map(result?.evidence.map((source, index) => [source.id, { source, number: index + 1 }]));
+
+  function citationLink(id: string) {
+    const citation = citations.get(id);
+    if (!citation) return null;
+    const { source, number } = citation;
+    return <Fragment key={id}>{' '}<a href={source.url} aria-label={`Source ${number}, ${source.title}`}>[{number}]</a></Fragment>;
+  }
+
   return <section className="panel" aria-labelledby="macro-research-title">
     <h2 id="macro-research-title">RAG-Powered Macro Research</h2>
     {enabled && !publicDemo && researchV2Available && <div>
@@ -124,32 +137,26 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
     {pending && <output className="notice">Checking official evidence…</output>}
     {error && <p role="alert" className="notice error">{error}</p>}
     {result && <div className="analysis-result" aria-live="polite">
-      {result.observed_changes?.map((change) => <ChangeHeadline key={change.citation} change={change} />)}
-      <section className="result-section" aria-labelledby="macro-analysis-title">
-        <h3 id="macro-analysis-title">{result.narrative_kind === 'deterministic' ? 'Data summary' : 'AI Analysis'}</h3>
-        {result.research_v2 ? <>
-          {result.support === 'partial' && <p className="muted">Partial answer</p>}
-          {result.status === 'insufficient_evidence' && <p>There is insufficient evidence for an answer.</p>}
-          {result.narrative?.map((claim, index) => <p className="research-narrative" key={index}>
-            {claim.category && <><strong>{categoryLabels[claim.category]}</strong>{' · '}</>}
-            {claim.text}{claim.citations.map((id) => {
-              const sourceIndex = result.evidence.findIndex((source) => source.id === id);
-              const source = result.evidence[sourceIndex];
-              return <a key={id} href={source.url} aria-label={source.title}> [{sourceIndex + 1}]</a>;
-            })}
-          </p>)}
-          {result.limitations.map((note) => <p className="muted" key={note}>{note}</p>)}
-        </> : result.status === 'insufficient_evidence'
-          ? <><p>There is insufficient evidence for an answer.</p>
-            {result.limitations[0] && <p className="muted">{result.limitations[0]}</p>}</>
+      {changes.map((change) => <ChangeHeadline key={change.citation} change={change} citation={citationLink(change.citation)} />)}
+      <section className="result-section research-analysis" aria-labelledby="macro-analysis-title">
+        <h3 id="macro-analysis-title">{result.narrative_kind === 'deterministic' ? 'Data summary' : 'Economic analysis'}</h3>
+        {result.status === 'insufficient_evidence'
+          ? <p>There is insufficient evidence to answer this question.</p>
           : <>
-            {result.narrative_kind === 'deterministic' && <p className="muted">Generated from official data without Gemini.</p>}
-            <p className="research-narrative">{result.narrative?.map(({ text }) => text).join(' ')
-              || 'No concise analysis is available for this result.'}</p>
+            {result.support === 'partial' && <p className="evidence-status">
+              {hasObservations ? 'Partial descriptive answer' : 'Partial answer'}
+            </p>}
+            {narrative.map((claim, index) => <p className="research-narrative" key={index}>
+              {claim.text}{claim.citations.map(citationLink)}
+            </p>)}
+            {narrative.length === 0 && <p>No concise analysis is available for this result.</p>}
           </>}
+        {result.limitations.length > 0 && <ul className="research-limitations muted">
+          {result.limitations.map((note) => <li key={note}>{note}</li>)}
+        </ul>}
       </section>
       <section className="result-section">
-        <h3>RAG Sources &amp; Evidence</h3>
+        <h3>Institutional sources</h3>
         {documents.length === 0 ? <p className="muted">No institutional documents were retrieved for this answer.</p>
           : <ul className="result-list research-sources">{documents.map((item) => <li key={item.id}>
             <a href={item.url}>{item.title}</a>
@@ -159,8 +166,7 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
             {item.claim_id && <div className="muted">
               {item.claim_type === 'institutional_interpretation' ? 'Institutional interpretation'
                 : item.relation === 'proxy' ? 'Proxy context' : 'Documentary context'}
-              {' · '}{item.geography}{' · '}{item.locator}
-              <div>{item.qualifiers}</div>
+              {item.qualifiers && ` · ${item.qualifiers}`}
             </div>}
           </li>)}</ul>}
         {series.length > 0 && <>
@@ -171,7 +177,9 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
         </>}
         <details className="research-details">
           <summary>Technical details</summary>
-          <p className="muted">{result.start} to {result.end}{result.model_id && ` · ${result.model_id}`}</p>
+          <p className="muted">{result.start} to {result.end}{result.model_id && ` · ${result.model_id}`}
+            {result.narrative_kind === 'deterministic' && ' · Summary generated from verified evidence without Gemini'}
+          </p>
           {result.publication_cutoff && <p className="muted">Document publication cutoff {result.publication_cutoff}</p>}
           {[...documents, ...series].map((item) => <p className="muted" key={item.id}>
             {item.title}
@@ -181,9 +189,15 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
               && <> · Cosine similarity {item.similarity_score.toFixed(3)}</>}
             {item.rights_url && <> · <a href={item.rights_url}>Reuse terms</a></>}
             {item.series_key && <> · {item.series_key} · {item.unit} · {item.adjustment}</>}
-            {item.claim_id && <> · Claim {item.claim_id} · Document {item.document_id} · Relation {item.relation}</>}
+            {item.claim_id && <> · Claim {item.claim_id} · Document {item.document_id} · Relation {item.relation}
+              {' · '}{item.geography}{' · '}{item.locator}
+            </>}
           </p>)}
-          {!result.research_v2 && result.limitations.map((note) => <p className="muted" key={note}>{note}</p>)}
+          {result.research_v2 && narrative.length > 0 && <ul className="muted">
+            {narrative.map(({ category, citations }, index) => category && <li key={index}>
+              Paragraph {index + 1} · {categoryLabels[category]}{citations.map(citationLink)}
+            </li>)}
+          </ul>}
         </details>
       </section>
     </div>}

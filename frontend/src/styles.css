@@ -119,7 +119,15 @@ legend { margin-bottom: 8px; padding: 0; }
 .research-change-value span { font-size: .6em; vertical-align: .14em; }
 .research-change-value.up { color: var(--mint); }
 .research-change-value.down { color: #ff9a9a; }
+.research-analysis {
+  background: var(--control);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: clamp(14px, 4vw, 26px);
+}
 .research-narrative { max-width: 68ch; font-size: 1.05rem; line-height: 1.65; }
+.research-narrative + .research-narrative { margin-top: .8em; }
+.research-limitations { max-width: 68ch; margin: 12px 0 0; padding-inline-start: 1.25em; }
 .research-sources { list-style: none; padding: 0; }
 .research-sources li { margin-bottom: 10px; }
 .research-details { margin-top: 14px; }
@@ -127,6 +135,7 @@ legend { margin-bottom: 8px; padding: 0; }
 .research-details p { margin-top: 6px; }
 .price-change { padding: 16px; border-radius: 10px; background: #0d0e10; }
 .price-change h3, .result-section h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.research-analysis h3 { font-size: 1.2rem; }
 .change-value { font: 650 clamp(2rem, 6vw, 3rem)/1.2 var(--mono); margin-bottom: 4px; }
 .change-value.positive { color: var(--mint); }
 .change-value.negative { color: #ff9a9a; }
