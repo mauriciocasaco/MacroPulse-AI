@@ -15,7 +15,27 @@ from . import v2_gemini, v2_retrieval
 from .models import EVENT_WINDOWS, Claim, EventId, IndicatorId, ObservedChange, ResearchRequest
 from .statistics import read_statistics
 from .v2_models import Category, CuratedEvidence, Draft, Intent, NarrativeClaim, Requirement, ResearchV2Response, SeriesEvidence
-from .v2_statistics import SeriesResult, exact_period, matches_definition, summarize_requirement
+from .v2_statistics import DEFINITIONS, SeriesResult, exact_period, matches_definition, summarize_requirement
+
+
+# Exact templates from QuestionComposer, question-events and macro-chart.
+_EVENT_QUESTIONS: dict[EventId, str] = {
+    "covid": "How did the COVID-19 pandemic affect",
+    "ukraine": "How did the war in Ukraine affect",
+    "generative-ai": "How did the rise of generative AI and LLMs affect",
+}
+_INDICATOR_LABELS: dict[IndicatorId, str] = {
+    "eur-usd": "EUR/USD rate",
+    "m3-stock": "Eurozone M3",
+    "deposit-rate": "ECB rate",
+    "real-gdp-qoq": "Eurozone GDP",
+    "hicp-yoy": "Eurozone Inflation",
+}
+_PRESET_QUESTIONS = {
+    f"{prefix} {label}?": (indicator, event)
+    for event, prefix in {**_EVENT_QUESTIONS, None: "What happened to"}.items()
+    for indicator, label in _INDICATOR_LABELS.items()
+}
 
 
 @dataclass(frozen=True)
@@ -77,6 +97,18 @@ class State(TypedDict, total=False):
 
 def _note(state: State, text: str) -> list[str]:
     return list(dict.fromkeys([*state["limitations"], text]))
+
+
+def _preset_intent(question: str) -> Intent | None:
+    preset = _PRESET_QUESTIONS.get(question)
+    if preset is None:
+        return None
+    indicator, event = preset
+    definition = DEFINITIONS[indicator]
+    return Intent(event=event, purpose="causal" if event else "descriptive", requirements=[
+        Requirement(excerpt=question, indicator=indicator, geography=definition.geography[0],
+                    measure=definition.measure, operation="trend"),
+    ])
 
 
 def interpret_with_llm(state: State) -> dict:
@@ -366,7 +398,8 @@ def workflow():
     for node in (interpret_with_llm, validate_scope, read_official_statistics, retrieve_curated_evidence,
                  evaluate_support, compose_answer, validate_answer, finish):
         graph.add_node(node.__name__, _traced(node))
-    graph.add_edge(START, "interpret_with_llm")
+    graph.add_conditional_edges(START, lambda state: "validate_scope" if state.get("intent") else "interpret_with_llm",
+                                ["validate_scope", "interpret_with_llm"])
     graph.add_conditional_edges("interpret_with_llm", lambda state: "validate_scope" if state.get("intent") else "finish",
                                 ["validate_scope", "finish"])
     graph.add_conditional_edges("validate_scope", lambda state: "read_official_statistics" if state.get("plans") else "finish",
@@ -384,6 +417,8 @@ def workflow():
 def run(request: ResearchRequest, *, runtime: ResearchRuntime | None = None) -> ResearchV2Response:
     cutoff = min(request.end, datetime.now(timezone.utc).date())
     state: State = {"request": request, "steps": [], "limitations": [], "cutoff": cutoff}
+    if intent := _preset_intent(request.question):
+        state.update(intent=intent, steps=["interpret_preset"])
     if runtime is not None:
         state["runtime"] = runtime
     with tracing_context(enabled=False):

@@ -1,6 +1,6 @@
 """HTTP and graph integration with synthetic observations and a simulated Gemini."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import json
 from types import SimpleNamespace
@@ -28,6 +28,11 @@ HICP_RELEASE = "0fe46a774051990653d228355faf94289d1bb9366bc3ded512da649a92db3dba
 ECB_ASSESSMENT = "571dc00d4eed3f3a920020c8c12e969b6cb430f661afb0a5b4f0027dec3ae41e"
 GDP_RELEASE = "dd362d35d0c18a73ae4e95559e824d8b4832a38b6468b731407acc16516ba03b"
 AI_ADOPTION = "23c63995ed81f8058b13491026e1f141e2ca01035bc76f16a15ce97320ef82e7"
+COVID_HICP = "How did the COVID-19 pandemic affect Eurozone Inflation?"
+COVID_HICP_CLAIMS = {
+    "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
+    "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
+}
 
 
 def requirement(question, key, operation):
@@ -50,7 +55,7 @@ def research(monkeypatch):
     monkeypatch.setenv("MARKETPULSE_GEMINI_MODEL", "gemini-3.6-flash")
     monkeypatch.setenv("MARKETPULSE_RESEARCH_V2_RETRIEVER", "tfidf")
     monkeypatch.setenv("GEMINI_API_KEY", "synthetic-key")
-    fixture = SimpleNamespace(calls=[], reads=[], intent=None, draft=None, unavailable=False,
+    fixture = SimpleNamespace(calls=[], reads=[], intent=None, draft=None, unavailable=False, coverage={},
                               values={
                                   "hicp-yoy": [("2022-02", "5.9"), ("2022-08", "9.1"), ("2022-09", "9.9"),
                                                ("2022-10", "10.6"), ("2024-02", "2.6")],
@@ -90,7 +95,7 @@ def research(monkeypatch):
             ))
         return {key: data.MacroHistory(indicator=data.indicator_metadata(item), start=request.start, end=request.end,
                                        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-                                       observations=observations)}
+                                       observations=observations, **fixture.coverage)}
 
     monkeypatch.setattr(v2_gemini, "invoke_structured", fake_gemini)
     monkeypatch.setattr(v2_service, "read_statistics", fake_read)
@@ -174,8 +179,105 @@ def test_five_examples(research, question, key, event, operation, purpose, claim
         assert any("no direct evidence" in note for note in body["limitations"])
     else:
         assert body["evidence"][0]["series_key"] == "EXR.D.USD.EUR.SP00.A"
-        assert "0.12 USD per EUR" in body["calculations"][0]["text"]
+        assert "10.909091%" in body["calculations"][0]["text"]
         assert any("no applicable documentary context" in note for note in body["limitations"])
+
+
+@pytest.mark.parametrize("event,prefix,periods", [
+    ("covid", "How did the COVID-19 pandemic affect", ("2020-02", "2020-12", "2020-Q2", "2020-Q4")),
+    ("ukraine", "How did the war in Ukraine affect", ("2022-02", "2024-02", "2022-Q2", "2023-Q4")),
+    ("generative-ai", "How did the rise of generative AI and LLMs affect",
+     ("2023-09", "2024-03", "2023-Q4", "2024-Q1")),
+])
+@pytest.mark.parametrize("key,label,expected_unit,expected_value", [
+    ("eur-usd", "EUR/USD rate", "percent", "-25.00"),
+    ("m3-stock", "Eurozone M3", "percent", "-25.00"),
+    ("deposit-rate", "ECB rate", "percentage_points", "0.00"),
+    ("real-gdp-qoq", "Eurozone GDP", "percentage_points", "-0.40"),
+    ("hicp-yoy", "Eurozone Inflation", "percentage_points", "-0.40"),
+])
+def test_preset_questions(research, event, prefix, periods, key, label, expected_unit, expected_value):
+    question = f"{prefix} {label}?"
+    start, end = EVENT_WINDOWS[event]
+    first_month, last_month, first_quarter, last_quarter = periods
+    if key == "deposit-rate":
+        anchor_date = date(2019, 9, 18)
+        research.coverage = {
+            "coverage_start": start, "coverage_end": end,
+            "anchor": data.MacroObservation(period_raw=anchor_date.isoformat(), period_start=anchor_date,
+                                            period_end=anchor_date, effective_date=anchor_date,
+                                            value=Decimal("-0.50"), status_kind="normal", status_raw=None),
+        }
+        research.values[key] = []
+    else:
+        first, last = {
+            "eur-usd": (first_month + "-03", last_month + "-15"),
+            "real-gdp-qoq": (first_quarter, last_quarter),
+        }.get(key, (first_month, last_month))
+        values = ("1.6", "1.2") if expected_unit == "percent" else ("1.1", "0.7")
+        research.values[key] = list(zip((first, last), values))
+
+    body = post(research, question, key, event).json()
+    assert body["status"] == "answered" and body["support"] == "partial"
+    assert body["graph_steps"][0] == "interpret_preset"
+    assert [schema for schema, _ in research.calls] == [Draft]
+    assert research.reads == [(key, start.isoformat(), end.isoformat())]
+    assert body["facts"][0]["citations"] == [f"series:{key}"]
+    assert body["observed_changes"][0]["unit"] == expected_unit
+    assert body["observed_changes"][0]["value"] == expected_value
+    assert ("-25%" if expected_unit == "percent" else "percentage points") in body["calculations"][0]["text"]
+    assert any("causal effect" in note for note in body["limitations"])
+    if key == "deposit-rate":
+        assert body["observed_changes"][0]["first_observed_on"] == start.isoformat()
+        assert body["observed_changes"][0]["last_observed_on"] == end.isoformat()
+        assert "effective 2019-09-18" in body["facts"][0]["text"]
+    if question == COVID_HICP:
+        assert body["publication_cutoff"] == "2020-12-31"
+        assert body["corpus_sha256"] == v2_retrieval.APPROVED_SNAPSHOT
+        documents = [item for item in body["evidence"] if item["kind"] == "document"]
+        assert {item["claim_id"] for item in documents} == COVID_HICP_CLAIMS
+        assert all("2020-02-01" <= item["period_start"] <= item["period_end"] <= item["published_on"]
+                   <= body["publication_cutoff"] for item in documents)
+
+
+@pytest.mark.parametrize("question,key,event", [
+    (COVID_HICP, "real-gdp-qoq", "covid"),
+    (COVID_HICP, "hicp-yoy", "ukraine"),
+])
+def test_preset_conflicting_filters_cannot_reach_tools(research, question, key, event):
+    body = post(research, question, key, event).json()
+    assert body["status"] == "insufficient_evidence"
+    assert not body["evidence"] and not research.reads and not research.calls
+
+
+def test_deposit_rate_does_not_carry_anchor_beyond_verified_coverage(research):
+    anchor_date = date(2019, 9, 18)
+    research.coverage = {
+        "coverage_start": date(2020, 2, 1), "coverage_end": date(2020, 12, 30),
+        "anchor": data.MacroObservation(period_raw=anchor_date.isoformat(), period_start=anchor_date,
+                                        period_end=anchor_date, effective_date=anchor_date,
+                                        value=Decimal("-0.50"), status_kind="normal", status_raw=None),
+    }
+    research.values["deposit-rate"] = []
+    body = post(research, "How did the COVID-19 pandemic affect ECB rate?", "deposit-rate", "covid").json()
+    assert body["facts"] == body["calculations"] == body["observed_changes"] == []
+    assert all(item["kind"] == "document" for item in body["evidence"])
+
+
+@pytest.mark.parametrize("qualifier,override", [
+    (" in Germany", {"geography": "Germany"}),
+    (" measured by the HICP index", {"measure": "hicp_index"}),
+    (" in USD", {"unit": "USD"}),
+])
+def test_modified_preset_keeps_explicit_constraints(research, qualifier, override):
+    question = f"{COVID_HICP[:-1]}{qualifier}?"
+    research.intent = {"purpose": "causal", "requirements": [
+        {**requirement(question, "hicp-yoy", "trend"), **override},
+    ]}
+    body = post(research, question, "hicp-yoy", "covid").json()
+    assert body["status"] == "insufficient_evidence"
+    assert [schema for schema, _ in research.calls] == [Intent]
+    assert not body["evidence"] and not research.reads
 
 
 @pytest.mark.parametrize("override", [
@@ -183,6 +285,7 @@ def test_five_examples(research, question, key, event, operation, purpose, claim
     {"variant": "constant_taxes"}, {"adjustment": "seasonal_only"}, {"population": "adults"},
     {"subgroup": "exporters"}, {"measure": "hicp_index"}, {"other_constraints": ["flash estimate"]},
     {"excerpt": "model-generated text"},
+    {"operation": "relative_change", "unit": "percent"}, {"operands": []},
     {"operands": [window("1900-09-01", "1900-09-30"), window("2022-10-01", "2022-10-31")]},
     {"operands": [window("2022-09-02", "2022-09-30"), window("2022-10-01", "2022-10-31")]},
 ])

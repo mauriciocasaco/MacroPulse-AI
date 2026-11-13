@@ -2,7 +2,7 @@
 
 Research v2 se puede probar en la PWA de loopback. Viene desactivado. La casilla **Use experimental Research v2** aparece cuando FastAPI anuncia la función y la PWA tiene habilitada la investigación local. Se activa por sesión de la interfaz. Desmarcarla vuelve al flujo habitual.
 
-Al enviar una pregunta con Research v2 seleccionado, Gemini recibe la pregunta original y los límites de la consulta. El flujo habitual de MacroPulse envía una intención canonizada. Mantené claves, credenciales y texto privado fuera de las preguntas. La segunda llamada recibe únicamente los enunciados autorizados y sus metadatos públicos. [Gemini 3.6 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.6-flash?hl=en)
+Research v2 interpreta las preguntas predeterminadas de la interfaz con el catálogo y valida el resultado contra los filtros seleccionados. Para las preguntas editadas, Gemini recibe la pregunta original y los límites de la consulta. Mantené claves, credenciales y texto privado fuera de las preguntas. La llamada de redacción recibe únicamente los enunciados autorizados y sus metadatos públicos. [Gemini 3.6 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.6-flash?hl=en)
 
 ## Activación local
 

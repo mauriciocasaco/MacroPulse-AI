@@ -50,6 +50,10 @@ def online_db(disposable_database, local_test_dsn):
                     _sample(CATALOG["eur-usd"], "2020-03-12", "1.30"),
                     _sample(CATALOG["eur-usd"], "2020-04-01", "1.35"),
                 ))
+                _store(db, "hicp-yoy", "2020-02-01", "2020-12-31", "2021-02-01T10:00:00+00:00", (
+                    _sample(CATALOG["hicp-yoy"], "2020-02", "1.4", confidentiality=None, flag=None),
+                    _sample(CATALOG["hicp-yoy"], "2020-12", "-0.2", confidentiality=None, flag=None),
+                ))
                 db.execute((ROOT / "supabase/migrations/202611120001_macro_online.sql").read_text(encoding="utf-8"))
                 db.execute("ALTER ROLE macropulse_online_ro LOGIN")
                 yield dsn
@@ -188,3 +192,37 @@ def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch
         assert result["status"] == "answered" and result["event_id"] == "covid"
         assert {item["kind"] for item in result["evidence"]} == {"document", "series"}
         assert result["calculations"] and "latest available Supabase" in " ".join(result["limitations"])
+
+
+def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeypatch):
+    from backend.macro_ai.v2_retrieval import APPROVED_SNAPSHOT
+
+    monkeypatch.setattr(public_online, "resolve_online_settings", lambda _: public_demo.DemoSettings(
+        make_conninfo(online_db, password="synthetic"), SECRET,
+    ))
+    monkeypatch.setattr(public_online, "connect_online", lambda _: read_online(online_db))
+    monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+    monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "a" * 35)
+    monkeypatch.setattr(public_gemini.PublicGemini, "interpret", lambda *_: pytest.fail("Preset sent to Gemini"))
+    monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, evidence: Draft.model_validate({
+        "sentences": [{"evidence_id": item["evidence_id"], "text": item["sentences"][0]} for item in evidence],
+    }))
+    with TestClient(public_online.create_online_app()) as client:
+        response = client.post("/macro/analysis", headers={
+            **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 60) * 1000)),
+        }, json={
+            "question": "How did the COVID-19 pandemic affect Eurozone Inflation?",
+            "indicator_id": "hicp-yoy", "event_id": "covid", "start": "2020-02-01",
+            "end": "2020-12-31", "research_version": "v2",
+        })
+    assert response.status_code == 200
+    result = response.json()
+    assert result["status"] == "answered" and result["support"] == "partial"
+    assert result["corpus_sha256"] == APPROVED_SNAPSHOT
+    assert result["evidence"][0]["series_key"] == CATALOG["hicp-yoy"].series_key
+    assert "-1.6 percentage points" in result["calculations"][0]["text"]
+    assert result["observed_changes"] == [{
+        "indicator_id": "hicp-yoy", "value": "-1.60", "unit": "percentage_points", "direction": "down",
+        "first_observed_on": "2020-02-01", "last_observed_on": "2020-12-31", "citation": "series:hicp-yoy",
+    }]
+    assert len(result["interpretation"]) == 2
