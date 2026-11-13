@@ -15,7 +15,7 @@
   },
   "vars": {
     "MARKETPULSE_DEMO_MACRO_ENABLED": "true",
-    "MACROPULSE_RESEARCH_ENABLED": "false",
+    "MACROPULSE_RESEARCH_ENABLED": "true",
     "MARKETPULSE_DEMO_ORIGIN_URL": "https://macropulse-online.onrender.com",
     "MACROPULSE_RESEARCH_HOSTNAME": "macropulse-public-demo.mauricio-casaco.workers.dev",
     "MACROPULSE_TURNSTILE_SITE_KEY": "0x4AAAAAAF_z3Ar3h_sLpPVu"
