@@ -36,13 +36,17 @@ class Intent(StrictOutput):
     unresolved: list[str] = Field(default_factory=list, max_length=8)
 
 
-class DraftSentence(StrictOutput):
-    evidence_id: StrictInt
-    text: str = Field(min_length=10, max_length=600)
+MAX_NARRATIVE_STATEMENTS = 16
+NarrativeStyle = Literal["direct", "framed"]
+
+
+class DraftParagraph(StrictOutput):
+    statement_id: StrictInt = Field(ge=1, le=MAX_NARRATIVE_STATEMENTS)
+    style: NarrativeStyle
 
 
 class Draft(StrictOutput):
-    sentences: list[DraftSentence] = Field(min_length=1, max_length=16)
+    paragraphs: list[DraftParagraph] = Field(min_length=1, max_length=MAX_NARRATIVE_STATEMENTS)
 
 
 class SeriesEvidence(Evidence):

@@ -8,13 +8,17 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
+from pydantic import ValidationError
 
 from ..macro_data.api import MacroHistory, MacroWindow
 from ..macro_data.contracts import CATALOG
 from . import v2_gemini, v2_retrieval
 from .models import EVENT_WINDOWS, Claim, EventId, IndicatorId, ObservedChange, ResearchRequest
 from .statistics import read_statistics
-from .v2_models import Category, CuratedEvidence, Draft, Intent, NarrativeClaim, Requirement, ResearchV2Response, SeriesEvidence
+from .v2_models import (
+    Category, CuratedEvidence, Draft, Intent, NarrativeClaim, NarrativeStyle, Requirement, ResearchV2Response,
+    SeriesEvidence,
+)
 from .v2_statistics import DEFINITIONS, SeriesResult, exact_period, matches_definition, summarize_requirement
 
 
@@ -45,16 +49,27 @@ class Plan:
     requirement: Requirement
 
 
+_NARRATIVE_GROUPS: dict[Category, int] = {
+    "official observation": 0,
+    "documentary context": 1,
+    "institutional interpretation": 1,
+    "proxy context": 1,
+    "calculated from official observations": 2,
+}
+_DRAFT_LIMITATION = "The draft failed evidence validation. This summary uses verified evidence."
+_CAUSAL_LIMITATION = "This analysis does not estimate the event's causal effect."
+
+
 @dataclass(frozen=True)
 class Statement:
     claim: Claim
     category: Category
-    alternate: str | None = None
+    prose: tuple[str, str]
 
-    def options(self) -> list[str]:
-        return [self.claim.text, self.alternate] if self.alternate else [self.claim.text]
-
-    def render(self, text: str) -> NarrativeClaim:
+    def render(self, style: NarrativeStyle) -> NarrativeClaim:
+        text = self.prose[0 if style == "direct" else 1]
+        if len(text) > 600:
+            text = self.claim.text
         return NarrativeClaim(text=text, citations=self.claim.citations, category=self.category)
 
 
@@ -90,6 +105,7 @@ class State(TypedDict, total=False):
     evidence: list[SeriesEvidence | CuratedEvidence]
     statements: list[Statement]
     draft: Draft
+    causal_question: bool
     narrative: list[NarrativeClaim]
     model_id: str | None
     response: ResearchV2Response
@@ -258,9 +274,10 @@ def evaluate_support(state: State) -> dict:
     official = state["official"]
     curated = state["curated"]
     limitations = state["limitations"].copy()
-    if state["intent"].purpose == "causal" or any(
+    causal_question = state["intent"].purpose == "causal" or any(
         plan.requirement.operation == "causal_effect" for plan in state["plans"]
-    ):
+    )
+    if causal_question:
         limitations.append("The available evidence does not identify the event's causal effect or quantify how much it changed the indicator.")
     if state.get("event") == "generative-ai" and any(plan.indicator == "real-gdp-qoq" for plan in state["plans"]):
         limitations.append("The approved corpus has no direct evidence of a generative AI effect on euro-area GDP. EU adoption evidence is proxy context.")
@@ -283,69 +300,89 @@ def evaluate_support(state: State) -> dict:
                 "period_end": max(previous.period_end, source.period_end),
             })
         series[source.id] = source
-    facts = [Statement(result.fact, "official observation") for result in official]
-    calculations = [Statement(result.calculation, "calculated from official observations",
-                              f"The official observations show that {result.calculation.text[0].lower()}{result.calculation.text[1:]}")
-                    for result in official if result.calculation]
+    facts = [Statement(result.fact, "official observation", result.observation_prose) for result in official]
+    calculations = [Statement(result.calculation, "calculated from official observations", result.calculation_prose)
+                    for result in official if result.calculation and result.calculation_prose]
     context = []
     for source, claim in curated:
         category = ("institutional interpretation" if source.claim_type == "institutional_interpretation"
                     else "proxy context" if source.relation == "proxy" else "documentary context")
-        prefix = {"institutional interpretation": "In its policy assessment, ",
-                  "proxy context": "As context on adoption, ",
-                  "documentary context": "In the historical release, "}[category]
-        context.append(Statement(claim, category, prefix + claim.text if len(prefix + claim.text) <= 600 else None))
+        # Keep approved documentary language intact, including any attributed
+        # mechanism. A bridge introduces the source without linking it causally to the series.
+        bridge = ("The documentary evidence provides indirect context." if source.relation == "proxy"
+                  else "The institutional record adds context.")
+        context.append(Statement(claim, category, (claim.text, f"{bridge} {claim.text}")))
     statements = list({(row.claim.text, tuple(row.claim.citations)): row
-                       for row in [*facts, *calculations, *context]}.values())
+                       for row in [*facts, *context, *calculations]}.values())
     return {"evidence": [*series.values(), *(source for source, _ in curated)], "statements": statements,
+            "causal_question": causal_question,
             "limitations": list(dict.fromkeys(limitations))}
 
 
 def compose_answer(state: State) -> dict:
-    evidence = {item.id: item for item in state["evidence"]}
     payload = [{
-        "evidence_id": index, "category": item.category, "sentences": item.options(),
-        "sources": [evidence[key].model_dump(mode="json") for key in item.claim.citations],
+        "statement_id": index, "category": item.category, "statement": item.claim.text,
     } for index, item in enumerate(state["statements"], start=1)]
-    if runtime := state.get("runtime"):
-        return {"draft": runtime.compose(payload), "model_id": runtime.model_id}
+    runtime = state.get("runtime")
     try:
+        if runtime:
+            return {"draft": runtime.compose(payload), "model_id": runtime.model_id}
         return {"draft": v2_gemini.compose(payload), "model_id": configured_model()}
+    except ValidationError:
+        return {"limitations": _note(state, _DRAFT_LIMITATION)}
     except Exception:
-        return {"limitations": _note(state, "Gemini drafting was unavailable. This summary uses verified statements.")}
+        # Public runtimes retain their provider failure and deadline handling.
+        if runtime:
+            raise
+        return {"limitations": _note(state, "Gemini drafting was unavailable. This summary uses verified evidence.")}
 
 
 def validate_answer(state: State) -> dict:
     statements = state["statements"]
     evidence = {item.id for item in state["evidence"]}
     if (len(evidence) != len(state["evidence"]) or any(
-        not set(row.claim.citations) <= evidence for row in statements
+        not row.claim.citations or not set(row.claim.citations) <= evidence for row in statements
     )):
-        return {"statements": [], "evidence": [],
+        return {"statements": [], "evidence": [], "model_id": None,
                 "limitations": _note(state, "The server could not verify the available citations.")}
-    fallback = {"narrative": [row.render(row.claim.text) for row in statements], "model_id": None}
-    if "draft" not in state:
-        return fallback
-    try:
-        draft = Draft.model_validate(state["draft"])
-        ids = [row.evidence_id for row in draft.sentences]
-        if sorted(ids) != list(range(1, len(statements) + 1)):
-            raise ValueError("Invalid statement inventory")
-        groups = {"official observation": 0, "calculated from official observations": 1}
-        order = [groups.get(statements[key - 1].category, 2) for key in ids]
-        if order != sorted(order):
-            raise ValueError("Invalid statement order")
-        claims = []
-        for sentence in draft.sentences:
-            statement = statements[sentence.evidence_id - 1]
-            # An exact allowed sentence binds wording, numbers, units and
-            # references together. A valid citation alone cannot authorize text.
-            if sentence.text not in statement.options():
-                raise ValueError("Unverified sentence")
-            claims.append(statement.render(sentence.text))
-        return {"narrative": claims}
-    except ValueError:
-        return {**fallback, "limitations": _note(state, "The draft failed evidence validation. This summary uses verified statements.")}
+
+    # Even well-formed model output can only select server-owned realizations.
+    # Each paragraph keeps its category and citations from the same statement.
+    limitations = state["limitations"]
+    narrative = []
+    model_id = None
+    if "draft" in state:
+        try:
+            draft = Draft.model_validate(state["draft"])
+            ids = [paragraph.statement_id for paragraph in draft.paragraphs]
+            if sorted(ids) != list(range(1, len(statements) + 1)):
+                raise ValueError("Invalid statement inventory")
+            ordered = [statements[key - 1] for key in ids]
+            groups = [_NARRATIVE_GROUPS[row.category] for row in ordered]
+            if groups != sorted(groups):
+                raise ValueError("Invalid statement order")
+            for index, (paragraph, statement) in enumerate(zip(draft.paragraphs, ordered, strict=True)):
+                if paragraph.style == "framed" and index and groups[index] == groups[index - 1]:
+                    raise ValueError("Repeated frame")
+                narrative.append(statement.render(paragraph.style))
+            model_id = state.get("model_id")
+        except ValueError:
+            narrative = []
+            limitations = _note(state, _DRAFT_LIMITATION)
+
+    if not narrative:
+        previous = None
+        for statement in statements:
+            group = _NARRATIVE_GROUPS[statement.category]
+            narrative.append(statement.render("framed" if group != previous else "direct"))
+            previous = group
+
+    if narrative and state.get("causal_question"):
+        closing = narrative[-1]
+        text = f"{closing.text} {_CAUSAL_LIMITATION}"
+        if len(text) <= 600:
+            narrative[-1] = closing.model_copy(update={"text": text})
+    return {"limitations": limitations, "narrative": narrative, "model_id": model_id}
 
 
 def finish(state: State) -> dict:

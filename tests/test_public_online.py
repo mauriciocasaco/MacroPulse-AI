@@ -176,7 +176,7 @@ def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch
         }],
     }))
     monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, evidence: Draft.model_validate({
-        "sentences": [{"evidence_id": item["evidence_id"], "text": item["sentences"][0]} for item in evidence],
+        "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in evidence],
     }))
     with TestClient(public_online.create_online_app()) as client:
         assert client.get("/macro/indicators").status_code == 403
@@ -205,7 +205,7 @@ def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeyp
     monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "a" * 35)
     monkeypatch.setattr(public_gemini.PublicGemini, "interpret", lambda *_: pytest.fail("Preset sent to Gemini"))
     monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, evidence: Draft.model_validate({
-        "sentences": [{"evidence_id": item["evidence_id"], "text": item["sentences"][0]} for item in evidence],
+        "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in evidence],
     }))
     with TestClient(public_online.create_online_app()) as client:
         response = client.post("/macro/analysis", headers={
