@@ -27,18 +27,18 @@ def scope(**changes):
 
 
 def test_approved_corpus_preserves_all_records_and_rights(corpus):
-    assert (len(corpus.documents), len(corpus.claims), len(corpus.passages)) == (24, 47, 71)
-    assert len({p.content_sha256 for p in corpus.passages.values()}) == 71
+    assert (len(corpus.documents), len(corpus.claims), len(corpus.passages)) == (30, 53, 83)
+    assert len({p.content_sha256 for p in corpus.passages.values()}) == 83
     assert all(not doc.rights.original_text_chunks_authorized for doc in corpus.documents.values())
     assert all(claim.review_status == "verified_against_source" for claim in corpus.claims.values())
-    assert not any("eur-usd" in doc.indicators for doc in corpus.documents.values())
+    assert {doc.event for doc in corpus.documents.values() if "eur-usd" in doc.indicators} == {"covid", "ukraine"}
 
 
 @pytest.mark.parametrize("changes", [
     {"cutoff": "2020-05-19"},
     {"geography": "us"},
     {"event": "genai"},
-    {"indicator": "eur-usd"},
+    {"indicator": "eur-usd", "cutoff": "2020-10-07"},
     {"event": "ukraine", "cutoff": "2020-12-31"},
     {"event": "genai", "indicator": "real-gdp-qoq", "geography": "eu", "cutoff": "2026-09-30",
      "relations": ("direct",)},
@@ -141,7 +141,7 @@ def test_real_e5_reproducible_incremental_build_and_query(tmp_path, corpus, e5):
     assert any(hit.lexical is not None for hit in hits)
     assert len(hits) == len({hit.document.id for hit in hits})
     assert all(hit.supporting_claim and "hicp-yoy" in hit.supporting_claim.indicators for hit in hits)
-    assert not retriever.search("Spot exchange rate during COVID-19", scope(indicator="eur-usd"))
+    assert not retriever.search("Spot exchange rate during COVID-19", scope(indicator="eur-usd", cutoff="2020-10-07"))
 
     # Synthetic local edit to exercise index invalidation and selective vector reuse.
     id, item = next(iter(corpus.passages.items()))

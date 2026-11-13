@@ -55,6 +55,84 @@
     "rights_status": "restricted",
     "status": "needs_review"
   },
+  "1179cc7ed0e731242bc5ade1a9196a827aab36baa9126cf89c8e3c2f1b6c6728": {
+    "claims": [
+      {
+        "indicators": [
+          "eur-usd"
+        ],
+        "locator": "Financial market developments / ¶9",
+        "qualifiers": "Bilateral US dollars per euro. The ECB discussed offsetting changes in expectations for euro area and US monetary policy.",
+        "source_block_sha256": "d767f1537b94bbb12ca391812618de4bac0fa675b221a8e657496a811e9bda28",
+        "text": "The ECB reported limited movement in the EUR/USD spot exchange rate between its March and April 2022 policy meetings.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Financial market developments / ¶9",
+    "content_review": "The April Governing Council account reviews movements in euro area financial markets after the invasion of Ukraine. It describes a limited bilateral currency movement since the March meeting. The account suggests that repricing the euro area policy outlook partly offset downward pressure from changes in US policy expectations.",
+    "geography": "Euro area and United States",
+    "historical_period": {
+      "end": "2022-04-14",
+      "start": "2022-03-10"
+    },
+    "indicators": {
+      "eur-usd": "context"
+    },
+    "mechanism": "Bilateral US dollars per euro. The ECB discussed offsetting changes in expectations for euro area and US monetary policy.",
+    "reason": "Verified contemporaneous source for the specified indicator and historical interval.",
+    "reviewed_payload_sha256": "1a4bb99b44c347a28a1c1faeeac3b2d885d89e6afb3157578044896579c06993",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "0ff8b69829a4c1fd51281783e0b1137799c22bbfb924a8a8f33b82ad6a9fe3ef",
+    "rights_evidence": "Unsigned ECB institutional publication with an attributed-reproduction notice. The approved scope covers accurate facts and attributed paraphrases under the ECB website policy.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The comparison covers the March to April meeting interval. The account also discusses depreciation from the start of 2022, which has an earlier baseline. The approved statement is qualitative and relates to the bilateral quotation in US dollars per euro. The meeting account gives the ECB's reading of market developments under several simultaneous influences.",
+      "observed": "The ECB reported limited movement in the EUR/USD spot exchange rate between its March and April 2022 policy meetings. The April Governing Council account reviews movements in euro area financial markets after the invasion of Ukraine. It describes a limited bilateral currency movement since the March meeting. The account suggests that repricing the euro area policy outlook partly offset downward pressure from changes in US policy expectations.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "17dd0be555102c065c29840c2ecdc8ad699958b3bc772cd40197525deebbfdbb": {
+    "claims": [
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "p1",
+        "qualifiers": "EUR billions, rounded at publication, adjusted for seasonal and end-of-month calendar effects. The table also reports an April overnight deposit flow of EUR 153 billion.",
+        "source_block_sha256": "b5111591151b75c5f68e0c21c9fcd32029335ec21aab8a5a4db629cff0aa5f49",
+        "text": "The ECB reported a euro area M3 stock of EUR 13,639 billion at the end of April 2020.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "The dated publication includes the balance sheet for April 2020, during the first months of the pandemic. The table records the end-of-month balances and separately reports flows and annual growth rates. Overnight deposits accounted for a large share of the April flow into broad money.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2020-04-30",
+      "start": "2020-04-01"
+    },
+    "indicators": {
+      "m3-stock": "context"
+    },
+    "mechanism": "EUR billions, rounded at publication, adjusted for seasonal and end-of-month calendar effects. The table also reports an April overnight deposit flow of EUR 153 billion.",
+    "reason": "Verified contemporaneous source for the specified indicator and historical interval.",
+    "reviewed_payload_sha256": "988e50293786321c709455ff68b8590c2b8b4c214d5b2122cf176b2f656142ba",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "1d95993df97408fd8cf89d14a2636e88326262bc25a52e888762f32bc2384db7",
+    "rights_evidence": "The dated ECB press release links this statistical annex and permits attributed reproduction. The corpus carries rounded structured facts and attributed paraphrases from the ECB table.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The amount in the table is in billions of euro and is shown to the nearest billion in this release. The underlying amounts are subject to revisions. The flow reflects statistical adjustments for changes other than transactions. The release describes stocks and composition during the pandemic. Estimating how much of the observed movement was due to the pandemic would require further evidence.",
+      "observed": "The ECB reported a euro area M3 stock of EUR 13,639 billion at the end of April 2020. The dated publication includes the balance sheet for April 2020, during the first months of the pandemic. The table records the end-of-month balances and separately reports flows and annual growth rates. Overnight deposits accounted for a large share of the April flow into broad money.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
   "2348c8c9e6b862fce8b11f71ccca47f2ff1eb4a87d3cda2f0d789d270d768aea": {
     "claims": [
       {
@@ -100,6 +178,45 @@
       "institutional_interpretation": null,
       "limitations": "These are seasonally adjusted national accounts and the December release vintage. Positive consumption contributions are compatible with falling total GDP when other contributions offset them. This statistical release does not attribute aggregate movements to the war or quantify any separate energy shock. Use the aggregate alongside contemporaneous releases on prices.",
       "observed": "Eurostat estimated that euro area real GDP fell 0.1% quarter on quarter in 2023 Q3, while EU GDP was stable. GDP had risen 0.1% in both areas in the second quarter according to this release. Household final consumption contributed 0.2 percentage points to quarter-on-quarter growth in both areas; government final expenditure also contributed positively.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "29d46f8b453ca60fe3734957e7074273be2990c2a21fb85503984ad1dd0dc5a4": {
+    "claims": [
+      {
+        "indicators": [
+          "eur-usd"
+        ],
+        "locator": "The global environment and economic and monetary developments in the euro area / ¶14",
+        "qualifiers": "Percent change in US dollars per euro over the meeting-to-meeting interval. The ECB also noted broad US dollar weakness.",
+        "source_block_sha256": "44447222500ed12b6af62d02014d520084254c27dca1c9a01fc1394af34b84a1",
+        "text": "The ECB reported that the EUR/USD spot exchange rate appreciated by 3.8% between the July and September 2020 policy meetings.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "The global environment and economic and monetary developments in the euro area / ¶14",
+    "content_review": "The Governing Council account covers financial market developments during the pandemic. The bilateral move is one of several market developments reviewed by the ECB. The account relates part of the euro's appreciation to broader weakness in the dollar.",
+    "geography": "Euro area and United States",
+    "historical_period": {
+      "end": "2020-09-10",
+      "start": "2020-07-16"
+    },
+    "indicators": {
+      "eur-usd": "context"
+    },
+    "mechanism": "Percent change in US dollars per euro over the meeting-to-meeting interval. The ECB also noted broad US dollar weakness.",
+    "reason": "Verified contemporaneous source for the specified indicator and historical interval.",
+    "reviewed_payload_sha256": "b2f53bc7d99a2b636ab9b5c3522780da4227c376ba72ddecda0b1f0ad1256dfb",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "d7dc13418dab71f72899b947db7bdea9ddc9f69d64c273cad976cc3d1d5653b8",
+    "rights_evidence": "Unsigned ECB institutional publication with an attributed-reproduction notice. The approved scope covers accurate facts and attributed paraphrases under the ECB website policy.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The comparison starts at the July policy meeting and ends at the September meeting. The reported percentage change uses the bilateral US dollar exchange rate and the discussion separately reports a move against a trade-weighted basket. The statement describes the interval covered in the account. The relative contribution of the pandemic itself is unidentified by this market comparison.",
+      "observed": "The ECB reported that the EUR/USD spot exchange rate appreciated by 3.8% between the July and September 2020 policy meetings. The Governing Council account covers financial market developments during the pandemic. The bilateral move is one of several market developments reviewed by the ECB. The account relates part of the euro's appreciation to broader weakness in the dollar.",
       "projection_or_expectation": null,
       "unconfirmed_hypothesis": null
     }
@@ -676,6 +793,45 @@
       "unconfirmed_hypothesis": null
     }
   },
+  "9d8422dd3900fc297050028d6cad126f445977fd6d331d3b04b88fcffd14adb9": {
+    "claims": [
+      {
+        "indicators": [
+          "real-gdp-qoq"
+        ],
+        "locator": "p1",
+        "qualifiers": "EA19, chain-linked volume growth, percent relative to the previous quarter. July flash vintage based on incomplete source data.",
+        "source_block_sha256": "9c9aad339b1b2de63ceab6bcf1956d7e61e25fa181bb4f9a04c27a30f1ed5b3a",
+        "text": "Eurostat's preliminary flash estimate showed that seasonally adjusted euro area real GDP rose by 0.7% quarter on quarter in the second quarter of 2022.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "Eurostat released its preliminary second-quarter national accounts estimate in July 2022. The estimate shows a rise in production in the 19-country euro area during the first full quarter following the invasion of Ukraine. The release also reports separate results for the broader European Union and for individual countries.",
+    "geography": "euro area (EA19)",
+    "historical_period": {
+      "end": "2022-06-30",
+      "start": "2022-04-01"
+    },
+    "indicators": {
+      "real-gdp-qoq": "context"
+    },
+    "mechanism": "EA19, chain-linked volume growth, percent relative to the previous quarter. July flash vintage based on incomplete source data.",
+    "reason": "Verified contemporaneous source for the specified indicator and historical interval.",
+    "reviewed_payload_sha256": "57c4d042619461822a18aab394eb69a56d23df94904ad477ff3010a8a53c5071",
+    "reviewed_policy_sha256": "3966a69cf8b6ab55e0835d7aaea5a707ccf36128745490193724e1d4fddaaa6e",
+    "reviewed_text_sha256": "b489fdd719173d44fcfe82c2b6140e38f770df1a33427b1cea9abb8365f7a1db",
+    "rights_evidence": "Eurostat permits reuse of its own statistical material with attribution. The release identifies Eurostat as publisher and the approved GDP estimate is its own statistical result.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The measure is quarter-on-quarter growth in chain-linked volumes. The July estimate used data for 17 Member States covering 93% of euro area GDP. Subsequent releases can revise the growth rate, so the percentage is specific to the first estimate. The release reports aggregate activity during the conflict and gives no estimate of the output response attributable to the invasion or energy prices.",
+      "observed": "Eurostat's preliminary flash estimate showed that seasonally adjusted euro area real GDP rose by 0.7% quarter on quarter in the second quarter of 2022. Eurostat released its preliminary second-quarter national accounts estimate in July 2022. The estimate shows a rise in production in the 19-country euro area during the first full quarter following the invasion of Ukraine. The release also reports separate results for the broader European Union and for individual countries.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
   "9e1d56102abdc279a3fe9d3549cd5cb2fa9e2d69fb2d801fbbb85b2df63d9abb": {
     "content_locator": "The impact of policy measures on financial conditions / ¶5",
     "content_review": "Describes portfolio rebalancing, market illiquidity and the intended restoration of policy transmission.",
@@ -870,6 +1026,45 @@
     "rights_evidence": "The publication carries named authorship. The ECB notice has a specific exception for reproduction of named publications; no document-level clearance for storage, extraction and redistribution was established.",
     "rights_status": "not_cleared",
     "status": "needs_review"
+  },
+  "d2cd571dbe81256c3595f8f7e76be4051ef7848140001e0578eafe0d22b46dc5": {
+    "claims": [
+      {
+        "indicators": [
+          "m3-stock"
+        ],
+        "locator": "p1",
+        "qualifiers": "EUR billions, rounded at publication, adjusted for seasonal and end-of-month calendar effects. The parent release flags a temporary Eurosystem position with a clearinghouse that inflated the aggregates containing it.",
+        "source_block_sha256": "ffb0bab8290f4779ad9c3ebaa751e22a47ca825844656f35dca93dd27e11bdce",
+        "text": "The ECB reported a euro area M3 stock of EUR 16,174 billion at the end of September 2022.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "p1",
+    "content_review": "The dated publication provides a contemporary balance-sheet reading for September 2022. The annex distinguishes amounts outstanding at month end, monthly flows and annual rates of growth. The parent release flags a temporary Eurosystem position involving a clearinghouse that raised the aggregates containing those deposits.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-09-30",
+      "start": "2022-09-01"
+    },
+    "indicators": {
+      "m3-stock": "context"
+    },
+    "mechanism": "EUR billions, rounded at publication, adjusted for seasonal and end-of-month calendar effects. The parent release flags a temporary Eurosystem position with a clearinghouse that inflated the aggregates containing it.",
+    "reason": "Verified contemporaneous source for the specified indicator and historical interval.",
+    "reviewed_payload_sha256": "a461e4bad6afee368873a3ceda01d6f2572760bfbd9ba7435113d7f6ca11fed7",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "a18b7b63fa0f8b4b2d0fa4e00394d35d367cfd0055d412e34ccf2973d64d18ed",
+    "rights_evidence": "The dated ECB press release links this statistical annex and permits attributed reproduction. The corpus carries rounded structured facts and attributed paraphrases from the ECB table.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The figure is the published September vintage, rounded to billions of euro. It can differ from the subsequently revised time series. The monthly flow has adjustments for changes unrelated to transactions. The reference month falls during Russia's war in Ukraine. The release identifies a technical influence on the published monetary aggregates and supplies no decomposition by exposure to the conflict.",
+      "observed": "The ECB reported a euro area M3 stock of EUR 16,174 billion at the end of September 2022. The dated publication provides a contemporary balance-sheet reading for September 2022. The annex distinguishes amounts outstanding at month end, monthly flows and annual rates of growth. The parent release flags a temporary Eurosystem position involving a clearinghouse that raised the aggregates containing those deposits.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
   },
   "d2d93a3979a904df5c79d66acc35c977fdcb6e3e2de52f8717f28c4c57c38f6c": {
     "claims": [
@@ -1137,6 +1332,45 @@
       "institutional_interpretation": "The refinancing operations aimed to backstop money-market liquidity and encourage eligible bank lending.",
       "limitations": "The borrowing terms applied only to eligible counterparties and the specified period. The spread is a rate on refinancing, not a cut in the deposit facility rate. Announced liquidity support does not establish take-up or a realised lending effect.",
       "observed": "The ECB held the deposit facility rate at -0.50% on 30 April. It eased targeted longer-term refinancing conditions for June 2020 to June 2021: counterparties meeting the lending threshold could borrow at 50 basis points below the average deposit facility rate for the relevant period. The Council also announced seven pandemic emergency longer-term refinancing operations and described the ongoing EUR 750 billion PEPP.",
+      "projection_or_expectation": null,
+      "unconfirmed_hypothesis": null
+    }
+  },
+  "e4adda2558866ccdfbc9f951d0f80275694e3d69b13b7d1f433ea50868eeb4a3": {
+    "claims": [
+      {
+        "indicators": [
+          "deposit-rate"
+        ],
+        "locator": "Key ECB interest rates / ¶6",
+        "qualifiers": "The rate is a nominal annual percentage. The decision and its announced effective date are distinct.",
+        "source_block_sha256": "937618723913c7c78fd766a1c5c07cc89463d13732e6d733d4221ba0839c3f9b",
+        "text": "On 27 October 2022 the ECB decided to raise the deposit facility rate by 75 basis points to 1.50%, effective 2 November 2022.",
+        "type": "observed"
+      }
+    ],
+    "content_locator": "Key ECB interest rates / ¶6",
+    "content_review": "The Council announced another increase in October 2022 to bring inflation back toward its medium-term target. It described several concurrent pressures, including dearer energy and food, supply constraints and a rebound in demand after the pandemic. The rate applying to the deposit facility was one of three rates covered by the decision.",
+    "geography": "euro area",
+    "historical_period": {
+      "end": "2022-10-27",
+      "start": "2022-10-27"
+    },
+    "indicators": {
+      "deposit-rate": "context"
+    },
+    "mechanism": "The rate is a nominal annual percentage. The decision and its announced effective date are distinct.",
+    "reason": "Verified contemporaneous source for the specified indicator and historical interval.",
+    "reviewed_payload_sha256": "3e20695410224fe36650c8e61c967d1da42d5e9ca95c69e982d37a1dc508ac6c",
+    "reviewed_policy_sha256": "a404c29bc8a9a6ee032e07c40734a570bf0575d055963e7c3a7241090e27fcbd",
+    "reviewed_text_sha256": "f0910198a3903208a4e6e4498f68015a075245ff640e07181796bacc50332c74",
+    "rights_evidence": "Unsigned ECB institutional publication with an attributed-reproduction notice. The approved scope covers accurate facts and attributed paraphrases under the ECB website policy.",
+    "rights_status": "scoped_derivatives_verified",
+    "status": "approved",
+    "summary": {
+      "institutional_interpretation": null,
+      "limitations": "The announcement gives the size of the change in basis points and the resulting rate as an annual percentage. The new rate was scheduled to start on 2 November, after the announcement. The decision is contemporaneous policy evidence during the war in Ukraine and the statement describes the Council's inflation rationale without quantifying the war's contribution.",
+      "observed": "On 27 October 2022 the ECB decided to raise the deposit facility rate by 75 basis points to 1.50%, effective 2 November 2022. The Council announced another increase in October 2022 to bring inflation back toward its medium-term target. It described several concurrent pressures, including dearer energy and food, supply constraints and a rebound in demand after the pandemic. The rate applying to the deposit facility was one of three rates covered by the decision.",
       "projection_or_expectation": null,
       "unconfirmed_hypothesis": null
     }

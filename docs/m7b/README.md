@@ -1,5 +1,6 @@
 # M7.B — Corpus histórico curado
 
+La ampliación M8.5 lleva el corpus vigente a **30 documentos y 53 afirmaciones**. El detalle de fuentes y cobertura está en [M8.5](../m8/corpus-expansion.md). Las cifras de la sección siguiente corresponden a la revisión original.
 **24 documentos aprobados y 47 afirmaciones verificadas contra su fuente.** Se revisaron los 60 candidatos de la propuesta M7.A y tres reemplazos del mismo inventario. Todos respondieron y pasaron la comprobación de identidad. No se realizó una búsqueda nueva. Base: `main`, `20503b730cfc357fe2cb5b730793f8ae4060aeba`. Captura de revisión: **11 de noviembre de 2026, 15:52 UTC**.
 
 | Evento | Propuesta M7.A | Reemplazos revisados | Aprobados (incluye reemplazos) | Rechazados | Pendientes |

@@ -226,3 +226,8 @@ def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeyp
         "first_observed_on": "2020-02-01", "last_observed_on": "2020-12-31", "citation": "series:hicp-yoy",
     }]
     assert len(result["interpretation"]) == 2
+
+
+def test_spot_retrieval_does_not_consult_untyped_news():
+    window = MacroWindow(start=date(2022, 2, 1), end=date(2024, 2, 29))
+    assert online_evidence.retrieve_online(None, "EUR/USD", "ukraine", "eur-usd", window, window.end) == []
