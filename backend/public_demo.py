@@ -234,7 +234,9 @@ def _research_config(env: Mapping[str, str]) -> tuple[str, str] | None:
 
     key = env.get("MARKETPULSE_DEMO_GEMINI_API_KEY", "")
     model = env.get("MARKETPULSE_DEMO_GEMINI_MODEL", "gemini-3.6-flash")
-    if not re.fullmatch(r"AIza[A-Za-z0-9_-]{35,80}", key) or model not in MODELS:
+    # AI Studio authorization keys use AQ.; legacy standard keys use AIza.
+    valid_key = re.fullmatch(r"(?:AIza[A-Za-z0-9_-]{35,80}|AQ\.[A-Za-z0-9_-]{32,160})", key)
+    if not valid_key or model not in MODELS:
         return None
     return key, model
 

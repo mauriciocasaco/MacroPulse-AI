@@ -198,6 +198,37 @@ def test_disabled_research_preserves_catalog(client, monkeypatch):
     assert demo.RESEARCH_HEADER not in client.get(CATALOG, headers=HEADERS).headers
 
 
+@pytest.mark.parametrize(("key", "accepted"), [
+    ("AIza" + "a" * 35, True),
+    ("AQ." + "A1_-b" * 7, True),
+    ("AQ." + "a" * 31, False),
+    ("AQ." + "a" * 161, False),
+    ("AQ." + "a" * 32 + "!", False),
+    ("AQ." + "a" * 32 + "\n", False),
+    ("AQ." + "a" * 32 + " ", False),
+    ("AIza" + "a" * 34, False),
+    ("not-a-key", False),
+])
+def test_public_research_accepts_auth_and_standard_gemini_keys(key, accepted):
+    model = "gemini-3.6-flash"
+    config = demo._research_config({
+        "MARKETPULSE_DEMO_RESEARCH_ENABLED": "true",
+        "MARKETPULSE_DEMO_GEMINI_API_KEY": key,
+        "MARKETPULSE_DEMO_GEMINI_MODEL": model,
+    })
+    assert (config is not None) is accepted
+    if accepted:
+        assert config == (key, model)
+
+
+def test_public_research_aq_key_enables_catalog_header(demo_env, monkeypatch):
+    monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+    monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AQ." + "A1_-b" * 7)
+    monkeypatch.setattr(demo, "connect_demo", lambda dsn: MagicMock())
+    with TestClient(demo.create_public_app()) as client:
+        assert client.get(CATALOG, headers=HEADERS).headers[demo.RESEARCH_HEADER] == "true"
+
+
 @pytest.fixture
 def research_client(demo_env, monkeypatch):
     monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
