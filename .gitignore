@@ -1,8 +1,10 @@
 
 # Python
 .venv/
+venv/
+venv_corpus/
 __pycache__/
-*.pyc
+*.py[cod]
 .pytest_cache/
 
 # Credentials
@@ -13,8 +15,9 @@ __pycache__/
 .dev.vars.*
 
 # Local databases and data
-/data/backfills/
 data/
+*.jsonl
+*.csv
 *.db
 *.sqlite3
 
@@ -39,10 +42,3 @@ dist/
 *.der
 *.p12
 *.pfx
-
-# Local Python environments
-venv_corpus/
-venv/
-
-# Generated corpus data
-tools/corpus_ingest/data/
