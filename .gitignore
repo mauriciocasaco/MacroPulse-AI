@@ -39,3 +39,10 @@ dist/
 *.der
 *.p12
 *.pfx
+
+# Local Python environments
+venv_corpus/
+venv/
+
+# Generated corpus data
+tools/corpus_ingest/data/
