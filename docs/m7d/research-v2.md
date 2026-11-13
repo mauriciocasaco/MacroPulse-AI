@@ -2,7 +2,7 @@
 
 Research v2 se puede probar en la PWA de loopback. Viene desactivado. La casilla **Use experimental Research v2** aparece cuando FastAPI anuncia la función y la PWA tiene habilitada la investigación local. Se activa por sesión de la interfaz. Desmarcarla vuelve al flujo habitual.
 
-Research v2 interpreta las preguntas predeterminadas de la interfaz con el catálogo y valida el resultado contra los filtros seleccionados. Para las preguntas editadas, Gemini recibe la pregunta original y los límites de la consulta. Mantené claves, credenciales y texto privado fuera de las preguntas. La llamada de redacción recibe únicamente los enunciados autorizados y sus metadatos públicos. [Gemini 3.6 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.6-flash?hl=en)
+Research v2 interpreta las preguntas predeterminadas de la interfaz con el catálogo y valida el resultado contra los filtros seleccionados. Para las preguntas editadas, Gemini recibe la pregunta original y los límites de la consulta. Mantené claves, credenciales y texto privado fuera de las preguntas. La llamada de composición recibe únicamente los enunciados autorizados, sus categorías e IDs internos. [Gemini 3.6 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.6-flash?hl=en)
 
 ## Activación local
 
@@ -70,7 +70,7 @@ M7.C valida los 24 documentos y 47 afirmaciones aprobadas de M7.B y filtra por a
 
 Los resultados documentales tienen ID de afirmación y documento, evento, indicador, geografía, tipo de relación, fecha de publicación, URL, localizador y calificador editorial. Las afirmaciones recuperadas se presentan en su alcance original como contexto documental, contexto proxy o interpretación institucional. Los predicados de M7.D.1 ayudan a seleccionar contexto del tema. Las cifras principales proceden de observaciones oficiales y operaciones deterministas. La interpretación de un mecanismo por una institución se mantiene atribuida a esa institución. El corte de publicaciones es inclusivo al día y se limita al fin de la ventana y al día UTC del servidor.
 
-Gemini elige orden y redacción dentro de enunciados autorizados, con un máximo de dos llamadas de hasta 18 segundos cada una y un intento por llamada. El servidor exige que cada enunciado coincida con una opción permitida para su ID y agrega los vínculos desde las fuentes verificadas. Una redacción inválida o una llamada fallida deja disponible el resumen determinista cuando hay evidencia. El grafo tiene rutas acotadas de evidencia parcial y abstención. La consulta usa el corpus local y las capturas existentes.
+Gemini devuelve un plan con el orden y estilo de los párrafos. El servidor valida que incluya cada enunciado autorizado una sola vez y arma la narrativa con las cifras, fechas, unidades y citas correspondientes a ese enunciado. El contexto documental conserva el texto aprobado. Un plan inválido activa el resumen determinista cuando hay evidencia. El perfil local también usa ese resumen si falla la llamada de composición, con un máximo de dos generaciones de hasta 18 segundos cada una y un intento por llamada. El perfil público conserva sus controles de presupuesto y plazos. El grafo tiene rutas acotadas de evidencia parcial y abstención. La consulta usa el corpus local y las capturas existentes.
 
 ## Limitaciones conocidas
 

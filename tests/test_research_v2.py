@@ -12,8 +12,8 @@ import pytest
 
 from backend.api import app
 from backend.macro_ai import api, gemini, service, v2_gemini, v2_retrieval, v2_service
-from backend.macro_ai.models import EVENT_WINDOWS, ResearchResponse
-from backend.macro_ai.v2_models import Draft, Intent
+from backend.macro_ai.models import Claim, EVENT_WINDOWS, ResearchResponse
+from backend.macro_ai.v2_models import Draft, Intent, SeriesEvidence
 from backend.macro_ai.v2_statistics import DEFINITIONS
 from backend.macro_data import api as data
 from backend.macro_data.contracts import CATALOG, parse_period
@@ -43,6 +43,10 @@ def requirement(question, key, operation):
 
 def window(start, end):
     return {"start": start, "end": end}
+
+
+def paragraph_plan(payload, style="direct"):
+    return {"paragraphs": [{"statement_id": row["statement_id"], "style": style} for row in payload]}
 
 
 @pytest.fixture
@@ -77,7 +81,7 @@ def research(monkeypatch):
         payload = json.loads(inputs["evidence"])
         if fixture.draft:
             return fixture.draft(payload)
-        return {"sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][-1]} for row in payload]}
+        return paragraph_plan(payload)
 
     def fake_read(keys, request):
         key, = keys
@@ -231,6 +235,8 @@ def test_preset_questions(research, event, prefix, periods, key, label, expected
         assert body["observed_changes"][0]["first_observed_on"] == start.isoformat()
         assert body["observed_changes"][0]["last_observed_on"] == end.isoformat()
         assert "effective 2019-09-18" in body["facts"][0]["text"]
+        assert body["narrative"][0]["text"].count("-0.50% per year") == 2
+        assert body["narrative"][0]["text"].count("effective 2019-09-18") == 2
     if question == COVID_HICP:
         assert body["publication_cutoff"] == "2020-12-31"
         assert body["corpus_sha256"] == v2_retrieval.APPROVED_SNAPSHOT
@@ -311,7 +317,11 @@ def test_mixed_requirements_and_unknown_parts_remain_partial(research):
     assert any("Part of the question" in note for note in body["limitations"])
 
 
-@pytest.mark.parametrize("attack", ["new_number", "wrong_unit", "borrowed_claim", "unknown_id", "missing", "model_failure"])
+@pytest.mark.parametrize("attack", [
+    "wrong_number", "wrong_unit", "wrong_period", "wrong_attribution", "causal_rewrite", "links",
+    "unknown_id", "string_id", "boolean_id", "swapped_groups", "duplicate", "missing",
+    "unknown_style", "repeated_frame", "self_certification", "legacy_free_text", "model_failure",
+])
 def test_bad_draft_returns_only_server_statements(research, attack):
     research.intent = {"purpose": "causal", "event": "ukraine",
                        "requirements": [requirement(UKRAINE, "hicp-yoy", "trend")]}
@@ -319,25 +329,131 @@ def test_bad_draft_returns_only_server_statements(research, attack):
     def draft(payload):
         if attack == "model_failure":
             raise TimeoutError
-        rows = [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in payload]
-        if attack == "unknown_id":
-            rows[0]["evidence_id"] = 99
+        plan = paragraph_plan(payload)
+        rows = plan["paragraphs"]
+        injected_text = {
+            "wrong_number": "Euro-area HICP inflation was 99% year on year in 2022-02.",
+            "wrong_unit": "Euro-area HICP inflation was 5.9 percentage points in 2022-02.",
+            "wrong_period": "Euro-area HICP inflation was 5.9% year on year in 2024-02.",
+            "wrong_attribution": "The ECB reported euro-area HICP inflation of 5.9% in 2022-02.",
+            "causal_rewrite": "The war caused euro-area HICP inflation of 5.9% year on year in 2022-02.",
+            "links": "See https://example.test/made-up-source.",
+            "self_certification": payload[0]["statement"],
+        }
+        if attack in injected_text:
+            rows[0]["text"] = injected_text[attack]
+            if attack == "self_certification":
+                rows[0]["grounded"] = True
+                rows[0]["citations"] = ["series:hicp-yoy"]
+        elif attack in {"unknown_id", "string_id", "boolean_id"}:
+            rows[0]["statement_id"] = {"unknown_id": 16, "string_id": "1", "boolean_id": True}[attack]
+        elif attack == "swapped_groups":
+            rows[0], rows[-1] = rows[-1], rows[0]
+        elif attack == "duplicate":
+            rows[1] = rows[0]
         elif attack == "missing":
             rows.pop()
+        elif attack == "unknown_style":
+            rows[0]["style"] = "as a result"
+        elif attack == "repeated_frame":
+            rows[1]["style"] = rows[2]["style"] = "framed"
         else:
-            rows[0]["text"] = {
-                "new_number": "The war caused 99% inflation.",
-                "wrong_unit": rows[1]["text"].replace("percentage points", "percent"),
-                "borrowed_claim": rows[-1]["text"],
-            }[attack]
-        return {"sentences": rows}
+            return {"sentences": [{"evidence_id": 1, "text": payload[0]["statement"]}]}
+        return plan
 
     research.draft = draft
     body = post(research, UKRAINE, "hicp-yoy", "ukraine").json()
     assert body["narrative_kind"] == "deterministic" and body["model_id"] is None
-    assert [{key: row[key] for key in ("text", "citations")} for row in body["narrative"]] == (
-        body["facts"] + body["calculations"] + body["interpretation"]
+    fallback_note = "drafting was unavailable" if attack == "model_failure" else "failed evidence validation"
+    assert any(fallback_note in note for note in body["limitations"])
+    assert [row["citations"] for row in body["narrative"]] == [
+        row["citations"] for row in body["facts"] + body["interpretation"] + body["calculations"]
+    ]
+    assert body["narrative"][0]["text"].startswith("For the euro area's all-items HICP inflation rate")
+    assert body["narrative"][1]["text"].endswith(body["interpretation"][0]["text"])
+    assert body["narrative"][2]["text"] == body["interpretation"][1]["text"]
+    assert body["narrative"][-1]["text"] == (
+        "From 2022-02 to 2024-02, the change in the euro area's all-items HICP inflation rate "
+        "was -3.3 percentage points. This analysis does not estimate the event's causal effect."
     )
+    assert [schema for schema, _ in research.calls] == [Intent, Draft]
+
+
+def test_gemini_plan_reorders_context_and_rephrases_observations_and_calculation(research):
+    research.intent = {"purpose": "causal", "event": "ukraine",
+                       "requirements": [requirement(UKRAINE, "hicp-yoy", "trend")]}
+
+    def draft(payload):
+        rows = paragraph_plan(payload)["paragraphs"]
+        rows[1], rows[2] = rows[2], rows[1]
+        for index in (0, 1, 3):
+            rows[index]["style"] = "framed"
+        return {"paragraphs": rows}
+
+    research.draft = draft
+    body = post(research, UKRAINE, "hicp-yoy", "ukraine").json()
+    assert body["narrative_kind"] == "gemini"
+    assert body["narrative"][0] == {
+        "text": "For the euro area's all-items HICP inflation rate, the official series records "
+                "5.9% year on year in 2022-02, 10.6% year on year in 2022-10 and 2.6% year on year in 2024-02.",
+        "citations": ["series:hicp-yoy"],
+        "category": "official observation",
+    }
+    assert body["narrative"][1]["category"] == "institutional interpretation"
+    assert body["narrative"][1]["citations"] == [f"claim:{ECB_ASSESSMENT}"]
+    assert body["narrative"][1]["text"].endswith(body["interpretation"][1]["text"])
+    assert body["narrative"][2]["citations"] == [f"claim:{HICP_RELEASE}"]
+    assert body["narrative"][2]["text"] == body["interpretation"][0]["text"]
+    assert body["narrative"][-1]["text"].startswith(
+        "From 2022-02 to 2024-02, the change in the euro area's all-items HICP inflation rate was -3.3 percentage points."
+    )
+    assert body["narrative"][-1]["citations"] == ["series:hicp-yoy"]
+
+
+def test_multi_series_plan_preserves_precision_and_citations_when_reordered(research):
+    question = "How much was EUR/USD on 3 February 2020, and how did real GDP change during COVID?"
+    research.intent = {"purpose": "descriptive", "event": "covid", "requirements": [
+        {**requirement("EUR/USD on 3 February 2020", "eur-usd", "point"),
+         "period": window("2020-02-03", "2020-02-03")},
+        requirement("real GDP change during COVID", "real-gdp-qoq", "trend"),
+    ]}
+
+    def draft(payload):
+        rows = paragraph_plan(payload)["paragraphs"]
+        rows[0], rows[1] = rows[1], rows[0]
+        return {"paragraphs": rows}
+
+    research.draft = draft
+    body = post(research, question, None, "covid").json()
+    assert body["narrative_kind"] == "gemini"
+    gdp, fx, *_, conclusion = body["narrative"]
+    assert gdp["citations"] == ["series:real-gdp-qoq"]
+    assert "-11.8% quarter on quarter in 2020-Q2" in gdp["text"]
+    assert "12.5% quarter on quarter in 2020-Q3" in gdp["text"]
+    assert fx["citations"] == ["series:eur-usd"]
+    assert "1.10 USD per EUR in 2020-02-03" in fx["text"]
+    assert conclusion["citations"] == ["series:real-gdp-qoq"]
+    assert "11.4 percentage points from 2020-Q2 to 2020-Q4" in conclusion["text"]
+    assert len(body["calculations"]) == 1
+
+
+def test_missing_or_ambiguous_server_citations_fail_closed():
+    statement = v2_service.Statement(
+        Claim(text="A synthetic observation.", citations=["series:fixture"]),
+        "official observation", ("A synthetic observation.", "Another synthetic observation."),
+    )
+    source = SeriesEvidence(
+        id="series:fixture", kind="series", title="Fixture", url="https://example.test",
+        attribution="Fixture", series_key="fixture", unit="percent", multiplier=0,
+        geography="fixture", adjustment="fixture",
+    )
+    for evidence in ([], [source, source]):
+        result = v2_service.validate_answer({
+            "statements": [statement], "evidence": evidence, "limitations": [],
+            "draft": paragraph_plan([{"statement_id": 1}]), "model_id": "fixture",
+        })
+        assert result["statements"] == result["evidence"] == []
+        assert "narrative" not in result and result["model_id"] is None
 
 
 def test_missing_comparison_operand_cannot_use_adjacent_observation(research):
@@ -396,6 +512,7 @@ def test_langchain_structured_schema_and_provider_budget(research, monkeypatch):
     def generate_content(_self, *, model, contents, config):
         provider_calls.append(config.response_json_schema)
         assert model == "gemini-3.6-flash" and not config.tools
+        assert config.max_output_tokens == 2400
         assert config.http_options.timeout == 18_000 and config.http_options.retry_options.attempts == 1
         assert config.response_mime_type == "application/json"
         prompt = contents[-1].parts[0].text
@@ -406,7 +523,7 @@ def test_langchain_structured_schema_and_provider_budget(research, monkeypatch):
         else:
             assert FX not in prompt
             rows = json.loads(prompt.partition("\n")[2])
-            output = {"sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in rows]}
+            output = paragraph_plan(rows)
         return GenerateContentResponse(candidates=[
             Candidate(content=Content(role="model", parts=[Part(text=json.dumps(output))])),
         ])
@@ -416,4 +533,4 @@ def test_langchain_structured_schema_and_provider_budget(research, monkeypatch):
     assert body["narrative_kind"] == "gemini"
     assert len(provider_calls) == 2
     assert set(provider_calls[0]["properties"]) == {"event", "purpose", "requirements", "unresolved"}
-    assert set(provider_calls[1]["properties"]) == {"sentences"}
+    assert set(provider_calls[1]["properties"]) == {"paragraphs"}

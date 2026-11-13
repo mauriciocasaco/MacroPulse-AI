@@ -404,6 +404,8 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
         }],
     }
 
+    invalid_plan = False
+
     def simulate(request):
         assert request.url.host == "generativelanguage.googleapis.com"
         assert request.headers["x-goog-api-key"] == "AIza" + "f" * 35
@@ -422,7 +424,9 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
         else:
             content = payload["contents"][0]["parts"][0]["text"]
             rows = json.loads(content.split("\n", 1)[1])
-            answer = {"sentences": [{"evidence_id": row["evidence_id"], "text": row["sentences"][0]} for row in rows]}
+            answer = {"paragraphs": [{"statement_id": row["statement_id"], "style": "direct"} for row in rows]}
+            if invalid_plan:
+                answer["paragraphs"][0]["text"] = "The war caused 99% inflation."
         return httpx.Response(200, json={
             "usageMetadata": {"promptTokenCount": 200, "candidatesTokenCount": 60, "thoughtsTokenCount": 40},
             "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(answer)}]}}],
@@ -439,6 +443,12 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
         connections.clear()
         reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
         assert len(connections) == 1 and len(requests) == 4
+        invalid_plan = True
+        requests.clear()
+        fallback = research_client.post(RESEARCH, headers=research_headers(), json=params)
+        assert fallback.status_code == 200 and len(requests) == 4
+        assert fallback.json()["narrative_kind"] == "deterministic"
+        assert "99% inflation" not in fallback.text
         monkeypatch.setattr(demo, "read_history", lambda *_args, **_kwargs: (_ for _ in ()).throw(
             psycopg.OperationalError("Synthetic DEMO failure"),
         ))
@@ -455,7 +465,7 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
     }
     assert any("does not identify" in limitation for limitation in result["limitations"])
     assert failure.status_code == 503
-    assert len(connections) == 2 and len(requests) == 2
+    assert len(connections) == 3 and len(requests) == 2
 
 
 @pytest.mark.parametrize("failure,code", [("input limit", 503), ("provider failure", 503), ("timeout", 504)])
