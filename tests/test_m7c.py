@@ -129,10 +129,11 @@ def e5():
 
 def test_real_e5_reproducible_incremental_build_and_query(tmp_path, corpus, e5):
     index = tmp_path / "e5.sqlite3"
+    passage_count = len(corpus.passages)
     first = build_index(index, corpus, e5)
     second = build_index(index, corpus, e5)
     independent = build_index(tmp_path / "independent.sqlite3", corpus, e5)
-    assert (first.generated, second.reused, second.generated) == (71, 71, 0)
+    assert (first.generated, second.reused, second.generated) == (passage_count, passage_count, 0)
     assert first.vectors_sha256 == second.vectors_sha256 == independent.vectors_sha256
 
     retriever = HybridRetriever(corpus, index, e5)
@@ -152,7 +153,7 @@ def test_real_e5_reproducible_incremental_build_and_query(tmp_path, corpus, e5):
     with pytest.raises(ValueError, match="fingerprint changed"):
         read_vectors(index, changed, e5)
     delta = build_index(index, changed, e5)
-    assert (delta.generated, delta.reused, delta.removed) == (1, 70, 1)
+    assert (delta.generated, delta.reused, delta.removed) == (1, passage_count - 1, 1)
 
     # A failed rebuild rolls back deletions and metadata updates.
     long_text = "energy " * 800
@@ -161,7 +162,7 @@ def test_real_e5_reproducible_incremental_build_and_query(tmp_path, corpus, e5):
     )}, fingerprint=digest(b"synthetic invalid input"))
     with pytest.raises(ValueError, match="token budget"):
         build_index(index, bad, e5)
-    assert len(read_vectors(index, changed, e5)) == 71
+    assert len(read_vectors(index, changed, e5)) == passage_count
 
     with sqlite3.connect(index) as db:
         db.execute("UPDATE vectors SET embedding = zeroblob(length(embedding)) WHERE content_sha256 = ?",

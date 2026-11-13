@@ -34,6 +34,11 @@ COVID_HICP_CLAIMS = {
     "811e23f073b7f0b5f6b14fb6fdea80f4179bbabeefdf28e66794b040e78d22b9",
     "7f313f3f814598234846ef8cad8f2212a1bf0c6d20d23268ac86c5e534c4cbd7",
 }
+PRESET_DOCUMENT_COUNTS = {
+    "covid": {"eur-usd": 1, "m3-stock": 1, "deposit-rate": 1, "real-gdp-qoq": 1, "hicp-yoy": 2},
+    "ukraine": {"eur-usd": 1, "m3-stock": 1, "deposit-rate": 2, "real-gdp-qoq": 2, "hicp-yoy": 2},
+    "generative-ai": {"eur-usd": 0, "m3-stock": 0, "deposit-rate": 0, "real-gdp-qoq": 1, "hicp-yoy": 0},
+}
 
 
 def requirement(question, key, operation):
@@ -223,8 +228,11 @@ def test_preset_questions(research, event, prefix, periods, key, label, expected
         values = ("1.6", "1.2") if expected_unit == "percent" else ("1.1", "0.7")
         research.values[key] = list(zip((first, last), values))
 
-    body = post(research, question, key, event).json()
+    response = post(research, question, key, event)
+    assert response.status_code == 200
+    body = response.json()
     assert body["status"] == "answered" and body["support"] == "partial"
+    assert body["narrative_kind"] == "gemini"
     assert body["graph_steps"][0] == "interpret_preset"
     assert [schema for schema, _ in research.calls] == [Draft]
     assert research.reads == [(key, start.isoformat(), end.isoformat())]
@@ -233,6 +241,33 @@ def test_preset_questions(research, event, prefix, periods, key, label, expected
     assert body["observed_changes"][0]["value"] == expected_value
     assert ("-25%" if expected_unit == "percent" else "percentage points") in body["calculations"][0]["text"]
     assert any("causal effect" in note for note in body["limitations"])
+    assert body["narrative"][-1]["text"].endswith("This analysis does not estimate the event's causal effect.")
+    assert body["narrative"][0]["text"].startswith("The official series for ")
+    if key == "m3-stock":
+        assert "1.6 million EUR" in body["narrative"][0]["text"]
+    assert {citation for paragraph in body["narrative"] for citation in paragraph["citations"]} == {
+        source["id"] for source in body["evidence"]
+    }
+    assert body["observed_changes"][0]["citation"] == f"series:{key}"
+    assert body["evidence"][0]["url"] == CATALOG[key].source_url
+    documents = [item for item in body["evidence"] if item["kind"] == "document"]
+    assert len(documents) == PRESET_DOCUMENT_COUNTS[event][key]
+    assert body["corpus_sha256"] == (v2_retrieval.APPROVED_SNAPSHOT if documents else None)
+    corpus = v2_retrieval.approved_corpus()
+    for source in documents:
+        claim = corpus.claims[source["claim_id"]]
+        document = corpus.documents[claim.document_id]
+        assert source["document_id"] == document.id and source["indicator"] == key
+        assert source["relation"] == document.indicators[key]
+        assert source["url"] == claim.primary_source and source["locator"] == claim.locator
+        assert source["rights_url"] == document.rights.policy_url
+        assert source["period_start"] == claim.historical_period.start
+        assert source["period_end"] == claim.historical_period.end
+        assert source["published_on"] == claim.publication_date <= body["publication_cutoff"]
+        assert start.isoformat() <= source["period_start"] <= source["period_end"] <= end.isoformat()
+        assert [row["text"] for row in body["narrative"] if row["citations"] == [source["id"]]] == [claim.text]
+        if event == "generative-ai":
+            assert source["relation"] == "proxy"
     if key == "deposit-rate":
         assert body["observed_changes"][0]["first_observed_on"] == start.isoformat()
         assert body["observed_changes"][0]["last_observed_on"] == end.isoformat()
@@ -241,8 +276,6 @@ def test_preset_questions(research, event, prefix, periods, key, label, expected
         assert body["narrative"][0]["text"].count("effective 2019-09-18") == 2
     if question == COVID_HICP:
         assert body["publication_cutoff"] == "2020-12-31"
-        assert body["corpus_sha256"] == v2_retrieval.APPROVED_SNAPSHOT
-        documents = [item for item in body["evidence"] if item["kind"] == "document"]
         assert {item["claim_id"] for item in documents} == COVID_HICP_CLAIMS
         assert all("2020-02-01" <= item["period_start"] <= item["period_end"] <= item["published_on"]
                    <= body["publication_cutoff"] for item in documents)

@@ -203,6 +203,8 @@ def summarize_requirement(
 
 def _observation_text(row: MacroObservation, key: IndicatorId) -> str:
     unit = _UNITS[key]
+    if key == "m3-stock":
+        unit = "million EUR"
     suffix = unit if unit.startswith("%") else f" {unit}"
     return f"{_decimal(row.value)}{suffix} in {row.period_raw}"
 
