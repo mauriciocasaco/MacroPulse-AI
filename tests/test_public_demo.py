@@ -244,6 +244,8 @@ def test_research_rejects_invalid_body_and_leases(research_client, monkeypatch):
     assert research_client.post(RESEARCH, headers=HEADERS, json=ANALYSIS).status_code == 403
     assert research_client.post(RESEARCH, headers={**HEADERS, "X-MacroPulse-Research-Expires": "1234567890123"},
                                 json=ANALYSIS).status_code == 403
+    short_lease = {**HEADERS, "X-MacroPulse-Research-Expires": str(int(time() * 1000) + 41_000)}
+    assert research_client.post(RESEARCH, headers=short_lease, json=ANALYSIS).status_code == 403
     for invalid in ({**ANALYSIS, "question": "x" * 501}, {**ANALYSIS, "research_version": "v1"},
                     {**ANALYSIS, "event_id": None}, {**ANALYSIS, "start": 1580515200},
                     {**ANALYSIS, "end": "2021-01-01"}, {**ANALYSIS, "extra": True},

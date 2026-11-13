@@ -62,12 +62,12 @@ class PublicGemini:
 
     async def _invoke(self, payload: dict) -> str:
         model = f"models/{self._model}"
-        async with timeout(min(9, max(0, self._deadline - monotonic()))):
+        async with timeout(min(15, max(0, self._deadline - monotonic()))):
             async with httpx.AsyncClient(
                 base_url="https://generativelanguage.googleapis.com/v1beta/",
                 headers={"x-goog-api-key": self._key, "Accept": "application/json",
                          "Accept-Encoding": "identity"},
-                trust_env=False, follow_redirects=False, timeout=8,
+                trust_env=False, follow_redirects=False, timeout=12,
             ) as client:
                 counts = await self._post(client, f"{model}:countTokens",
                                           {"generateContentRequest": {"model": model, **payload}})

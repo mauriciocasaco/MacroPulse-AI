@@ -153,6 +153,7 @@ function post(token, overrides = {}) {
 test('edge verifies same-origin Turnstile before origin, strips secrets, and keeps charts with Research off', async (t) => {
   const fixture = sqliteFixture(t);
   const env = fixtureEnv(fixture.instance());
+  const timeouts = t.mock.method(AbortSignal, 'timeout');
   let verify = 0;
   let generated = 0;
   let verification = { success: true, hostname: 'demo.example', action: 'research', challenge_ts: new Date().toISOString() };
@@ -186,6 +187,7 @@ test('edge verifies same-origin Turnstile before origin, strips secrets, and kee
   assert.equal((await worker.fetch(post('valid', { headers: {
     Authorization: 'spoof', 'X-MarketPulse-Origin': 'spoof', 'X-MarketPulse-Client-IP': '192.0.2.2',
   } }), env)).status, 200);
+  assert.ok(timeouts.mock.calls.some(({ arguments: [duration] }) => duration === 45_000));
   assert.equal((await worker.fetch(post('valid'), env)).status, 403);
   for (const changes of [
     { action: 'wrong' }, { hostname: 'wrong.example' }, { challenge_ts: '2020-01-01T12:00:00Z' }, { success: false },

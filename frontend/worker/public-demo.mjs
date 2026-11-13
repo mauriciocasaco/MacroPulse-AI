@@ -126,6 +126,7 @@ const researchErrors = {
   budget: [429, 'Public Research budget reached'],
   busy: [503, 'Public Research is busy'],
 };
+const researchTimeoutMs = 45_000;
 
 async function publicResearch(request, env, ctx, url) {
   if (request.method !== 'POST') return error(405, 'Method not allowed');
@@ -158,11 +159,12 @@ async function publicResearch(request, env, ctx, url) {
       return reason ? error(...reason, reservation.retry) : error(503, 'Public Research is unavailable');
     }
     const { id, expires } = reservation;
+    const remaining = expires - Date.now();
     if (!/^[a-f0-9-]{36}$/.test(id ?? '') || !Number.isSafeInteger(expires)
-      || expires - Date.now() < 30_000 || expires - Date.now() > 60_000) {
+      || remaining < researchTimeoutMs + 2_000 || remaining > 60_000) {
       return error(503, 'Public Research is unavailable');
     }
-    timeout = AbortSignal.timeout(28_000);
+    timeout = AbortSignal.timeout(researchTimeoutMs);
     const upstream = await fetch(new URL('/macro/analysis', base), {
       method: 'POST', body, redirect: 'manual', cache: 'no-store', signal: timeout,
       headers: {
