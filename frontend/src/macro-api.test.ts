@@ -68,3 +68,25 @@ it('accepts safe empty-evidence abstention without a fabricated model or score',
   expect(result.evidence).toEqual([]);
   expect(result.model_id).toBeNull();
 });
+it('accepts a reviewed claim available after the economic window and checks its version and cutoff', async () => {
+  const claimVersion = 'a'.repeat(64);
+  const source = { ...document, id: 'claim:fixture-review:' + claimVersion,
+    claim_id: 'fixture-review', claim_version: claimVersion, document_id: 'b'.repeat(64),
+    available_at: '2026-11-14T15:28:23Z', source_id: 'ecb', claim_type: 'observed',
+    event: 'covid', indicator: 'eur-usd', geography: 'bilateral', measure: 'spot_reference_rate',
+    unit: 'USD per EUR', event_linkage: 'contemporaneous_non_causal', relation: 'direct',
+    locator: 'Figure 1', qualifiers: 'Contemporaneous observation.',
+    similarity_metric: null, similarity_score: null };
+  const payload = { ...response(), research_v2: true, support: 'partial',
+    publication_cutoff: '2026-11-14', evidence: [source],
+    narrative: [{ text: 'Approved documentary statement.', citations: [source.id], category: 'documentary context' }] };
+  const invoke = (body: unknown) => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(body)));
+    return askMacroAnalysis(question, start, end, new AbortController().signal,
+      { ...context, research_version: 'v2' });
+  };
+  await expect(invoke(payload)).resolves.toMatchObject({ evidence: [source] });
+  await expect(invoke({ ...payload, publication_cutoff: end })).rejects.toThrow('provenance');
+  await expect(invoke({ ...payload, evidence: [{ ...source, claim_version: 'c'.repeat(64) }] }))
+    .rejects.toThrow('provenance');
+});
