@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from time import time
@@ -230,10 +230,13 @@ def test_news_review_requires_current_rights_and_publication_cutoff(online_db):
         ((source, claim),) = online_evidence.retrieve_online(online, *args, date(2022, 3, 14))
         assert claim.citations == [source.id] and source.url.endswith("id=51618")
         assert "Synthetic body" not in claim.text
+        ((dynamic, _),) = online_evidence.retrieve_online(online, *args, window.end, dynamic=True)
+        assert dynamic.id == source.id and dynamic.claim_type == "historical_context"
     with psycopg.connect(online_db) as admin:
         admin.execute("UPDATE news.article_records SET public_display_allowed = false")
     with read_online(online_db) as online:
         assert not online_evidence.retrieve_online(online, *args, window.end)
+        assert not online_evidence.retrieve_online(online, *args, window.end, dynamic=True)
 
 
 def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch):
@@ -307,7 +310,7 @@ def test_spot_retrieval_excludes_untyped_news(online_db):
         assert online_evidence.retrieve_online(online, "EUR/USD", "ukraine", "eur-usd", window, window.end) == []
 
 
-def test_versioned_facts_require_exact_current_rights_and_human_review(online_db):
+def test_versioned_facts_require_exact_current_rights_and_human_review(online_db, monkeypatch):
     url = "https://institution.example/spot"
     with psycopg.connect(online_db) as admin:
         admin.execute("INSERT INTO news.sources (id, name) VALUES ('spot_fixture', 'Fixture ECB')")
@@ -376,6 +379,30 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
         ((dynamic, _),) = dynamic_read()
         assert dynamic.claim_version == "b" * 64
         assert dynamic.available_at.isoformat() == "2023-01-03T10:00:00+00:00"
+
+        monkeypatch.setattr(public_online, "resolve_online_settings", lambda _: public_demo.DemoSettings(
+            make_conninfo(online_db, password="synthetic"), SECRET,
+        ))
+        monkeypatch.setattr(public_online, "connect_online", lambda _: read_online(online_db))
+        monkeypatch.setenv("MACROPULSE_ONLINE_DYNAMIC_RAG", "true")
+        monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+        monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "a" * 35)
+        monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, statements: Draft.model_validate({
+            "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in statements],
+        }))
+        with TestClient(public_online.create_online_app()) as client:
+            response = client.post("/macro/analysis", headers={
+                **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 60) * 1000)),
+            }, json={
+                "question": "How did the war in Ukraine affect EUR/USD rate?",
+                "research_version": "v2", "event_id": "ukraine", "indicator_id": "eur-usd",
+                "start": "2022-02-01", "end": "2024-02-29",
+            })
+        assert response.status_code == 200 and response.headers["cache-control"] == "no-store"
+        response_payload = response.json()
+        assert response_payload["publication_cutoff"] >= "2024-02-29"
+        assert any(item["id"] == dynamic.id for item in response_payload["evidence"])
+        assert any(dynamic.id in item["citations"] for item in response_payload["narrative"])
         with read_online(online_db) as online:
             assert online_evidence.retrieve_online(online, *query, date(2023, 1, 2)) == []
             ((source, claim),) = online_evidence.retrieve_online(online, *query, date(2023, 1, 3))
@@ -422,6 +449,12 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
                         'review-ticket-2', 'Verified again', 'approved', '2023-01-04T10:00Z')
             """)
         assert dynamic_read()
+        with psycopg.connect(online_db) as revision_admin:
+            revision_admin.execute("UPDATE news.article_records SET is_synthetic = true WHERE id = %s", (record,))
+        assert not dynamic_read()
+        with psycopg.connect(online_db) as revision_admin:
+            revision_admin.execute("UPDATE news.article_records SET is_synthetic = false WHERE id = %s", (record,))
+        assert dynamic_read()
 
         # Isolate withdrawal from the rights-revocation test below.
         with admin.transaction() as tx:
@@ -449,3 +482,16 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
             assert online_evidence.retrieve_online(online, *query, window.end) == []
         assert not dynamic_read()
 
+
+
+
+def test_explicit_cutoff_excludes_late_official_capture(online_db):
+    window = MacroWindow(start=date(2020, 2, 1), end=date(2020, 12, 31))
+    with read_online(online_db) as online:
+        history = load_history(online, CATALOG["hicp-yoy"], window, schema=public_online.SCHEMA)
+        assert len(history.observations) == 2
+        historical = load_history(
+            online, CATALOG["hicp-yoy"], window, schema=public_online.SCHEMA,
+            known_at=datetime(2020, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        )
+        assert not historical.observations
