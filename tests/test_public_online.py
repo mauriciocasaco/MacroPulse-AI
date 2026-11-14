@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from time import time
@@ -230,10 +230,13 @@ def test_news_review_requires_current_rights_and_publication_cutoff(online_db):
         ((source, claim),) = online_evidence.retrieve_online(online, *args, date(2022, 3, 14))
         assert claim.citations == [source.id] and source.url.endswith("id=51618")
         assert "Synthetic body" not in claim.text
+        ((dynamic, _),) = online_evidence.retrieve_online(online, *args, window.end, dynamic=True)
+        assert dynamic.id == source.id and dynamic.claim_type == "historical_context"
     with psycopg.connect(online_db) as admin:
         admin.execute("UPDATE news.article_records SET public_display_allowed = false")
     with read_online(online_db) as online:
         assert not online_evidence.retrieve_online(online, *args, window.end)
+        assert not online_evidence.retrieve_online(online, *args, window.end, dynamic=True)
 
 
 def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch):
@@ -422,6 +425,12 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
                         'review-ticket-2', 'Verified again', 'approved', '2023-01-04T10:00Z')
             """)
         assert dynamic_read()
+        with psycopg.connect(online_db) as revision_admin:
+            revision_admin.execute("UPDATE news.article_records SET is_synthetic = true WHERE id = %s", (record,))
+        assert not dynamic_read()
+        with psycopg.connect(online_db) as revision_admin:
+            revision_admin.execute("UPDATE news.article_records SET is_synthetic = false WHERE id = %s", (record,))
+        assert dynamic_read()
 
         # Isolate withdrawal from the rights-revocation test below.
         with admin.transaction() as tx:
@@ -449,3 +458,16 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
             assert online_evidence.retrieve_online(online, *query, window.end) == []
         assert not dynamic_read()
 
+
+
+
+def test_explicit_cutoff_excludes_late_official_capture(online_db):
+    window = MacroWindow(start=date(2020, 2, 1), end=date(2020, 12, 31))
+    with read_online(online_db) as online:
+        history = load_history(online, CATALOG["hicp-yoy"], window, schema=public_online.SCHEMA)
+        assert len(history.observations) == 2
+        historical = load_history(
+            online, CATALOG["hicp-yoy"], window, schema=public_online.SCHEMA,
+            known_at=datetime(2020, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        )
+        assert not historical.observations
