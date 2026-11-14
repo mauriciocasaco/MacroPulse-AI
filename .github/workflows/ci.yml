@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements*.txt
+            requirements-m7*.txt
+      - name: Install test dependencies
+        run: |
+          python -m pip install -r backend/requirements-ai.txt -r backend/requirements-dev.txt
+      - name: Python compile check
+        run: python -m compileall -q backend tests
+      - name: Unit and fixture-backed tests (no external database)
+        env:
+          MARKET_DATA_TEST_DSN: ''
+          MACRO_DATA_TEST_DSN: ''
+          NEWS_TEST_DSN: ''
+        run: python -m pytest -ra
+
+  frontend:
+    name: Frontend and Worker tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Vitest
+        run: npm test
+      - name: Cloudflare Worker tests
+        run: npm run test:worker
+      - name: Lint
+        run: npm run lint
+      - name: Local PWA build
+        run: npm run build
+      - name: Public PWA build
+        run: npm run build:public
+
+  audit-python:
+    name: Python dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pip-audit
+        run: python -m pip install pip-audit
+      - name: Audit public Render dependency graph
+        run: python -m pip_audit -r backend/requirements-public-research.txt
+      - name: Audit local and developer dependency graph
+        run: python -m pip_audit -r backend/requirements-ai.txt -r backend/requirements-dev.txt
+
+  audit-npm:
+    name: npm dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Audit production dependencies (high and critical)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit full dependency tree (high and critical)
+        run: npm audit --audit-level=high
