@@ -32,7 +32,7 @@ jobs:
             requirements-m7*.txt
       - name: Install test dependencies
         run: |
-          python -m pip install -r backend/requirements-ai.txt -r backend/requirements-dev.txt
+          python -m pip install -r backend/requirements-ai.txt -r requirements-m7b.txt
       - name: Python compile check
         run: python -m compileall -q backend tests
       - name: Unit and fixture-backed tests (no external database)
@@ -87,7 +87,7 @@ jobs:
       - name: Audit public Render dependency graph
         run: python -m pip_audit -r backend/requirements-public-research.txt
       - name: Audit local and developer dependency graph
-        run: python -m pip_audit -r backend/requirements-ai.txt -r backend/requirements-dev.txt
+        run: python -m pip_audit -r backend/requirements-ai.txt -r requirements-m7b.txt
 
   audit-npm:
     name: npm dependency audit
