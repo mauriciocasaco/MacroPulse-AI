@@ -1,6 +1,7 @@
 """Bounded Gemini Developer API client used by the public Research v2 profile."""
 
 from asyncio import run, timeout
+from functools import partial
 import json
 from time import monotonic
 from typing import get_args
@@ -27,6 +28,15 @@ MAX_GENERATIONS = 2
 MAX_PROVIDER_BODY = 64 * 1024
 
 
+def _provider_status(error: BaseException) -> int | None:
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code
+    return None
+
+
+_gemini_stage = partial(research_stage, provider_status=_provider_status)
+
+
 class PublicGemini:
     def __init__(self, *, api_key: str, model: str, deadline: float):
         if model not in MODELS:
@@ -37,16 +47,16 @@ class PublicGemini:
         self._calls = 0
 
     def interpret(self, request, *, knowledge_cutoff=None) -> Intent:
-        with research_stage("gemini.interpret"):
+        with _gemini_stage("gemini.interpret"):
             inputs = interpretation_inputs(request, self._key, knowledge_cutoff=knowledge_cutoff)
             return self._generate(_INTERPRET, inputs, Intent)
 
     def compose(self, evidence: list[dict]) -> Draft:
-        with research_stage("gemini.compose"):
+        with _gemini_stage("gemini.compose"):
             return self._generate(_COMPOSE, composition_inputs(evidence), Draft)
 
     def general(self, request, reason, *, event, knowledge_cutoff) -> GeneralDraft:
-        with research_stage("gemini.general"):
+        with _gemini_stage("gemini.general"):
             inputs = general_inputs(request, self._key, reason, event=event, knowledge_cutoff=knowledge_cutoff)
             return self._generate(_GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
                                   deadline_headroom=GENERAL_DEADLINE_HEADROOM)
@@ -72,7 +82,7 @@ class PublicGemini:
             raw = run(self._invoke(payload, deadline_headroom=deadline_headroom))
         except httpx.TimeoutException:
             raise TimeoutError("Gemini timed out") from None
-        with research_stage("gemini.validate_schema"):
+        with _gemini_stage("gemini.validate_schema"):
             return schema.model_validate_json(raw)
 
     async def _invoke(self, payload: dict, *, deadline_headroom: float) -> str:
@@ -87,13 +97,13 @@ class PublicGemini:
                          "Accept-Encoding": "identity"},
                 trust_env=False, follow_redirects=False, timeout=12,
             ) as client:
-                with research_stage("gemini.count_tokens"):
+                with _gemini_stage("gemini.count_tokens"):
                     counts = await self._post(client, f"{model}:countTokens",
                                               {"generateContentRequest": {"model": model, **payload}})
                     tokens = counts.get("totalTokens")
                     if type(tokens) is not int or not 0 < tokens <= PREFLIGHT_TOKENS:
                         raise ValueError("Research prompt exceeds the input token limit")
-                with research_stage("gemini.generate_content"):
+                with _gemini_stage("gemini.generate_content"):
                     result = await self._post(client, f"{model}:generateContent", payload)
                     usage = result["usageMetadata"]
                     prompt, output, thinking = (usage.get(key, 0) for key in (

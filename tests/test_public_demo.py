@@ -527,6 +527,10 @@ def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch
               if entry.name == "uvicorn.error.macropulse.research"]
     by_stage = {event["stage"]: event for event in events}
     assert by_stage["gemini.count_tokens"]["error_type"] == error_types[failure]
+    if failure == "provider failure":
+        assert by_stage["gemini.count_tokens"]["provider_http_status"] == 503
+    else:
+        assert all("provider_http_status" not in event for event in events)
     assert by_stage["langgraph.interpret_with_llm"]["outcome"] == "error"
     assert by_stage["fastapi.research_runner"]["outcome"] == "error"
     assert by_stage["fastapi.response"]["http_status"] == code
@@ -534,6 +538,72 @@ def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch
     assert all(entry.exc_info is None for entry in caplog.records)
     for protected in ("synthetic private provider failure", "synthetic provider deadline", ANALYSIS["question"],
                       SECRET, PASSWORD, DSN, "192.0.2.3", "AIza" + "f" * 35):
+        assert protected not in caplog.text
+
+
+@pytest.mark.parametrize("provider_status", [400, 403, 429, 503])
+@pytest.mark.parametrize("phase", ["interpret", "compose"])
+def test_gemini_generation_logs_provider_status_and_keeps_generic_503(
+    research_client, monkeypatch, caplog, phase, provider_status,
+):
+    caplog.set_level(logging.INFO, logger="uvicorn.error.macropulse.research")
+    params = {**ANALYSIS, "question": "How did exchange rates move in the selected period?"}
+    intent = {"purpose": "descriptive", "requirements": [{
+        "excerpt": params["question"], "indicator": "eur-usd", "operation": "trend",
+        "geography": "bilateral", "measure": "spot_reference_rate",
+    }]}
+
+    def read(_connection, item, window, **_options):
+        assert phase == "compose"
+        observations = []
+        for raw, value in (("2020-02-03", "1.1"), ("2020-02-04", "1.2")):
+            period = parse_period(item.frequency, raw)
+            observations.append(MacroObservation(
+                period_raw=raw, period_start=period.start, period_end=period.end, effective_date=None,
+                value=Decimal(value), status_kind="normal", status_raw=None,
+            ))
+        return MacroHistory(indicator=indicator_metadata(item), start=window.start, end=window.end,
+                            updated_at=None, observations=observations)
+
+    monkeypatch.setattr(demo, "read_history", read)
+    calls = []
+
+    def simulate(request):
+        operation = request.url.path.rsplit(":", 1)[1]
+        calls.append(operation)
+        if operation == "countTokens":
+            return httpx.Response(200, json={"totalTokens": 200})
+        if phase == "compose" and len(calls) == 2:
+            return httpx.Response(200, json={
+                "usageMetadata": {"promptTokenCount": 200, "candidatesTokenCount": 60},
+                "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(intent)}]}}],
+            })
+        request.url = request.url.copy_add_param("key", "synthetic-url-credential")
+        return httpx.Response(provider_status, text="synthetic private provider body")
+
+    client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
+        transport=httpx.MockTransport(simulate), **options,
+    ))
+    headers = {**research_headers(), demo.RESEARCH_ID_HEADER: RESEARCH_ID}
+    reply = research_client.post(RESEARCH, headers=headers, json=params)
+    assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
+    assert demo.RESEARCH_ID_HEADER not in reply.headers
+    assert calls == ["countTokens", "generateContent"] * (2 if phase == "compose" else 1)
+
+    records = [entry for entry in caplog.records if entry.name == "uvicorn.error.macropulse.research"]
+    events = [json.loads(entry.getMessage()) for entry in records]
+    assert all(entry.exc_info is None for entry in records)
+    provider_events = [event for event in events if "provider_http_status" in event]
+    assert [event["stage"] for event in provider_events] == ["gemini.generate_content", f"gemini.{phase}"]
+    for event in provider_events:
+        assert event["event"] == "public_research_stage"
+        assert event["outcome"] == "error" and event["error_type"] == "HTTPStatusError"
+        assert event["provider_http_status"] == provider_status
+        assert event["research_id"] == RESEARCH_ID and event["duration_ms"] >= 0
+    assert next(event for event in events if event["stage"] == "fastapi.response")["http_status"] == 503
+    for protected in (params["question"], "synthetic-url-credential", "synthetic private provider body",
+                      "generativelanguage.googleapis.com", "AIza" + "f" * 35):
         assert protected not in caplog.text
 
 
