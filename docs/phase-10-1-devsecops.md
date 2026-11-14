@@ -7,9 +7,9 @@ accounts, authorization roles, infrastructure changes, or automatic deployments.
 
 | Workflow | Check | Scope |
 | --- | --- | --- |
-| [CI](../.github/workflows/ci.yml) | Backend tests | Python 3.12, pinned local AI + developer requirements, `compileall`, `pytest -ra` |
+| [CI](../.github/workflows/ci.yml) | Backend tests | Python 3.12, pinned local AI + M7.B/developer requirements, `compileall`, `pytest -ra` |
 | CI | Frontend and Worker tests | Node 24, `npm ci`, Vitest, Worker tests, lint, local and public PWA builds |
-| CI | Python dependency audit | `pip-audit` on public Render and local/developer requirements, including resolved dependencies |
+| CI | Python dependency audit | `pip-audit` on public Render and local/M7.B/developer requirements, including resolved dependencies |
 | CI | npm dependency audit | `npm audit` for production and full lockfile; high/critical findings fail |
 | [CodeQL](../.github/workflows/codeql.yml) | CodeQL (python) | Python security-extended queries |
 | CodeQL | CodeQL (javascript-typescript) | JS/TS security-extended queries |
