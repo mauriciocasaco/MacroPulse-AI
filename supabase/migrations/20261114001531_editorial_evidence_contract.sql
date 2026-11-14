@@ -124,6 +124,19 @@ BEGIN
     IF TG_OP = 'DELETE' THEN
         RAISE EXCEPTION 'editorial version history cannot be deleted' USING ERRCODE = '23514';
     END IF;
+    IF TG_TABLE_NAME = 'editorial_review' THEN
+        -- Stored generated columns are unavailable in NEW during BEFORE UPDATE.
+        IF ROW(OLD.claim_id, OLD.claim_version, OLD.rights_version, OLD.reviewer_id,
+               OLD.review_evidence, OLD.reason, OLD.status, OLD.decided_at)
+            IS DISTINCT FROM
+           ROW(NEW.claim_id, NEW.claim_version, NEW.rights_version, NEW.reviewer_id,
+               NEW.review_evidence, NEW.reason, NEW.status, NEW.decided_at)
+            OR OLD.withdrawn_at IS NOT NULL
+            OR NEW.withdrawn_at IS NULL THEN
+            RAISE EXCEPTION 'editorial versions are immutable except for irreversible retirement' USING ERRCODE = '23514';
+        END IF;
+        RETURN NEW;
+    END IF;
     IF (to_jsonb(OLD) - retirement_column) IS DISTINCT FROM (to_jsonb(NEW) - retirement_column)
         OR to_jsonb(OLD)->>retirement_column IS NOT NULL
         OR to_jsonb(NEW)->>retirement_column IS NULL THEN
@@ -217,10 +230,15 @@ AND EXISTS (
       AND coalesce(r.reported_published_on, (r.reported_published_at AT TIME ZONE 'UTC')::date) = old.published_on
 );
 
+REVOKE ALL ON macropulse_online.news_evidence FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON macropulse_online.news_evidence TO macropulse_online_ro;
+
+-- PostgreSQL 17 gives a non-superuser role creator ADMIN without SET.
+-- Add and remove only the migration role's own, non-inherited membership.
+GRANT macropulse_editorial_view_owner TO CURRENT_USER WITH SET TRUE, INHERIT FALSE;
 GRANT CREATE ON SCHEMA macropulse_online TO macropulse_editorial_view_owner;
 ALTER VIEW macropulse_online.news_evidence OWNER TO macropulse_editorial_view_owner;
 REVOKE CREATE ON SCHEMA macropulse_online FROM macropulse_editorial_view_owner;
-REVOKE ALL ON macropulse_online.news_evidence FROM PUBLIC, anon, authenticated, service_role;
-GRANT SELECT ON macropulse_online.news_evidence TO macropulse_online_ro;
+REVOKE macropulse_editorial_view_owner FROM CURRENT_USER GRANTED BY CURRENT_USER;
 
 COMMIT;
