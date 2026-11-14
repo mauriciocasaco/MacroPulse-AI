@@ -449,11 +449,11 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
                         'review-ticket-2', 'Verified again', 'approved', '2023-01-04T10:00Z')
             """)
         assert dynamic_read()
-        with psycopg.connect(online_db) as revision_admin:
-            revision_admin.execute("UPDATE news.article_records SET is_synthetic = true WHERE id = %s", (record,))
-        assert not dynamic_read()
-        with psycopg.connect(online_db) as revision_admin:
-            revision_admin.execute("UPDATE news.article_records SET is_synthetic = false WHERE id = %s", (record,))
+        with admin.transaction() as tx:
+            admin.execute("UPDATE news.article_records SET is_synthetic = true WHERE id = %s", (record,))
+            admin.execute("SET LOCAL ROLE macropulse_online_ro")
+            assert not online_evidence.retrieve_online(admin, *query, window.end, dynamic=True)
+            raise psycopg.Rollback(tx)
         assert dynamic_read()
 
         # Isolate withdrawal from the rights-revocation test below.
