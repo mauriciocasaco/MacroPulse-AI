@@ -20,7 +20,7 @@ def _history(key, window):
     periods = {
         "daily": [window.start.isoformat(), window.end.isoformat()],
         "monthly": [f"{year}-{window.start.month:02}", f"{year}-12"],
-        "quarterly": [f"{year}-Q2", f"{year}-Q3"],
+        "quarterly": [f"{year + (window.start.month > 4)}-Q2", f"{year + (window.start.month > 4)}-Q3"],
         "effective_date": [window.start.isoformat(), window.end.isoformat()],
     }
     observations = []
