@@ -8,6 +8,8 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
+from psycopg import OperationalError
+from psycopg.errors import QueryCanceled
 from pydantic import ValidationError
 
 from ..macro_data.api import MacroHistory, MacroWindow
@@ -81,6 +83,8 @@ class ResearchRuntime:
     model_id: str
     supplemental_retriever: Callable[..., list[tuple[CuratedEvidence, Claim]]] | None = None
     capture_vintage: str = "DEMO"
+    dynamic_editorial: bool = False
+    knowledge_cutoff: date | None = None
 
 
 def configured_model() -> str:
@@ -97,6 +101,7 @@ class State(TypedDict, total=False):
     intent: Intent
     event: EventId | None
     cutoff: date
+    period_end: date
     plans: list[Plan]
     official: list[SeriesResult]
     curated: list[tuple[CuratedEvidence, Claim]]
@@ -138,12 +143,11 @@ def interpret_with_llm(state: State) -> dict:
 
 def validate_scope(state: State) -> dict:
     request, intent = state["request"], state["intent"]
-    cutoff = state["cutoff"]
     if (intent.event and request.event_id and intent.event != request.event_id
             or intent.purpose == "uncertain"):
         return {"limitations": _note(state, "The event or research intent could not be reconciled with the selected scope.")}
     event = intent.event or request.event_id
-    start, end = request.start, cutoff
+    start, end = request.start, state["period_end"]
     if event:
         event_start, event_end = EVENT_WINDOWS[event]
         start, end = max(start, event_start), min(end, event_end)
@@ -246,11 +250,20 @@ def retrieve_curated_evidence(state: State) -> dict:
             seen.add(key)
             try:
                 arguments = (state["request"].question, event, plan.indicator, plan.window, state["cutoff"])
-                results = (v2_retrieval.retrieve(*arguments, strategy="tfidf") if runtime
-                           else v2_retrieval.retrieve(*arguments))
-                if results:
-                    fingerprint = v2_retrieval.APPROVED_SNAPSHOT
-                if runtime and runtime.supplemental_retriever:
+                dynamic = runtime and runtime.dynamic_editorial
+                results = []
+                if dynamic and runtime.supplemental_retriever:
+                    try:
+                        results = runtime.supplemental_retriever(*arguments)
+                    except (OperationalError, QueryCanceled, TimeoutError):
+                        limitations.append("Live editorial retrieval was unavailable.")
+                if not any(source.claim_version for source, _ in results):
+                    fallback = (v2_retrieval.retrieve(*arguments, strategy="tfidf") if runtime
+                                else v2_retrieval.retrieve(*arguments))
+                    if fallback:
+                        fingerprint = v2_retrieval.APPROVED_SNAPSHOT
+                        results += fallback
+                if runtime and not dynamic and runtime.supplemental_retriever:
                     results += runtime.supplemental_retriever(*arguments)
             except Exception:
                 if "runtime" in state:
@@ -277,14 +290,16 @@ def evaluate_support(state: State) -> dict:
     causal_question = state["intent"].purpose == "causal" or any(
         plan.requirement.operation == "causal_effect" for plan in state["plans"]
     )
-    if causal_question:
+    runtime = state.get("runtime")
+    if causal_question or (curated and runtime and runtime.dynamic_editorial):
         limitations.append("The available evidence does not identify the event's causal effect or quantify how much it changed the indicator.")
     if state.get("event") == "generative-ai" and any(plan.indicator == "real-gdp-qoq" for plan in state["plans"]):
         limitations.append("The approved corpus has no direct evidence of a generative AI effect on euro-area GDP. EU adoption evidence is proxy context.")
     if official:
-        runtime = state.get("runtime")
         vintage = runtime.capture_vintage if runtime else "local"
-        limitations.append(f"Official observations use the {vintage} capture vintage. Historical availability can differ because of later revisions.")
+        limitations.append(f"Official observations use the {vintage} capture vintage."
+                           + ("" if runtime and runtime.knowledge_cutoff else
+                              " Historical availability can differ because of later revisions."))
     if any(result.provisional for result in official):
         limitations.append("At least one cited observation is estimated or provisional.")
     if curated:
@@ -305,8 +320,9 @@ def evaluate_support(state: State) -> dict:
                     for result in official if result.calculation and result.calculation_prose]
     context = []
     for source, claim in curated:
-        category = ("institutional interpretation" if source.claim_type == "institutional_interpretation"
-                    else "proxy context" if source.relation == "proxy" else "documentary context")
+        category = ("proxy context" if source.relation == "proxy"
+                    else "institutional interpretation" if source.claim_type == "institutional_interpretation"
+                    else "documentary context")
         # Keep approved documentary language intact, including any attributed
         # mechanism. A bridge introduces the source without linking it causally to the series.
         bridge = ("The documentary evidence provides indirect context." if source.relation == "proxy"
@@ -452,8 +468,12 @@ def workflow():
 
 
 def run(request: ResearchRequest, *, runtime: ResearchRuntime | None = None) -> ResearchV2Response:
-    cutoff = min(request.end, datetime.now(timezone.utc).date())
-    state: State = {"request": request, "steps": [], "limitations": [], "cutoff": cutoff}
+    today = datetime.now(timezone.utc).date()
+    cutoff = min(request.end, today)
+    if runtime and runtime.dynamic_editorial:
+        cutoff = min(runtime.knowledge_cutoff or today, today)
+    state: State = {"request": request, "steps": [], "limitations": [], "cutoff": cutoff,
+                    "period_end": min(request.end, cutoff)}
     if intent := _preset_intent(request.question):
         state.update(intent=intent, steps=["interpret_preset"])
     if runtime is not None:

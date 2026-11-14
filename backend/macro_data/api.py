@@ -161,7 +161,10 @@ def _observation(item: Indicator, row: dict) -> MacroObservation:
     )
 
 
-def _deposit_coverage(connection: psycopg.Connection, indicator_id: str, window: MacroWindow, schema: str):
+def _deposit_coverage(
+    connection: psycopg.Connection, indicator_id: str, window: MacroWindow, schema: str,
+    known_at: datetime | None = None,
+):
     # Successful snapshots establish which dates were queried. Clip at the
     # provider-local date of receipt so future periods never become coverage.
     return connection.execute(sql.SQL("""
@@ -172,6 +175,7 @@ def _deposit_coverage(connection: psycopg.Connection, indicator_id: str, window:
             WHERE indicator_id = %s AND outcome = 'success' AND stale_observations = 0
               AND source_attributes->>'version_scope' IS DISTINCT FROM 'provider_repository'
               AND requested_start <= %s
+              AND (%s::timestamptz IS NULL OR captured_at <= %s)
         ), merged AS (
             SELECT range_agg(daterange(first_day, last_day, '[]')) AS dates
             FROM intervals WHERE first_day <= last_day
@@ -181,26 +185,30 @@ def _deposit_coverage(connection: psycopg.Connection, indicator_id: str, window:
         WHERE upper(span) > %s
         ORDER BY lower(span)
         LIMIT 1
-    """).format(sql.Identifier(schema)), (indicator_id, window.end, window.start)).fetchone()
+    """).format(sql.Identifier(schema)), (indicator_id, window.end, known_at, known_at, window.start)).fetchone()
 
 
 def load_history(
     connection: psycopg.Connection, item: Indicator, window: MacroWindow, *, schema: str = "macro_data",
+    known_at: datetime | None = None,
 ) -> MacroHistory:
     """Load source observations and locally verified deposit-rate coverage."""
+    if known_at is not None and known_at.utcoffset() is None:
+        raise ValueError("macro cutoff requires a timezone")
     connection.execute("SET LOCAL statement_timeout = '5s'")
     connection.execute("SET LOCAL lock_timeout = '2s'")
     updated_at, today = connection.execute(sql.SQL("""
         SELECT max(captured_at), (statement_timestamp() AT TIME ZONE 'Europe/Berlin')::date
         FROM {}.capture
         WHERE indicator_id = %s AND outcome = 'success'
+          AND (%s::timestamptz IS NULL OR captured_at <= %s)
           AND source_attributes->>'version_scope' IS DISTINCT FROM 'provider_repository'
-    """).format(sql.Identifier(schema)), (item.id,)).fetchone()
+    """).format(sql.Identifier(schema)), (item.id, known_at, known_at)).fetchone()
     coverage_start = coverage_end = anchor = None
     end = window.end
     if item.frequency == "effective_date":
         end = min(end, today)
-        span = _deposit_coverage(connection, item.id, window, schema)
+        span = _deposit_coverage(connection, item.id, window, schema, known_at)
         if span is not None:
             first, last = span
             coverage_start, coverage_end = max(first, window.start), min(last, end)
@@ -208,11 +216,15 @@ def load_history(
                 coverage_start = coverage_end = None
             if coverage_start is not None and first < window.start:
                 previous = read_observations(
-                    connection, item.id, start=first, end=window.start - timedelta(days=1), limit=1, newest_first=True, schema=schema,
+                    connection, item.id, start=first, end=window.start - timedelta(days=1), limit=1,
+                    newest_first=True, schema=schema, known_at=known_at,
                 )
                 if previous:
                     anchor = _observation(item, previous[0])
-    rows = read_observations(connection, item.id, start=window.start, end=end, limit=MAX_POINTS + 1, schema=schema)
+    rows = read_observations(
+        connection, item.id, start=window.start, end=end, limit=MAX_POINTS + 1,
+        schema=schema, known_at=known_at,
+    )
     if len(rows) > MAX_POINTS:
         raise HTTPException(status_code=422, detail="Macro history range exceeds the response limit")
     return MacroHistory(

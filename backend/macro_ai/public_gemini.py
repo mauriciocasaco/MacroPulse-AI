@@ -30,8 +30,8 @@ class PublicGemini:
         self._deadline = deadline
         self._calls = 0
 
-    def interpret(self, request) -> Intent:
-        inputs = interpretation_inputs(request, self._key)
+    def interpret(self, request, *, knowledge_cutoff=None) -> Intent:
+        inputs = interpretation_inputs(request, self._key, knowledge_cutoff=knowledge_cutoff)
         return self._generate(_INTERPRET, inputs, Intent)
 
     def compose(self, evidence: list[dict]) -> Draft:
