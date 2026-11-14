@@ -310,7 +310,7 @@ def test_spot_retrieval_excludes_untyped_news(online_db):
         assert online_evidence.retrieve_online(online, "EUR/USD", "ukraine", "eur-usd", window, window.end) == []
 
 
-def test_versioned_facts_require_exact_current_rights_and_human_review(online_db):
+def test_versioned_facts_require_exact_current_rights_and_human_review(online_db, monkeypatch):
     url = "https://institution.example/spot"
     with psycopg.connect(online_db) as admin:
         admin.execute("INSERT INTO news.sources (id, name) VALUES ('spot_fixture', 'Fixture ECB')")
@@ -379,6 +379,30 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
         ((dynamic, _),) = dynamic_read()
         assert dynamic.claim_version == "b" * 64
         assert dynamic.available_at.isoformat() == "2023-01-03T10:00:00+00:00"
+
+        monkeypatch.setattr(public_online, "resolve_online_settings", lambda _: public_demo.DemoSettings(
+            make_conninfo(online_db, password="synthetic"), SECRET,
+        ))
+        monkeypatch.setattr(public_online, "connect_online", lambda _: read_online(online_db))
+        monkeypatch.setenv("MACROPULSE_ONLINE_DYNAMIC_RAG", "true")
+        monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+        monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "a" * 35)
+        monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, statements: Draft.model_validate({
+            "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in statements],
+        }))
+        with TestClient(public_online.create_online_app()) as client:
+            response = client.post("/macro/analysis", headers={
+                **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 60) * 1000)),
+            }, json={
+                "question": "How did the war in Ukraine affect EUR/USD rate?",
+                "research_version": "v2", "event_id": "ukraine", "indicator_id": "eur-usd",
+                "start": "2022-02-01", "end": "2024-02-29",
+            })
+        assert response.status_code == 200 and response.headers["cache-control"] == "no-store"
+        response_payload = response.json()
+        assert response_payload["publication_cutoff"] >= "2024-02-29"
+        assert any(item["id"] == dynamic.id for item in response_payload["evidence"])
+        assert any(dynamic.id in item["citations"] for item in response_payload["narrative"])
         with read_online(online_db) as online:
             assert online_evidence.retrieve_online(online, *query, date(2023, 1, 2)) == []
             ((source, claim),) = online_evidence.retrieve_online(online, *query, date(2023, 1, 3))
