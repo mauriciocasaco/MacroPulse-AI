@@ -4,8 +4,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from functools import lru_cache, wraps
-from typing import TypedDict
+from typing import TypedDict, get_args
 
+import httpx
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 from psycopg import OperationalError
@@ -19,8 +20,8 @@ from .editorial_presentation import ENGLISH_SUMMARIES
 from .models import EVENT_WINDOWS, Claim, EventId, IndicatorId, ObservedChange, ResearchRequest
 from .statistics import read_statistics
 from .v2_models import (
-    Category, CuratedEvidence, Draft, Intent, NarrativeClaim, NarrativeStyle, Requirement, ResearchV2Response,
-    SeriesEvidence,
+    Category, CuratedEvidence, Draft, FallbackReason, GeneralDraft, GeneralFallbackAnswer, GeneralFallbackFailure,
+    Intent, NarrativeClaim, NarrativeStyle, Requirement, ResearchDiagnostic, ResearchV2Response, SeriesEvidence,
 )
 from .v2_statistics import DEFINITIONS, SeriesResult, exact_period, matches_definition, summarize_requirement
 
@@ -86,6 +87,7 @@ class ResearchRuntime:
     capture_vintage: str = "DEMO"
     dynamic_editorial: bool = False
     knowledge_cutoff: date | None = None
+    generate_general: Callable[..., GeneralDraft] | None = None
 
 
 def configured_model() -> str:
@@ -115,6 +117,16 @@ class State(TypedDict, total=False):
     narrative: list[NarrativeClaim]
     model_id: str | None
     response: ResearchV2Response
+    diagnostics: list[ResearchDiagnostic]
+
+
+# A technical failure takes precedence over gaps in any of the other requirements.
+_DIAGNOSTIC_PRIORITY: tuple[ResearchDiagnostic, ...] = (
+    "citation_validation_failed", "interpretation_unavailable", "evidence_reader_unavailable",
+    "ambiguous_interpretation", "unsupported_operation_or_series", "missing_official_observations",
+    "insufficient_documentary_evidence", "unsupported_causal_inference",
+)
+_FALLBACK_REASONS = frozenset(get_args(FallbackReason))
 
 
 def _note(state: State, text: str) -> list[str]:
@@ -139,40 +151,53 @@ def interpret_with_llm(state: State) -> dict:
     try:
         return {"intent": Intent.model_validate(v2_gemini.interpret(state["request"]))}
     except Exception:
-        return {"limitations": _note(state, "Gemini could not interpret this question safely. Review the question and local model configuration.")}
+        return {"diagnostics": ["interpretation_unavailable"], "limitations": _note(
+            state, "Gemini could not interpret this question safely. Review the question and local model configuration.",
+        )}
 
 
 def validate_scope(state: State) -> dict:
     request, intent = state["request"], state["intent"]
+    invalid_excerpts = {item.excerpt for item in intent.requirements
+                        if not item.excerpt.strip() or item.excerpt not in request.question}
+    diagnostics: list[ResearchDiagnostic] = ["interpretation_unavailable"] if invalid_excerpts else []
     if (intent.event and request.event_id and intent.event != request.event_id
             or intent.purpose == "uncertain"):
-        return {"limitations": _note(state, "The event or research intent could not be reconciled with the selected scope.")}
+        return {"diagnostics": [*diagnostics, "ambiguous_interpretation"], "limitations": _note(
+            state, "The event or research intent could not be reconciled with the selected scope.",
+        )}
     event = intent.event or request.event_id
     start, end = request.start, state["period_end"]
     if event:
         event_start, event_end = EVENT_WINDOWS[event]
         start, end = max(start, event_start), min(end, event_end)
     if end < start:
-        return {"limitations": _note(state, "The selected period has no available days in the historical scope.")}
+        return {"event": event, "diagnostics": [*diagnostics, "missing_official_observations"], "limitations": _note(
+            state, "The selected period has no available days in the historical scope.",
+        )}
 
-    limitations = state["limitations"]
+    limitations = state["limitations"].copy()
     if intent.unresolved:
+        diagnostics.append("ambiguous_interpretation")
         limitations = _note(state, "Part of the question could not be interpreted confidently.")
     plans = []
     for requirement in intent.requirements:
+        if requirement.excerpt in invalid_excerpts:
+            limitations.append("The question interpreter returned a requirement that could not be verified.")
+            continue
         plan = _plan(requirement, request, MacroWindow(start=start, end=end))
         if plan is None:
+            diagnostics.append("unsupported_operation_or_series")
             limitations.append("A requirement has an unsupported or ambiguous series definition, operation or period.")
         elif plan not in plans:
             plans.append(plan)
-    return {"event": event, "plans": plans, "limitations": list(dict.fromkeys(limitations))}
+    return {"event": event, "plans": plans, "limitations": list(dict.fromkeys(limitations)),
+            "diagnostics": diagnostics}
 
 
 def _plan(requirement: Requirement, request: ResearchRequest, bounds: MacroWindow) -> Plan | None:
     key = requirement.indicator
-    if (key is None or request.indicator_id not in {None, key}
-            or requirement.excerpt not in request.question or not requirement.excerpt.strip()
-            or not matches_definition(key, requirement)):
+    if key is None or request.indicator_id not in {None, key} or not matches_definition(key, requirement):
         return None
     operation = requirement.operation
     if operation == "other" or (operation == "relative_change" and key not in {"eur-usd", "m3-stock"}):
@@ -210,9 +235,11 @@ def read_official_statistics(state: State) -> dict:
     runtime = state.get("runtime")
     official = []
     limitations = state["limitations"].copy()
+    diagnostics = state["diagnostics"].copy()
     windows = {}
     for plan in state["plans"]:
         if plan.requirement.operation == "causal_effect":
+            diagnostics.append("unsupported_causal_inference")
             continue
         window_key = (plan.indicator, plan.window.start, plan.window.end)
         if window_key not in windows:
@@ -220,22 +247,27 @@ def read_official_statistics(state: State) -> dict:
                                    _read_local_history(plan.indicator, plan.window, state["request"].question))
         history = windows[window_key]
         if history is None:
+            diagnostics.append("evidence_reader_unavailable")
             limitations.append("The local official data reader was unavailable for a requirement.")
             continue
         try:
             result = summarize_requirement(history, plan.indicator, plan.window, plan.requirement)
         except (ArithmeticError, ValueError):
-            result = None
+            diagnostics.append("evidence_reader_unavailable")
+            limitations.append("The server could not validate or calculate the official observations for a requirement.")
+            continue
         if result:
             official.append(result)
         else:
+            diagnostics.append("missing_official_observations")
             limitations.append("The required official observations are missing or not comparable.")
-    return {"official": official, "limitations": list(dict.fromkeys(limitations))}
+    return {"official": official, "limitations": list(dict.fromkeys(limitations)), "diagnostics": diagnostics}
 
 
 def retrieve_curated_evidence(state: State) -> dict:
     curated = {}
     limitations = state["limitations"].copy()
+    diagnostics = state["diagnostics"].copy()
     event = state.get("event")
     fingerprint = None
     runtime = state.get("runtime")
@@ -257,6 +289,7 @@ def retrieve_curated_evidence(state: State) -> dict:
                     try:
                         results = runtime.supplemental_retriever(*arguments)
                     except (OperationalError, QueryCanceled, TimeoutError):
+                        diagnostics.append("evidence_reader_unavailable")
                         limitations.append("Live editorial retrieval was unavailable.")
                 if not any(source.claim_version for source, _ in results):
                     fallback = (v2_retrieval.retrieve(*arguments, strategy="tfidf") if runtime
@@ -270,6 +303,7 @@ def retrieve_curated_evidence(state: State) -> dict:
                 if "runtime" in state:
                     raise
                 missing_context = True
+                diagnostics.append("evidence_reader_unavailable")
                 limitations.append("Approved documentary retrieval was unavailable for a requirement.")
                 continue
             if results:
@@ -277,11 +311,12 @@ def retrieve_curated_evidence(state: State) -> dict:
                     curated[source.id] = (source, claim)
             else:
                 missing_context = True
+                diagnostics.append("insufficient_documentary_evidence")
                 limitations.append(f"The approved corpus has no applicable documentary context for {CATALOG[plan.indicator].title}.")
     # Four requirements can each contribute two official statements. Leave
     # room for up to eight documentary statements in the bounded draft.
     return {"curated": list(curated.values())[:8], "limitations": list(dict.fromkeys(limitations)),
-            "corpus_sha256": fingerprint, "missing_context": missing_context}
+            "corpus_sha256": fingerprint, "missing_context": missing_context, "diagnostics": diagnostics}
 
 
 def evaluate_support(state: State) -> dict:
@@ -381,6 +416,7 @@ def validate_answer(state: State) -> dict:
         not row.claim.citations or not set(row.claim.citations) <= evidence for row in statements
     )):
         return {"statements": [], "evidence": [], "model_id": None,
+                "diagnostics": [*state.get("diagnostics", []), "citation_validation_failed"],
                 "limitations": _note(state, "The server could not verify the available citations.")}
 
     # Even well-formed model output can only select server-owned realizations.
@@ -435,6 +471,10 @@ def finish(state: State) -> dict:
         or len(official) < len(plans) or state.get("missing_context")
     ))
     model_id = state.get("model_id")
+    diagnostics = state["diagnostics"]
+    reason = None if narrative else next(
+        (code for code in _DIAGNOSTIC_PRIORITY if code in diagnostics), "no_verified_statements",
+    )
     # Keep a single headline per indicator. Multiple comparisons remain in
     # their individually dated statements.
     movements: dict[IndicatorId, ObservedChange] = {}
@@ -444,6 +484,7 @@ def finish(state: State) -> dict:
                 movements.setdefault(result.movement.indicator_id, result.movement)
     return {"response": ResearchV2Response(
         status="answered" if narrative else "insufficient_evidence",
+        insufficiency_reason=reason,
         support=("partial" if partial else "supported") if narrative else "insufficient",
         question=request.question, start=request.start, end=request.end, publication_cutoff=state["cutoff"],
         indicator_id=request.indicator_id, event_id=request.event_id or state.get("event"),
@@ -459,6 +500,36 @@ def finish(state: State) -> dict:
     )}
 
 
+def _after_finish(state: State) -> str:
+    runtime = state.get("runtime")
+    response = state["response"]
+    if (runtime and runtime.generate_general is not None and response.status == "insufficient_evidence"
+            and response.insufficiency_reason in _FALLBACK_REASONS):
+        return "generate_general_fallback"
+    return END
+
+
+def generate_general_fallback(state: State) -> dict:
+    runtime = state["runtime"]
+    response = state["response"]
+    metadata = {"reason": response.insufficiency_reason, "model_id": runtime.model_id}
+    try:
+        draft = GeneralDraft.model_validate(runtime.generate_general(
+            state["request"], response.insufficiency_reason, event=state.get("event"),
+            knowledge_cutoff=runtime.knowledge_cutoff,
+        ))
+        fallback = GeneralFallbackAnswer(**metadata, answer=draft.answer)
+    except TimeoutError:
+        fallback = GeneralFallbackFailure(**metadata, error="timeout")
+    except httpx.HTTPError:
+        fallback = GeneralFallbackFailure(**metadata, error="provider_unavailable")
+    except (ValueError, LookupError, TypeError, AttributeError):
+        fallback = GeneralFallbackFailure(**metadata, error="invalid_response")
+    return {"response": response.model_copy(update={
+        "general_fallback": fallback, "graph_steps": [*response.graph_steps, "generate_general_fallback"],
+    })}
+
+
 def _traced(node: Callable[[State], dict]) -> Callable[[State], dict]:
     @wraps(node)
     def record(state: State) -> dict:
@@ -470,7 +541,7 @@ def _traced(node: Callable[[State], dict]) -> Callable[[State], dict]:
 def workflow():
     graph = StateGraph(State)
     for node in (interpret_with_llm, validate_scope, read_official_statistics, retrieve_curated_evidence,
-                 evaluate_support, compose_answer, validate_answer, finish):
+                 evaluate_support, compose_answer, validate_answer, finish, generate_general_fallback):
         graph.add_node(node.__name__, _traced(node))
     graph.add_conditional_edges(START, lambda state: "validate_scope" if state.get("intent") else "interpret_with_llm",
                                 ["validate_scope", "interpret_with_llm"])
@@ -484,7 +555,8 @@ def workflow():
                                 ["compose_answer", "finish"])
     graph.add_edge("compose_answer", "validate_answer")
     graph.add_edge("validate_answer", "finish")
-    graph.add_edge("finish", END)
+    graph.add_conditional_edges("finish", _after_finish, ["generate_general_fallback", END])
+    graph.add_edge("generate_general_fallback", END)
     return graph.compile()
 
 
@@ -493,7 +565,7 @@ def run(request: ResearchRequest, *, runtime: ResearchRuntime | None = None) -> 
     cutoff = min(request.end, today)
     if runtime and runtime.dynamic_editorial:
         cutoff = min(runtime.knowledge_cutoff or today, today)
-    state: State = {"request": request, "steps": [], "limitations": [], "cutoff": cutoff,
+    state: State = {"request": request, "steps": [], "limitations": [], "diagnostics": [], "cutoff": cutoff,
                     "period_end": min(request.end, cutoff)}
     if intent := _preset_intent(request.question):
         state.update(intent=intent, steps=["interpret_preset"])

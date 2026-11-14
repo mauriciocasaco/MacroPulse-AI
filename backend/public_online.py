@@ -13,7 +13,7 @@ from .macro_data.api import MAX_DAYS, MacroIndicator, indicator_metadata, load_h
 from .macro_data.contracts import CATALOG
 from .market_data.api_config import _ROLE_CHECK, _WRITE_PRIVILEGES
 from .public_demo import (
-    SHARED_PROJECT_REF, DemoConfigurationError, DemoSettings, create_public_app, demo_target,
+    GENERAL_FALLBACK_FLAG, SHARED_PROJECT_REF, DemoConfigurationError, DemoSettings, create_public_app, demo_target,
     parse_research, resolve_demo_settings, tls_dsn,
 )
 
@@ -232,12 +232,17 @@ def run_online_research(settings, request, key, model, deadline):
             stack.close()
             return provider.compose(evidence)
 
+        def general(*args, **kwargs):
+            stack.close()
+            return provider.general(*args, **kwargs)
+
         interpret = partial(provider.interpret, knowledge_cutoff=cutoff) if cutoff else provider.interpret
         runtime = ResearchRuntime(read, interpret, compose, model,
                                   supplemental_retriever=retrieve,
                                   capture_vintage=(f"Supabase as of {known_at.date()}" if known_at
                                                    else "latest available Supabase"),
-                                  dynamic_editorial=dynamic, knowledge_cutoff=cutoff)
+                                  dynamic_editorial=dynamic, knowledge_cutoff=cutoff,
+                                  generate_general=general if environ.get(GENERAL_FALLBACK_FLAG) == "true" else None)
         return run(request, runtime=runtime)
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from asyncio import get_running_loop, shield, timeout
 from collections.abc import Callable, Mapping
-from contextlib import asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager
 from dataclasses import dataclass, field
 import hmac
 from ipaddress import ip_address
@@ -37,6 +37,7 @@ MAX_WINDOW_DAYS = 2600
 MAX_BODY = 4096
 MAX_RESEARCH_RESPONSE = 64 * 1024
 RESEARCH_SECONDS = 40
+GENERAL_FALLBACK_FLAG = "MACROPULSE_RESEARCH_GENERAL_FALLBACK_ENABLED"
 RO_ROLE = "marketpulse_demo_ro"
 SHARED_PROJECT_REF = "swpithkjviavycrxpwed"
 _MACRO_CATALOG_PATH = "/macro/indicators"
@@ -246,15 +247,26 @@ def run_public_research(settings: DemoSettings, request: ResearchRequest, key: s
     from .macro_ai.v2_service import ResearchRuntime, run
 
     provider = PublicGemini(api_key=key, model=model, deadline=deadline)
-    # A single verified read-only transaction supplies all deterministic
-    # operands for this investigation. No local reader is registered.
-    with connect_demo(settings) as connection:
+    # All operands share one verified read-only transaction, opened only if needed.
+    with ExitStack() as stack:
+        connection = None
+
         def read(indicator: IndicatorId, window: MacroWindow) -> MacroHistory:
+            nonlocal connection
             if monotonic() >= deadline:
                 raise TimeoutError
+            if connection is None:
+                connection = stack.enter_context(connect_demo(settings))
             return read_history(connection, CATALOG[indicator], window, max_points=MAX_WINDOW_DAYS)
 
-        result = run(request, runtime=ResearchRuntime(read, provider.interpret, provider.compose, model))
+        def general(*args, **kwargs):
+            stack.close()
+            return provider.general(*args, **kwargs)
+
+        result = run(request, runtime=ResearchRuntime(
+            read, provider.interpret, provider.compose, model,
+            generate_general=general if os.environ.get(GENERAL_FALLBACK_FLAG) == "true" else None,
+        ))
     if monotonic() >= deadline:
         raise TimeoutError
     return result

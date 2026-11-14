@@ -57,8 +57,8 @@ export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analys
   return <>
     <section className="macro-intro" aria-labelledby="macro-title">
       <p className="eyebrow">Euro area research</p>
-      <h1 id="macro-title">AI-Powered Macroeconomic Intelligence</h1>
-      <p className="muted">Powered by LLMs, RAG, LangChain and LangGraph.</p>
+      <h1 id="macro-title">RAG-Powered Macroeconomic Research Assistant</h1>
+      <p className="muted">Technology stack: Gemini LLMs · LangChain · LangGraph · Official ECB &amp; Eurostat data.</p>
     </section>
     <section className="overview" aria-label="Macroeconomic indicator">
       <div>

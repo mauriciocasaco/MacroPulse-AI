@@ -147,7 +147,8 @@ it('opts into Research v2 only after the catalog advertises it and renders cited
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   await screen.findByText('Partial descriptive answer');
   expect(JSON.parse(String(analysis.mock.calls[0][1].body)).research_version).toBe('v2');
-  const summary = screen.getByRole('region', { name: 'Data summary' });
+  const summary = screen.getByRole('region', { name: 'Evidence-based analysis' });
+  expect(screen.getByRole('button', { name: 'General LLM' })).toHaveProperty('disabled', true);
   expect(screen.getByText(/Paragraph 1 · Official data/).closest('details')?.open).toBe(false);
   expect(within(summary).getByRole('link', { name: 'Source 1, ECB reference rate' }).getAttribute('href'))
     .toBe('https://data.ecb.europa.eu/');
@@ -181,7 +182,7 @@ it('plots monthly observations without filling gaps and preserves source decimal
     point('2026-06', '2026-06-01', '2026-06-30', '17612461.010'),
   ]);
   render(<App />);
-  expect(await screen.findByRole('heading', { name: 'AI-Powered Macroeconomic Intelligence' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'RAG-Powered Macroeconomic Research Assistant' })).toBeTruthy();
   fireEvent.change(await screen.findByLabelText('Indicator'), { target: { value: 'm3-stock' } });
   const svg = await screen.findByLabelText('Eurozone M3: official observations by period');
   expect(svg.querySelectorAll('circle')).toHaveLength(1);
@@ -272,7 +273,7 @@ it('limits the longest preset to seven years and preserves attribution without r
   expect(screen.queryByRole('table')).toBeNull();
   expect(screen.queryByText('fixture')).toBeNull();
   expect(screen.getByRole('link', { name: 'Reuse terms' })).toBeTruthy();
-  expect(screen.getByText('Powered by LLMs, RAG, LangChain and LangGraph.')).toBeTruthy();
+  expect(screen.getByText('Technology stack: Gemini LLMs · LangChain · LangGraph · Official ECB & Eurostat data.')).toBeTruthy();
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
 
@@ -323,7 +324,7 @@ it.each(['insufficient', 'partial'] as const)('renders %s public Research v2 aft
     act(() => options.callback('synthetic-token'));
     expect(submit).toHaveProperty('disabled', false);
     fireEvent.click(submit);
-    const result = await screen.findByRole('region', { name: 'Economic analysis' });
+    const result = await screen.findByRole('region', { name: 'Evidence-based analysis' });
     const missingEvidence = 'There is insufficient evidence to answer this question.';
     if (partial) {
       expect(within(result).getByText('Partial descriptive answer')).toBeTruthy();

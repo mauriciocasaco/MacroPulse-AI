@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AdministratorCredentialError, askMacroAnalysis, checkAdministrator,
-  type MacroAnalysis, type MacroIndicator, type ObservedChange, type ResearchEvidence,
+  type MacroAnalysis, type MacroIndicator, type ObservedChange, type ResearchDiagnostic, type ResearchEvidence,
 } from './macro-api';
 import { QuestionComposer, type QuestionSubmission } from './QuestionComposer';
 import { TurnstileCheck } from './TurnstileCheck';
@@ -19,6 +19,22 @@ const categoryLabels = {
   'documentary context': 'Documentary context',
   'institutional interpretation': 'Institutional interpretation',
   'proxy context': 'Proxy context',
+};
+const ragDiagnosis: Record<ResearchDiagnostic, string> = {
+  ambiguous_interpretation: 'Research v2 could not confidently interpret the question within the selected scope.',
+  unsupported_operation_or_series: 'Research v2 does not support the requested operation, series or period definition.',
+  missing_official_observations: 'Research v2 could not find comparable official observations for the requested period.',
+  insufficient_documentary_evidence: 'There is insufficient evidence in our institutional corpus to answer this question confidently.',
+  unsupported_causal_inference: 'Research v2 could not estimate the requested causal effect.',
+  interpretation_unavailable: 'The question interpreter was unavailable.',
+  evidence_reader_unavailable: 'An evidence reader was unavailable.',
+  citation_validation_failed: 'Research v2 could not validate the citations.',
+  no_verified_statements: 'Research v2 could not produce a verified statement for this question.',
+};
+const fallbackErrors = {
+  timeout: 'The general Gemini explanation timed out.',
+  provider_unavailable: 'Gemini is currently unavailable for the general explanation.',
+  invalid_response: 'Gemini did not return a usable general explanation.',
 };
 
 function ChangeHeadline({ change, citation }: { change: ObservedChange; citation: ReactNode }) {
@@ -73,6 +89,7 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
   const researchAvailable = enabled || isAdmin;
   const [request, setRequest] = useState<{
     indicatorId: string; controller: AbortController; pending: boolean; error?: string; result?: MacroAnalysis;
+    view?: 'rag' | 'general';
   }>();
   const active = useRef<AbortController>(null);
   useEffect(() => () => active.current?.abort(), [indicatorId, enabled, researchV2]);
@@ -80,6 +97,12 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
   const pending = current?.pending ?? false;
   const error = current?.error;
   const result = current?.result;
+  const fallback = result?.general_fallback;
+  const showingGeneral = current?.view === 'general' && fallback?.status === 'answered';
+
+  function selectResultView(view: 'rag' | 'general') {
+    setRequest((previous) => previous && previous.controller === current?.controller ? { ...previous, view } : previous);
+  }
 
   async function validateAdministrator() {
     if (!adminSecret || pending || isAdmin || adminStatus === 'checking') return;
@@ -129,7 +152,9 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
       { indicator_id: submission.indicatorId, event_id: submission.eventId,
         ...(researchV2 ? { research_version: 'v2' as const } : {}) },
       publicDemo && !isAdmin ? token : undefined, isAdmin ? adminSecret : undefined).then((data) => {
-      if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, result: data } : current);
+      if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? {
+        ...current, result: data, view: data.general_fallback?.status === 'answered' ? 'general' : 'rag',
+      } : current);
     }, (cause: unknown) => {
       const error = publicDemo && cause instanceof Error ? cause.message : 'Local macro research is currently unavailable.';
       if (controller.signal.aborted) return;
@@ -214,11 +239,27 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
     {pending && <output className="notice">Checking official evidence…</output>}
     {error && <p role="alert" className="notice error">{error}</p>}
     {result && <div className="analysis-result" aria-live="polite">
+      {result.research_v2 && <fieldset className="macro-presets" aria-label="Research result view">
+        <button type="button" aria-pressed={!showingGeneral} onClick={() => selectResultView('rag')}>
+          RAG-Specific LLM
+        </button>
+        <button type="button" aria-pressed={showingGeneral} disabled={fallback?.status !== 'answered'}
+          onClick={() => selectResultView('general')}>General LLM</button>
+      </fieldset>}
+      {showingGeneral ? <section className="result-section research-analysis" aria-labelledby="macro-analysis-title">
+        <h3 id="macro-analysis-title">General AI explanation — Not RAG-verified</h3>
+        <p className="notice">{ragDiagnosis[fallback.reason]} The following is a general explanation from Gemini
+          and has not been verified against MacroPulse&apos;s institutional sources.</p>
+        <p className="research-narrative research-general-answer">{fallback.answer}</p>
+        <p className="muted">Model: {fallback.model_id}</p>
+      </section> : <>
       {changes.map((change) => <ChangeHeadline key={change.citation} change={change} citation={citationLink(change.citation)} />)}
       <section className="result-section research-analysis" aria-labelledby="macro-analysis-title">
-        <h3 id="macro-analysis-title">{result.narrative_kind === 'deterministic' ? 'Data summary' : 'Economic analysis'}</h3>
+        <h3 id="macro-analysis-title">{result.research_v2 ? 'Evidence-based analysis'
+          : result.narrative_kind === 'deterministic' ? 'Data summary' : 'Economic analysis'}</h3>
         {result.status === 'insufficient_evidence'
-          ? <p>There is insufficient evidence to answer this question.</p>
+          ? <p>{result.insufficiency_reason ? ragDiagnosis[result.insufficiency_reason]
+            : 'There is insufficient evidence to answer this question.'}</p>
           : <>
             {result.support === 'partial' && <p className="evidence-status">
               {hasObservations ? 'Partial descriptive answer' : 'Partial answer'}
@@ -231,6 +272,7 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
         {result.limitations.length > 0 && <ul className="research-limitations muted">
           {result.limitations.map((note) => <li key={note}>{note}</li>)}
         </ul>}
+        {fallback?.status === 'failed' && <p role="alert" className="notice error">{fallbackErrors[fallback.error]}</p>}
       </section>
       <section className="result-section">
         <h3>Institutional sources</h3>
@@ -280,6 +322,7 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
           </ul>}
         </details>
       </section>
+      </>}
     </div>}
   </section>;
 }

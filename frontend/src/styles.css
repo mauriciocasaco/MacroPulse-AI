@@ -140,6 +140,7 @@ legend { margin-bottom: 8px; padding: 0; }
 .price-change { padding: 16px; border-radius: 10px; background: #0d0e10; }
 .price-change h3, .result-section h3 { font-size: 1.05rem; margin-bottom: 8px; }
 .research-analysis h3 { font-size: 1.2rem; }
+.research-general-answer { white-space: pre-line; }
 .change-value { font: 650 clamp(2rem, 6vw, 3rem)/1.2 var(--mono); margin-bottom: 4px; }
 .change-value.positive { color: var(--mint); }
 .change-value.negative { color: #ff9a9a; }

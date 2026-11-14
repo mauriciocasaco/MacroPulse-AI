@@ -352,6 +352,14 @@ test('public and administrator Research share Render validation and separate adm
   const limits = publicQuota.db.prepare('SELECT count(*) AS count FROM attempts');
   let verified = 0;
   let generated = 0;
+  const hybridResult = {
+    research_v2: true, status: 'insufficient_evidence', support: 'insufficient',
+    insufficiency_reason: 'unsupported_operation_or_series',
+    general_fallback: {
+      triggered: true, verified: false, reason: 'unsupported_operation_or_series', status: 'answered',
+      model_id: 'gemini-3.6-flash', answer: 'A currency shock could affect the cost of imports.',
+    },
+  };
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     if (String(url).includes('siteverify')) {
       verified++;
@@ -371,7 +379,7 @@ test('public and administrator Research share Render validation and separate adm
     assert.ok(Number(init.headers['X-MacroPulse-Research-Expires']) - Date.now() > 47_000);
     assert.deepEqual(JSON.parse(init.body), payload);
     generated++;
-    return Response.json({ research_v2: true }, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
+    return Response.json(hybridResult, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
   });
 
   const verify = await worker.fetch(adminPost(credential, { check: true }), env);
@@ -379,8 +387,11 @@ test('public and administrator Research share Render validation and separate adm
   assert.equal(verify.headers.get('Cache-Control'), 'no-store');
   assert.equal(generated, 0);
   assert.equal(publicAccess.mock.callCount(), 0);
-  assert.equal((await worker.fetch(post('public-token'), env)).status, 200);
+  const publicResult = await worker.fetch(post('public-token'), env);
+  assert.equal(publicResult.status, 200);
+  assert.deepEqual(await publicResult.json(), hybridResult);
   assert.equal(limits.get().count, 1);
+  assert.equal(publicQuota.db.prepare('SELECT total FROM monthly_reservations').get().total, 1);
 
   const now = new Date();
   const month = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
@@ -392,7 +403,9 @@ test('public and administrator Research share Render validation and separate adm
 
   const adminOnly = { ...env, MACROPULSE_TURNSTILE_SECRET: undefined };
   for (let count = 0; count < 7; count++) {
-    assert.equal((await worker.fetch(adminPost(credential), adminOnly)).status, 200);
+    const result = await worker.fetch(adminPost(credential), adminOnly);
+    assert.equal(result.status, 200);
+    assert.deepEqual(await result.json(), hybridResult);
   }
   assert.equal(verified, 2);
   assert.equal(generated, 8);
