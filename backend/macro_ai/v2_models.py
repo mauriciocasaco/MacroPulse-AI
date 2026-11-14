@@ -3,6 +3,7 @@
 from datetime import date, datetime
 import re
 from typing import Literal
+from unicodedata import normalize
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
@@ -95,12 +96,36 @@ ResearchDiagnostic = FallbackReason | Literal[
 ]
 FallbackModelId = Literal["gemini-3.6-flash", "gemini-3.5-flash-lite"]
 
-# The general view accepts conceptual plain text only. These checks reject
-# recognizable figures, links and citations; they do not verify economic claims.
+# Only known names can contain digits. Keep this policy in sync with macro-api.ts.
+_NUMBERED_NAMES = re.compile(
+    r"\b(?:M[0-4]|COVID[\s\-\u2010-\u2013\u2212]?19|G7|G20|EA(?:19|20|21)|EU-?27)\b", re.IGNORECASE,
+)
+_INSTITUTION = r"(?:ECB|Eurostat|European Central Bank)"
+_SOURCE_WORD = r"(?:data|figures|statistics|report|study|release|bulletin|analysis|estimates)"
+_REPORTING_VERB = (
+    r"(?:says?|said|shows?|showed|shown|finds?|found|reports?|reported|confirms?|confirmed|"
+    r"publishes?|published|documents?|documented|estimates?|estimated|concludes?|concluded|"
+    r"indicates?|indicated|states?|stated|suggests?|suggested|reveals?|revealed|claims?|claimed)"
+)
+_INSTITUTIONAL_ATTRIBUTION = re.compile(
+    rf"\b{_INSTITUTION}(?:['’]s)?\s+(?:(?:\w+\s+){{0,3}}{_SOURCE_WORD}\s+)?"
+    rf"(?:(?:has|have|had|also|previously|officially|recently)\s+)*{_REPORTING_VERB}\b|"
+    rf"\b{_REPORTING_VERB}\s+by\s+(?:the\s+)?{_INSTITUTION}\b|"
+    rf"\b{_SOURCE_WORD}\s+(?:from|by)\s+(?:the\s+)?{_INSTITUTION}\s+{_REPORTING_VERB}\b|"
+    rf"\b(?:per|as cited by)\s+(?:the\s+)?{_INSTITUTION}\b|"
+    rf"\(\s*(?:the\s+)?{_INSTITUTION}\s*\)",
+    re.IGNORECASE,
+)
+# These checks catch recognizable figures and references. Free text cannot be
+# fact-checked by a pattern, so the response remains explicitly unverified.
 _NON_CONCEPTUAL = re.compile(
-    r"\d|[%<>\[\]]|(?:https?\s*:|www\.|\b\w+\.(?:com|org|net|gov|edu|eu|int)\b)|"
-    r"\b(?:sources?|references?|citations?)\s*:|"
-    r"\b(?:according to|ECB|Eurostat|European Central Bank|DOI)\b",
+    r"[%<>\[\]]|https?\s*:|ftp\s*:|www\.|\b[\w-]+\.(?:com|org|net|gov|edu|eu|int|test|example)\b|"
+    r"\b[\w-]+\.[a-z]{2,63}/|"
+    r"\b(?:sources?|references?|citations?|bibliography)\s*:|\b(?:according to|DOI)\b|"
+    r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"\w+teen|\w+ty|hundred|thousand|million|billion|trillion|half|quarter)[\s\-]+"
+    r"(?:per\s+cent|percent(?:age\s+points?)?|basis\s+points?|"
+    r"hundred|thousand|million|billion|trillion|euros?|dollars?|pounds?)\b",
     re.IGNORECASE,
 )
 
@@ -113,8 +138,11 @@ class GeneralDraft(StrictOutput):
     def conceptual_text(cls, value):
         if isinstance(value, str):
             value = value.strip()
-            if _NON_CONCEPTUAL.search(value) or any(
-                not char.isprintable() and char != "\n" for char in value
+            checked = normalize("NFKC", value)
+            if (
+                _NON_CONCEPTUAL.search(checked) or _INSTITUTIONAL_ATTRIBUTION.search(checked)
+                or any(char.isnumeric() for char in _NUMBERED_NAMES.sub(" ", checked))
+                or any(not char.isprintable() and char != "\n" for char in value)
             ):
                 raise ValueError("Expected a conceptual explanation without figures or citations")
         return value

@@ -148,6 +148,33 @@ function oneOf<const T extends string>(options: readonly T[], value: unknown): v
   return typeof value === 'string' && (options as readonly string[]).includes(value);
 }
 
+// Keep the text checks in sync with GeneralDraft in v2_models.py.
+const numberedNames = /\b(?:M[0-4]|COVID[\s\-\u2010-\u2013\u2212]?19|G7|G20|EA(?:19|20|21)|EU-?27)\b/giu;
+const institution = '(?:ECB|Eurostat|European Central Bank)';
+const sourceWord = '(?:data|figures|statistics|report|study|release|bulletin|analysis|estimates)';
+const reportingVerb = '(?:says?|said|shows?|showed|shown|finds?|found|reports?|reported|confirms?|confirmed|'
+  + 'publishes?|published|documents?|documented|estimates?|estimated|concludes?|concluded|'
+  + 'indicates?|indicated|states?|stated|suggests?|suggested|reveals?|revealed|claims?|claimed)';
+const institutionalAttribution = new RegExp(
+  String.raw`\b${institution}(?:['’]s)?\s+(?:(?:\w+\s+){0,3}${sourceWord}\s+)?`
+    + String.raw`(?:(?:has|have|had|also|previously|officially|recently)\s+)*${reportingVerb}\b|`
+    + String.raw`\b${reportingVerb}\s+by\s+(?:the\s+)?${institution}\b|`
+    + String.raw`\b${sourceWord}\s+(?:from|by)\s+(?:the\s+)?${institution}\s+${reportingVerb}\b|`
+    + String.raw`\b(?:per|as cited by)\s+(?:the\s+)?${institution}\b|`
+    + String.raw`\(\s*(?:the\s+)?${institution}\s*\)`, 'iu',
+);
+const references = /[%<>[\]]|https?\s*:|ftp\s*:|www\.|\b[\w-]+\.(?:com|org|net|gov|edu|eu|int|test|example)\b|\b[\w-]+\.[a-z]{2,63}\/|\b(?:sources?|references?|citations?|bibliography)\s*:|\b(?:according to|DOI)\b/iu;
+const spelledQuantity = /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|\w+ty|hundred|thousand|million|billion|trillion|half|quarter)[\s-]+(?:per\s+cent|percent(?:age\s+points?)?|basis\s+points?|hundred|thousand|million|billion|trillion|euros?|dollars?|pounds?)\b/iu;
+
+function conceptualAnswer(answer: string): boolean {
+  const length = Array.from(answer).length;
+  const checked = answer.normalize('NFKC');
+  return answer === answer.trim() && length >= 20 && length <= 2400
+    && !references.test(checked) && !spelledQuantity.test(checked) && !institutionalAttribution.test(checked)
+    && !/\p{N}/u.test(checked.replaceAll(numberedNames, ' '))
+    && !/[\p{C}\p{Zl}\p{Zp}]/u.test(answer.replaceAll('\n', ''));
+}
+
 function generalFallback(value: unknown): value is GeneralFallback {
   if (!object(value) || value.triggered !== true || value.verified !== false
     || !oneOf(fallbackReasons, value.reason)
@@ -155,9 +182,7 @@ function generalFallback(value: unknown): value is GeneralFallback {
   const fields = ['triggered', 'verified', 'reason', 'model_id', 'status'];
   if (value.status === 'answered') {
     return Object.keys(value).every((key) => [...fields, 'answer'].includes(key))
-      && typeof value.answer === 'string' && value.answer === value.answer.trim()
-      && Array.from(value.answer).length >= 20 && Array.from(value.answer).length <= 2400
-      && !/\p{Nd}|[%<>[\]]|https?\s*:|www\.|\b\w+\.(?:com|org|net|gov|edu|eu|int)\b|\b(?:sources?|references?|citations?)\s*:|\b(?:according to|ECB|Eurostat|European Central Bank|DOI)\b/iu.test(value.answer);
+      && typeof value.answer === 'string' && conceptualAnswer(value.answer);
   }
   return value.status === 'failed' && Object.keys(value).every((key) => [...fields, 'error'].includes(key))
     && oneOf(['timeout', 'provider_unavailable', 'invalid_response'], value.error);

@@ -59,8 +59,12 @@ _GENERAL = ChatPromptTemplate.from_messages([
      "is outside the catalog. If it has multiple plausible interpretations, state your assumption or describe "
      "the alternatives. Distinguish possible mechanisms from established outcomes; do not assert that an event "
      "actually caused an outcome. For comparisons or quantitative questions explain what would be needed to "
-     "calculate the answer. Do not include numbers, source names or attributions, citations, links, formal series "
-     "identifiers, official data claims or claims of external verification. Avoid hindsight and respect any as-of "
+     "calculate the answer. Use conventional names such as M3 and COVID-19 when relevant. You may name the ECB "
+     "or Eurostat to describe their roles or say what a researcher could consult. Never attribute a finding, "
+     "statement or reported outcome to an institution. Describe directions and mechanisms without specific "
+     "amounts, dates, percentages or numerical estimates, including figures written in words. "
+     "Omit quotations, references, citations, links, formal series identifiers, official data claims and claims "
+     "of external verification. Avoid hindsight and respect any as-of "
      "boundary by keeping the explanation conceptual. State relevant assumptions and limits. "
      "Return only the answer as plain text in the schema. The service adds its own verification notice."),
     ("human", "{context}"),

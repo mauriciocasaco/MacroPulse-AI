@@ -7,11 +7,13 @@ import json
 from time import monotonic
 
 import httpx
+from pydantic import ValidationError
 import pytest
 
 from backend import public_demo, public_online
 from backend.macro_ai import online_evidence, public_gemini, v2_service
 from backend.macro_ai.models import ResearchRequest
+from backend.macro_ai.v2_models import GeneralDraft
 from backend.macro_data.api import MacroHistory, MacroObservation, indicator_metadata
 from backend.macro_data.contracts import CATALOG
 
@@ -60,6 +62,66 @@ def simulate_provider(monkeypatch, *replies):
 
     monkeypatch.setattr(public_gemini.PublicGemini, "_post", staticmethod(post))
     return calls
+
+
+@pytest.mark.parametrize("answer", [
+    "M3 includes household and business deposits as well as other liquid instruments.",
+    "During COVID-19, precautionary saving could affect the demand for liquid deposits.",
+    "ECB policy can influence the relative appeal of deposits and longer-term assets.",
+    "A researcher could consult Eurostat for context on spending and output.",
+    "The European Central Bank's monetary policy can affect how households allocate their savings.",
+])
+def test_general_draft_accepts_names_in_conceptual_explanations(answer):
+    assert GeneralDraft(answer=answer).answer == answer
+
+
+@pytest.mark.parametrize("answer", [
+    "Eurozone M3 rose by 4.2 percentage points during the boom.",
+    "COVID-19 reduced the money stock by five percent.",
+    "Broad money recorded a five-percent increase during the boom.",
+    "M3 fell to €５ billion while households shifted their savings.",
+    "The ECB reports that AI boosted broad money growth.",
+    "Eurostat’s latest figures show that broad money rose during the boom.",
+    "It was reported by the European Central Bank that AI boosted broad money.",
+    "Broad money rose during the boom (Eurostat).",
+    "According to Eurostat, AI was the main driver of the boom.",
+    "Broad money rose on the back of AI investment, per Eurostat.",
+    "For more information see invented-source.test/macro.",
+    "M3 reflects liquid deposits. References: An invented monetary study.",
+    "M3 reflects liquid deposits [invented source].",
+])
+def test_general_draft_rejects_quantities_attribution_and_references(answer):
+    with pytest.raises(ValidationError, match="without figures or citations"):
+        GeneralDraft(answer=answer)
+
+
+def test_m3_generative_ai_fallback_explains_channels_without_attributing_observed_changes(hybrid, monkeypatch):
+    request = ResearchRequest(question="How did Eurozone M3 evolve during the rise of generative AI and LLMs?",
+                              start=date(2023, 9, 1), end=date(2026, 9, 30),
+                              indicator_id="m3-stock", event_id="generative-ai")
+    intent = {"purpose": "descriptive", "requirements": [{
+        "excerpt": request.question, "indicator": "m3-stock", "operation": "trend",
+        "geography": "euro_area", "measure": "m3_stock",
+    }]}
+    answer = (
+        "Eurozone M3 is a broad measure of money. AI investment could affect firms' borrowing and deposit balances, "
+        "while ECB policy can shift savers between liquid deposits and longer-term assets. "
+        "Assessing how M3 evolved would require comparable observations over the period. "
+        "Isolating an AI effect would also require accounting for other influences."
+    )
+    calls = simulate_provider(monkeypatch, intent, {"answer": answer})
+    monkeypatch.setenv(public_demo.GENERAL_FALLBACK_FLAG, "true")
+    monkeypatch.setattr(public_online, "connect_online", lambda *_: nullcontext(object()))
+    monkeypatch.setattr(online_evidence, "retrieve_online", lambda *_: [])
+    monkeypatch.setattr(public_online, "load_history", lambda _conn, item, window, **_options: MacroHistory(
+        indicator=indicator_metadata(item), start=window.start, end=window.end,
+        updated_at=None, observations=[],
+    ))
+    result = public_online.run_online_research(object(), request, "fixture-key", MODEL, monotonic() + 40)
+    assert result.status == "insufficient_evidence" and result.insufficiency_reason == "missing_official_observations"
+    assert result.general_fallback.answer == answer and result.general_fallback.verified is False
+    assert result.narrative == result.evidence == result.observed_changes == []
+    assert len(calls) == 4
 
 
 @pytest.mark.parametrize("operation,metadata,reason", [
