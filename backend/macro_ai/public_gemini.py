@@ -7,6 +7,7 @@ from typing import get_args
 
 import httpx
 
+from ..research_logging import research_stage
 from .v2_gemini import _COMPOSE, _GENERAL, _INTERPRET, composition_inputs, general_inputs, interpretation_inputs
 from .v2_models import Draft, FallbackModelId, GeneralDraft, Intent
 
@@ -36,16 +37,19 @@ class PublicGemini:
         self._calls = 0
 
     def interpret(self, request, *, knowledge_cutoff=None) -> Intent:
-        inputs = interpretation_inputs(request, self._key, knowledge_cutoff=knowledge_cutoff)
-        return self._generate(_INTERPRET, inputs, Intent)
+        with research_stage("gemini.interpret"):
+            inputs = interpretation_inputs(request, self._key, knowledge_cutoff=knowledge_cutoff)
+            return self._generate(_INTERPRET, inputs, Intent)
 
     def compose(self, evidence: list[dict]) -> Draft:
-        return self._generate(_COMPOSE, composition_inputs(evidence), Draft)
+        with research_stage("gemini.compose"):
+            return self._generate(_COMPOSE, composition_inputs(evidence), Draft)
 
     def general(self, request, reason, *, event, knowledge_cutoff) -> GeneralDraft:
-        inputs = general_inputs(request, self._key, reason, event=event, knowledge_cutoff=knowledge_cutoff)
-        return self._generate(_GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
-                              deadline_headroom=GENERAL_DEADLINE_HEADROOM)
+        with research_stage("gemini.general"):
+            inputs = general_inputs(request, self._key, reason, event=event, knowledge_cutoff=knowledge_cutoff)
+            return self._generate(_GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
+                                  deadline_headroom=GENERAL_DEADLINE_HEADROOM)
 
     def _generate(self, template, inputs, schema, *, output_tokens=OUTPUT_TOKENS, deadline_headroom=0):
         if self._calls >= MAX_GENERATIONS:
@@ -68,7 +72,8 @@ class PublicGemini:
             raw = run(self._invoke(payload, deadline_headroom=deadline_headroom))
         except httpx.TimeoutException:
             raise TimeoutError("Gemini timed out") from None
-        return schema.model_validate_json(raw)
+        with research_stage("gemini.validate_schema"):
+            return schema.model_validate_json(raw)
 
     async def _invoke(self, payload: dict, *, deadline_headroom: float) -> str:
         model = f"models/{self._model}"
@@ -82,27 +87,29 @@ class PublicGemini:
                          "Accept-Encoding": "identity"},
                 trust_env=False, follow_redirects=False, timeout=12,
             ) as client:
-                counts = await self._post(client, f"{model}:countTokens",
-                                          {"generateContentRequest": {"model": model, **payload}})
-                tokens = counts.get("totalTokens")
-                if type(tokens) is not int or not 0 < tokens <= PREFLIGHT_TOKENS:
-                    raise ValueError("Research prompt exceeds the input token limit")
-                result = await self._post(client, f"{model}:generateContent", payload)
-                usage = result["usageMetadata"]
-                prompt, output, thinking = (usage.get(key, 0) for key in (
-                    "promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount",
-                ))
-                if (any(type(value) is not int or value < 0 for value in (prompt, output, thinking))
-                        or not 0 < prompt <= INPUT_TOKENS
-                        or not 0 < output + thinking <= payload["generationConfig"]["maxOutputTokens"]):
-                    raise ValueError("Unexpected provider token usage")
-                candidate, = result["candidates"]
-                if candidate["finishReason"] != "STOP":
-                    raise ValueError("Incomplete provider response")
-                parts = candidate["content"]["parts"]
-                if not parts or any(set(part) - {"text", "thoughtSignature"} for part in parts):
-                    raise ValueError("Unexpected provider response parts")
-                return "".join(part["text"] for part in parts)
+                with research_stage("gemini.count_tokens"):
+                    counts = await self._post(client, f"{model}:countTokens",
+                                              {"generateContentRequest": {"model": model, **payload}})
+                    tokens = counts.get("totalTokens")
+                    if type(tokens) is not int or not 0 < tokens <= PREFLIGHT_TOKENS:
+                        raise ValueError("Research prompt exceeds the input token limit")
+                with research_stage("gemini.generate_content"):
+                    result = await self._post(client, f"{model}:generateContent", payload)
+                    usage = result["usageMetadata"]
+                    prompt, output, thinking = (usage.get(key, 0) for key in (
+                        "promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount",
+                    ))
+                    if (any(type(value) is not int or value < 0 for value in (prompt, output, thinking))
+                            or not 0 < prompt <= INPUT_TOKENS
+                            or not 0 < output + thinking <= payload["generationConfig"]["maxOutputTokens"]):
+                        raise ValueError("Unexpected provider token usage")
+                    candidate, = result["candidates"]
+                    if candidate["finishReason"] != "STOP":
+                        raise ValueError("Incomplete provider response")
+                    parts = candidate["content"]["parts"]
+                    if not parts or any(set(part) - {"text", "thoughtSignature"} for part in parts):
+                        raise ValueError("Unexpected provider response parts")
+                    return "".join(part["text"] for part in parts)
 
     @staticmethod
     async def _post(client: httpx.AsyncClient, endpoint: str, payload: dict) -> dict:

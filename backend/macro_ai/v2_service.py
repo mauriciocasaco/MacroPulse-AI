@@ -15,6 +15,7 @@ from pydantic import ValidationError
 
 from ..macro_data.api import MacroHistory, MacroWindow
 from ..macro_data.contracts import CATALOG
+from ..research_logging import research_stage
 from . import v2_gemini, v2_retrieval
 from .editorial_presentation import ENGLISH_SUMMARIES
 from .models import EVENT_WINDOWS, Claim, EventId, IndicatorId, ObservedChange, ResearchRequest
@@ -251,7 +252,8 @@ def read_official_statistics(state: State) -> dict:
             limitations.append("The local official data reader was unavailable for a requirement.")
             continue
         try:
-            result = summarize_requirement(history, plan.indicator, plan.window, plan.requirement)
+            with research_stage("langgraph.summarize_requirement"):
+                result = summarize_requirement(history, plan.indicator, plan.window, plan.requirement)
         except (ArithmeticError, ValueError):
             diagnostics.append("evidence_reader_unavailable")
             limitations.append("The server could not validate or calculate the official observations for a requirement.")
@@ -398,7 +400,8 @@ def compose_answer(state: State) -> dict:
     runtime = state.get("runtime")
     try:
         if runtime:
-            return {"draft": runtime.compose(payload), "model_id": runtime.model_id}
+            with research_stage("langgraph.compose_draft"):
+                return {"draft": runtime.compose(payload), "model_id": runtime.model_id}
         return {"draft": v2_gemini.compose(payload), "model_id": configured_model()}
     except ValidationError:
         return {"limitations": _note(state, _DRAFT_LIMITATION)}
@@ -514,11 +517,12 @@ def generate_general_fallback(state: State) -> dict:
     response = state["response"]
     metadata = {"reason": response.insufficiency_reason, "model_id": runtime.model_id}
     try:
-        draft = GeneralDraft.model_validate(runtime.generate_general(
-            state["request"], response.insufficiency_reason, event=state.get("event"),
-            knowledge_cutoff=runtime.knowledge_cutoff,
-        ))
-        fallback = GeneralFallbackAnswer(**metadata, answer=draft.answer)
+        with research_stage("langgraph.general_fallback_attempt"):
+            draft = GeneralDraft.model_validate(runtime.generate_general(
+                state["request"], response.insufficiency_reason, event=state.get("event"),
+                knowledge_cutoff=runtime.knowledge_cutoff,
+            ))
+            fallback = GeneralFallbackAnswer(**metadata, answer=draft.answer)
     except TimeoutError:
         fallback = GeneralFallbackFailure(**metadata, error="timeout")
     except httpx.HTTPError:
@@ -533,7 +537,8 @@ def generate_general_fallback(state: State) -> dict:
 def _traced(node: Callable[[State], dict]) -> Callable[[State], dict]:
     @wraps(node)
     def record(state: State) -> dict:
-        return {**node(state), "steps": [*state["steps"], node.__name__]}
+        with research_stage(f"langgraph.{node.__name__}"):
+            return {**node(state), "steps": [*state["steps"], node.__name__]}
     return record
 
 
@@ -571,5 +576,5 @@ def run(request: ResearchRequest, *, runtime: ResearchRuntime | None = None) -> 
         state.update(intent=intent, steps=["interpret_preset"])
     if runtime is not None:
         state["runtime"] = runtime
-    with tracing_context(enabled=False):
+    with tracing_context(enabled=False), research_stage("langgraph.invoke"):
         return workflow().invoke(state, config={"recursion_limit": 10})["response"]

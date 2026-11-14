@@ -1,4 +1,5 @@
 import { boundedBody } from './bounded-body.mjs';
+import { researchErrorType, researchEvent, researchStage } from './research-logging.mjs';
 
 const eventWindows = new Map([
   ['covid', ['2020-02-01', '2020-12-31']],
@@ -58,7 +59,7 @@ export function researchEnabled(env, url) {
     && hostname === url.hostname && /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(hostname);
 }
 
-export function researchConfig(env, url) {
+export function researchConfig(env, url, researchId = null) {
   const hostname = env.MACROPULSE_RESEARCH_HOSTNAME ?? '';
   const sitekey = env.MACROPULSE_TURNSTILE_SITE_KEY ?? '';
   const secret = env.MACROPULSE_TURNSTILE_SECRET ?? '';
@@ -68,12 +69,14 @@ export function researchConfig(env, url) {
     || !/^[a-f0-9]{64}$/.test(hashKey) || new Set(hashKey).size < 12
     || /^(.{1,32})\1+$/.test(hashKey) || hashKey === env.MARKETPULSE_DEMO_ORIGIN_SECRET
     || !env.RESEARCH_QUOTA) return null;
+  const started = performance.now();
   try {
     return {
       hostname, sitekey, secret, hashKey,
       quota: env.RESEARCH_QUOTA.getByName('macropulse-research-global-v1'),
     };
-  } catch {
+  } catch (cause) {
+    if (researchId) researchEvent(researchId, 'worker.quota_binding', started, researchErrorType(cause));
     return null;
   }
 }
@@ -118,8 +121,7 @@ export async function quotaReady(config) {
   }
 }
 
-export async function reserveResearch(config, token, visitor) {
-  if (!tokenPattern.test(token ?? '')) return { code: 'challenge' };
+async function verifyTurnstile(config, token) {
   const signal = AbortSignal.timeout(4000);
   const reply = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
     method: 'POST', redirect: 'manual', signal,
@@ -136,13 +138,24 @@ export async function reserveResearch(config, token, visitor) {
     if (result['error-codes']?.some((code) => ['internal-error', 'invalid-input-secret', 'missing-input-secret'].includes(code))) {
       throw new Error('Siteverify unavailable');
     }
-    return { code: 'challenge' };
+    return null;
   }
   const challengeTime = timePattern.test(result.challenge_ts ?? '') ? Date.parse(result.challenge_ts) : NaN;
   if (result.hostname !== config.hostname || result.action !== 'research' || !Number.isSafeInteger(challengeTime)
     || challengeTime > Date.now() || Date.now() - challengeTime >= 300_000) {
-    return { code: 'challenge' };
+    return null;
   }
+  return challengeTime;
+}
+
+export async function reserveResearch(config, token, visitor, researchId) {
+  if (!tokenPattern.test(token ?? '')) return { code: 'challenge' };
+  const challengeTime = await researchStage(researchId, 'worker.turnstile', () => verifyTurnstile(config, token));
+  if (challengeTime === null) return { code: 'challenge' };
+  return researchStage(researchId, 'worker.quota_admit', () => admitResearch(config, token, visitor, challengeTime));
+}
+
+async function admitResearch(config, token, visitor, challengeTime) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(config.hashKey), { name: 'HMAC', hash: 'SHA-256' },
     false, ['sign']);
   const digest = async (value) => Array.from(new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(value))),
@@ -157,6 +170,14 @@ export async function reserveResearch(config, token, visitor) {
   return response.json();
 }
 
-export async function releaseResearch(config, id) {
-  await quotaRequest(config.quota, '/release', { id });
+export async function releaseResearch(config, id, researchId) {
+  const started = performance.now();
+  try {
+    const response = await quotaRequest(config.quota, '/release', { id });
+    researchEvent(researchId, 'worker.quota_release', started,
+      response.ok ? undefined : 'QuotaReleaseHTTPError', response.status);
+  } catch (cause) {
+    researchEvent(researchId, 'worker.quota_release', started, researchErrorType(cause));
+    throw cause;
+  }
 }

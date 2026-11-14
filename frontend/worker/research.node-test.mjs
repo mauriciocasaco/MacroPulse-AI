@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { ResearchQuota } from './public-demo.mjs';
 import { adminCheckHeader, adminHeader, readResearchPayload } from './research.mjs';
+import { researchIdHeader } from './research-logging.mjs';
 
 const host = 'https://demo.example';
 const analyze = '/api/macro/analysis';
@@ -247,6 +248,65 @@ test('origin 504 keeps lease, and Siteverify redirect or outage fail closed', as
   assert.equal(busy.status, 503);
   assert.ok(busy.headers.has('Retry-After'));
   assert.equal(origins, 2);
+});
+
+test('Research logs distinguish Turnstile, quota and Render failures with safe fields', async (t) => {
+  const fixture = sqliteFixture(t);
+  const quota = fixture.instance();
+  const privateMarker = 'synthetic private detail';
+  const visitorSuppliedId = 'cb31e1d0-41f6-4a82-8436-30f47564c5cb';
+  const records = [];
+  for (const method of ['info', 'warn']) {
+    t.mock.method(console, method, (event) => records.push(event));
+  }
+  let failure = 'turnstile';
+  const env = fixtureEnv({
+    fetch(request) {
+      if (failure === 'quota') throw new TypeError(privateMarker);
+      return quota.fetch(request);
+    },
+  });
+  let originCalls = 0;
+  let forwardedId;
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (String(url).startsWith('https://challenges.cloudflare.com/')) {
+      if (failure === 'turnstile') throw new TypeError(privateMarker);
+      return Response.json({
+        success: true, hostname: 'demo.example', action: 'research', challenge_ts: new Date().toISOString(),
+      });
+    }
+    originCalls++;
+    forwardedId = init.headers[researchIdHeader];
+    return new Response(privateMarker, { status: 502 });
+  });
+
+  for (const [phase, stage, errorType] of [
+    ['turnstile', 'worker.turnstile', 'TypeError'],
+    ['quota', 'worker.quota_admit', 'TypeError'],
+    ['origin', 'worker.render_fetch', 'UnexpectedUpstreamStatus'],
+  ]) {
+    failure = phase;
+    records.length = 0;
+    const response = await worker.fetch(post('synthetic-token', { headers: { [researchIdHeader]: visitorSuppliedId } }), env);
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { detail: 'Public Research is unavailable' });
+    assert.equal(response.headers.get(researchIdHeader), null);
+    const entry = records.find((record) => record.stage === stage);
+    assert.equal(entry.error_type, errorType);
+    assert.equal(entry.outcome, 'error');
+    assert.ok(records.every((record) => record.research_id === entry.research_id && record.duration_ms >= 0));
+    assert.notEqual(entry.research_id, visitorSuppliedId);
+    if (phase === 'origin') {
+      assert.equal(entry.research_id, forwardedId);
+      assert.equal(entry.http_status, 502);
+    }
+    for (const sensitive of [privateMarker, payload.question, secret, env.MACROPULSE_TURNSTILE_SECRET,
+      env.MACROPULSE_RESEARCH_HASH_KEY, 'synthetic-token', '192.0.2.1', render]) {
+      assert.ok(!JSON.stringify(records).includes(sensitive));
+    }
+  }
+  assert.equal(originCalls, 1);
+  assert.equal(fixture.db.prepare('SELECT count(*) AS count FROM leases').get().count, 1);
 });
 
 test('Siteverify rejects oversized declared and streamed responses before admission', async (t) => {

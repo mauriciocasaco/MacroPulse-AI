@@ -5,6 +5,7 @@ from __future__ import annotations
 from asyncio import get_running_loop, shield, timeout
 from collections.abc import Callable, Mapping
 from contextlib import ExitStack, asynccontextmanager
+from contextvars import copy_context
 from dataclasses import dataclass, field
 import hmac
 from ipaddress import ip_address
@@ -14,6 +15,7 @@ from pathlib import Path
 import re
 from time import monotonic, time
 from typing import Annotated, TYPE_CHECKING
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -26,6 +28,7 @@ from .macro_data.api import MacroHistory, MacroWindow, indicator_metadata
 from .macro_data.contracts import CATALOG
 from .macro_data.public import read_history, verify_projection
 from .market_data.api_config import _ROLE_CHECK, _WRITE_PRIVILEGES, is_dev_target
+from .research_logging import research_event, research_id, research_stage
 
 if TYPE_CHECKING:
     from .macro_ai.models import IndicatorId, ResearchRequest
@@ -33,6 +36,8 @@ if TYPE_CHECKING:
 ORIGIN_HEADER = "x-marketpulse-origin"
 CLIENT_IP_HEADER = "x-marketpulse-client-ip"
 RESEARCH_HEADER = "X-MacroPulse-Public-Research"
+RESEARCH_ID_HEADER = "X-MacroPulse-Research-Id"
+_RESEARCH_ID = re.compile(r"[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}")
 MAX_WINDOW_DAYS = 2600
 MAX_BODY = 4096
 MAX_RESEARCH_RESPONSE = 64 * 1024
@@ -228,9 +233,11 @@ def parse_research(body: bytes, *, online: bool = False) -> ResearchRequest:
 def _research_config(env: Mapping[str, str]) -> tuple[str, str] | None:
     if env.get("MARKETPULSE_DEMO_RESEARCH_ENABLED") != "true":
         return None
+    started = monotonic()
     try:
         from .macro_ai.public_gemini import MODELS
-    except ImportError:
+    except ImportError as error:
+        research_event("fastapi.research_import", started, type(error).__name__)
         return None
 
     key = env.get("MARKETPULSE_DEMO_GEMINI_API_KEY", "")
@@ -238,6 +245,7 @@ def _research_config(env: Mapping[str, str]) -> tuple[str, str] | None:
     # AI Studio authorization keys use AQ.; legacy standard keys use AIza.
     valid_key = re.fullmatch(r"(?:AIza[A-Za-z0-9_-]{35,80}|AQ\.[A-Za-z0-9_-]{32,160})", key)
     if not valid_key or model not in MODELS:
+        research_event("fastapi.research_config", started, "InvalidResearchConfiguration")
         return None
     return key, model
 
@@ -256,11 +264,14 @@ def run_public_research(settings: DemoSettings, request: ResearchRequest, key: s
             if monotonic() >= deadline:
                 raise TimeoutError
             if connection is None:
-                connection = stack.enter_context(connect_demo(settings))
-            return read_history(connection, CATALOG[indicator], window, max_points=MAX_WINDOW_DAYS)
+                with research_stage("supabase.connect"):
+                    connection = stack.enter_context(connect_demo(settings))
+            with research_stage("supabase.history"):
+                return read_history(connection, CATALOG[indicator], window, max_points=MAX_WINDOW_DAYS)
 
         def general(*args, **kwargs):
-            stack.close()
+            with research_stage("supabase.transaction_close"):
+                stack.close()
             return provider.general(*args, **kwargs)
 
         result = run(request, runtime=ResearchRuntime(
@@ -290,11 +301,12 @@ def create_public_app(
     research = _research_config(os.environ)
     if research:
         try:
-            from .macro_ai.v2_retrieval import lexical
-            from .macro_ai.v2_service import workflow
+            with research_stage("fastapi.research_preload", startup=True):
+                from .macro_ai.v2_retrieval import lexical
+                from .macro_ai.v2_service import workflow
 
-            lexical()
-            workflow()
+                lexical()
+                workflow()
         except Exception:
             research = None
     db_password = conninfo_to_dict(settings.dsn)["password"] if research else None
@@ -302,9 +314,10 @@ def create_public_app(
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         try:
-            with open_reader() as connection:
-                if catalog_reader:
-                    catalog_reader(connection)
+            with research_stage("supabase.startup_verify", startup=True):
+                with open_reader() as connection:
+                    if catalog_reader:
+                        catalog_reader(connection)
         except Exception:
             raise DemoConfigurationError("MacroPulse database startup verification failed") from None
         yield
@@ -317,13 +330,26 @@ def create_public_app(
 
     @app.post(_RESEARCH_PATH)
     async def respond_to_research(request: Request) -> Response:
+        # The origin middleware has already authenticated the Worker. Older
+        # Workers can omit the ID, and duplicate or malformed IDs are discarded.
+        ids = request.headers.getlist(RESEARCH_ID_HEADER)
+        token = research_id.set(ids[0] if len(ids) == 1 and _RESEARCH_ID.fullmatch(ids[0]) else str(uuid4()))
+        try:
+            return await serve_research(request)
+        finally:
+            research_id.reset(token)
+
+    async def serve_research(request: Request) -> Response:
+        started = monotonic()
         if research is None:
+            research_event("fastapi.admission", started, "ResearchUnavailable", http_status=503)
             return _error(503, "Public Research is unavailable")
         expires = request.headers.getlist("x-macropulse-research-expires")
         if len(expires) != 1 or not re.fullmatch(r"[0-9]{13}", expires[0]):
             return _error(403, "Forbidden")
         remaining = int(expires[0]) / 1000 - time()
         if not RESEARCH_SECONDS + 2 < remaining <= 65:
+            research_event("fastapi.admission", started, "InvalidResearchDeadline", http_status=403)
             return _error(403, "Forbidden")
         try:
             params = research_parser(request.state.research_body)
@@ -334,11 +360,15 @@ def create_public_app(
             response.headers["X-MacroPulse-Research-Complete"] = "true"
             return response
         if len(research_tasks) >= 2:
+            research_event("fastapi.admission", started, "ResearchBusy", http_status=503)
             return _error(503, "Public Research is busy", 1)
         deadline = monotonic() + RESEARCH_SECONDS
-        task = get_running_loop().run_in_executor(
-            None, research_runner or run_public_research, settings, params, *research, deadline,
-        )
+
+        def execute():
+            with research_stage("fastapi.research_runner"):
+                return (research_runner or run_public_research)(settings, params, *research, deadline)
+
+        task = get_running_loop().run_in_executor(None, copy_context().run, execute)
         research_tasks.add(task)
 
         def settled(finished):
@@ -350,15 +380,20 @@ def create_public_app(
         try:
             async with timeout(RESEARCH_SECONDS):
                 result = await shield(task)
-            payload = result.model_dump_json().encode("utf-8")
-            if len(payload) > MAX_RESEARCH_RESPONSE:
-                return _error(503, "Public Research is unavailable")
+            with research_stage("fastapi.serialize"):
+                payload = result.model_dump_json().encode("utf-8")
+                if len(payload) > MAX_RESEARCH_RESPONSE:
+                    research_event("fastapi.response", started, "ResponseTooLarge", http_status=503)
+                    return _error(503, "Public Research is unavailable")
+            research_event("fastapi.response", started, http_status=200)
             return Response(payload, media_type="application/json", headers={
                 "Cache-Control": "no-store", "X-MacroPulse-Research-Complete": "true",
             })
         except TimeoutError:
+            research_event("fastapi.response", started, "TimeoutError", http_status=504)
             return _error(504, "Public Research timed out")
-        except Exception:
+        except Exception as error:
+            research_event("fastapi.response", started, type(error).__name__, http_status=503)
             return _error(503, "Public Research is unavailable")
 
     @app.middleware("http")

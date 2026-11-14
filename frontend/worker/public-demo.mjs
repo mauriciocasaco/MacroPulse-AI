@@ -1,4 +1,5 @@
 import { boundedBody } from './bounded-body.mjs';
+import { researchErrorType, researchEvent, researchIdHeader } from './research-logging.mjs';
 import {
   adminCheckHeader, adminHeader, authenticateAdmin, configuredAdminSecret, maxResearchBody,
   publicResearchHeader, quotaReady, readResearchPayload, releaseResearch,
@@ -50,7 +51,9 @@ export default {
     const macro = macroEnabled && macroHistory.test(url.pathname);
     const catalog = macroCatalog;
     if (url.pathname === '/api/macro/analysis') {
-      return macroEnabled ? publicResearch(request, env, ctx, url) : error(503, 'Public Research is unavailable');
+      if (macroEnabled) return publicResearch(request, env, ctx, url);
+      researchEvent(crypto.randomUUID(), 'worker.configuration', performance.now(), 'MacroDisabled', 503);
+      return error(503, 'Public Research is unavailable');
     }
     if (!catalog && !macro) return error(404, 'Not found');
     if (request.method !== 'GET') return error(405, 'Method not allowed');
@@ -138,27 +141,44 @@ async function publicResearch(request, env, ctx, url) {
   const length = request.headers.get('Content-Length');
   if (length !== null && !/^\d{1,10}$/.test(length)) return error(400, 'Invalid request');
   if (Number(length) > maxResearchBody) return error(413, 'Request too large');
+  const researchId = crypto.randomUUID();
+  let stage = 'worker.configuration';
+  let started = performance.now();
+  function begin(name) {
+    stage = name;
+    started = performance.now();
+  }
+  function record(errorType, status) {
+    researchEvent(researchId, stage, started, errorType, status);
+  }
   const base = origin(env);
   const ip = request.headers.get('CF-Connecting-IP');
   let timeout;
   try {
     if (!researchEnabled(env, url) || !base || !ip || !/^[0-9a-fA-F:.]{1,45}$/.test(ip)) {
+      record('InvalidResearchConfiguration', 503);
       return error(503, 'Public Research is unavailable');
     }
     const credential = request.headers.get(adminHeader);
     const check = request.headers.get(adminCheckHeader);
     const adminRequested = credential !== null || check !== null;
-    const config = adminRequested ? null : researchConfig(env, url);
-    if (!adminRequested && !config) return error(503, 'Public Research is unavailable');
+    const config = adminRequested ? null : researchConfig(env, url, researchId);
+    if (!adminRequested && !config) {
+      record('InvalidAdmissionConfiguration', 503);
+      return error(503, 'Public Research is unavailable');
+    }
+    begin('worker.request_body');
     const bytes = await boundedBody(request.body, maxResearchBody, AbortSignal.timeout(3000));
     if (!bytes) return error(413, 'Request too large');
     const adminSecret = configuredAdminSecret(env);
     let id;
     let expires;
     if (adminRequested) {
+      begin('worker.admin_auth');
       const auth = await authenticateAdmin(env, ip, adminSecret, credential ?? '');
       if (auth.code === 'locked') return error(429, 'Administrator verification temporarily limited', auth.retry);
       if (auth.code !== 'ok') return error(401, 'Administrator credentials rejected');
+      record();
       if (check !== null) {
         if (check !== 'true' || new TextDecoder().decode(bytes) !== '{}') return error(422, 'Invalid request parameters');
         return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
@@ -172,19 +192,24 @@ async function publicResearch(request, env, ctx, url) {
       return error(422, 'Invalid request parameters');
     }
     if (config) {
-      const reservation = await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip);
+      begin('worker.admission');
+      const reservation = await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip, researchId);
       if (reservation.code !== 'ok') {
         const reason = Object.hasOwn(researchErrors, reservation.code) && researchErrors[reservation.code];
+        if (reservation.code === 'busy') record('ResearchBusy', 503);
+        else if (!reason) record('InvalidAdmissionResponse', 503);
         return reason ? error(...reason, reservation.retry) : error(503, 'Public Research is unavailable');
       }
       ({ id, expires } = reservation);
       const remaining = expires - Date.now();
       if (!/^[a-f0-9-]{36}$/.test(id ?? '') || !Number.isSafeInteger(expires)
         || remaining < researchTimeoutMs + 2_000 || remaining > 60_000) {
+        record('InvalidResearchLease', 503);
         return error(503, 'Public Research is unavailable');
       }
     }
     timeout = AbortSignal.timeout(researchTimeoutMs);
+    begin('worker.render_fetch');
     const upstream = await fetch(new URL('/macro/analysis', base), {
       method: 'POST', body, redirect: 'manual', cache: 'no-store', signal: timeout,
       headers: {
@@ -192,12 +217,14 @@ async function publicResearch(request, env, ctx, url) {
         'X-MarketPulse-Origin': env.MARKETPULSE_DEMO_ORIGIN_SECRET,
         'X-MarketPulse-Client-IP': ip,
         'X-MacroPulse-Research-Expires': String(expires),
+        [researchIdHeader]: researchId,
       },
     });
+    record(upstream.status === 200 ? undefined : 'UnexpectedUpstreamStatus', upstream.status);
     const knownCompleted = [200, 400, 403, 405, 408, 413, 415, 422].includes(upstream.status)
       && upstream.headers.get('X-MacroPulse-Research-Complete') === 'true';
     if (knownCompleted && config) {
-      const release = releaseResearch(config, id).catch(() => {});
+      const release = releaseResearch(config, id, researchId).catch(() => {});
       if (ctx) ctx.waitUntil(release);
       else await release;
     }
@@ -210,18 +237,26 @@ async function publicResearch(request, env, ctx, url) {
       }
       return error(503, 'Public Research is unavailable');
     }
+    begin('worker.render_response');
     if (!knownCompleted || !/^application\/json(?:;|$)/i.test(upstream.headers.get('Content-Type') ?? '')
       || Number(upstream.headers.get('Content-Length')) > 65_536) {
       void upstream.body?.cancel().catch(() => {});
+      record('InvalidUpstreamResponse', upstream.status);
       return error(503, 'Public Research is unavailable');
     }
     const result = await boundedBody(upstream.body, 65_536, timeout);
-    if (!result) return error(503, 'Public Research is unavailable');
+    if (!result) {
+      record('ResponseTooLarge', upstream.status);
+      return error(503, 'Public Research is unavailable');
+    }
+    record(undefined, upstream.status);
     return new Response(result, {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
     });
   } catch (cause) {
-    if (timeout?.aborted || cause?.name === 'TimeoutError') return error(504, 'Public Research timed out');
+    const timedOut = timeout?.aborted || cause?.name === 'TimeoutError';
+    record(timedOut ? 'TimeoutError' : researchErrorType(cause));
+    if (timedOut) return error(504, 'Public Research timed out');
     return error(503, 'Public Research is unavailable');
   }
 }

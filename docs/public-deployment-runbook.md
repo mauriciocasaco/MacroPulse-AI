@@ -185,6 +185,29 @@ Gemini 3.5 Flash-Lite. Es un cálculo por tokens, no una medición. Las
 solicitudes que ya requerían interpretación y composición conservan su
 presupuesto. [Tarifas de Gemini](https://ai.google.dev/gemini-api/docs/pricing)
 
+## Diagnóstico de 503 de Research
+
+Buscá los eventos de aplicación `public_research_stage` y correlacioná Worker
+y Render por `research_id`. Cada evento indica la etapa, el resultado y la
+duración en milisegundos. Los fallos incluyen el tipo de error y, donde
+corresponde, el estado HTTP. Las verificaciones de arranque de Render aparecen
+sin ID de solicitud.
+
+- `worker.turnstile` y `worker.quota_admit` ubican fallos anteriores al POST
+  a Render. `worker.render_fetch` registra el estado del origen y
+  `worker.render_response` permite detectar un fallo al validar o leer su cuerpo.
+- En Render, `fastapi.research_preload` registra fallos al preparar el corpus
+  o el grafo. `fastapi.response` indica el estado devuelto por el endpoint.
+- Las etapas `langgraph.*`, `gemini.*` y `supabase.*` ubican el fallo dentro de
+  la investigación. En el fallback, `supabase.transaction_close` separa el
+  cierre de la lectura de `gemini.general`. Un fallo recuperado puede aparecer
+  en los eventos aunque la respuesta HTTP sea 200.
+
+En Cloudflare, consultá los eventos de aplicación en la vista Live. La
+configuración del repo mantiene desactivada la persistencia. Limitá la
+exportación a estos eventos de aplicación para excluir los metadatos de
+invocación. [Logs en tiempo real de Cloudflare](https://developers.cloudflare.com/workers/observability/logs/real-time-logs/)
+
 ## Evidencia documental
 
 Render carga los 24 documentos y 47 afirmaciones de M7.B desde el repositorio.

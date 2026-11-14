@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from hashlib import sha256
 import json
+import logging
 import os
 from types import SimpleNamespace
 import subprocess
@@ -41,6 +42,7 @@ HEADERS = {demo.ORIGIN_HEADER: SECRET, demo.CLIENT_IP_HEADER: "192.0.2.3"}
 CATALOG = "/macro/indicators"
 HISTORY = CATALOG + "/eur-usd/history"
 RESEARCH = "/macro/analysis"
+RESEARCH_ID = "cb31e1d0-41f6-4a82-8436-30f47564c5cb"
 ANALYSIS = {"question": "What happened?", "event_id": "covid", "indicator_id": "eur-usd",
             "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2"}
 
@@ -499,8 +501,10 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
 
 
 @pytest.mark.parametrize("failure,code", [("input limit", 503), ("provider failure", 503), ("timeout", 504)])
-def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch, failure, code):
+def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch, caplog, failure, code):
     paths = []
+    error_types = {"input limit": "ValueError", "provider failure": "HTTPStatusError", "timeout": "ReadTimeout"}
+    caplog.set_level(logging.INFO, logger="uvicorn.error.macropulse.research")
 
     def simulate(request):
         paths.append(request.url.path)
@@ -514,6 +518,42 @@ def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch
     monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
         transport=httpx.MockTransport(simulate), **options,
     ))
-    reply = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
+    headers = {**research_headers(), demo.RESEARCH_ID_HEADER: RESEARCH_ID}
+    reply = research_client.post(RESEARCH, headers=headers, json=ANALYSIS)
     assert reply.status_code == code and "synthetic" not in reply.text
+    assert demo.RESEARCH_ID_HEADER not in reply.headers
     assert len(paths) == 1 and paths[0].endswith(":countTokens")
+    events = [json.loads(entry.getMessage()) for entry in caplog.records
+              if entry.name == "uvicorn.error.macropulse.research"]
+    by_stage = {event["stage"]: event for event in events}
+    assert by_stage["gemini.count_tokens"]["error_type"] == error_types[failure]
+    assert by_stage["langgraph.interpret_with_llm"]["outcome"] == "error"
+    assert by_stage["fastapi.research_runner"]["outcome"] == "error"
+    assert by_stage["fastapi.response"]["http_status"] == code
+    assert all(event["research_id"] == RESEARCH_ID and event["duration_ms"] >= 0 for event in events)
+    assert all(entry.exc_info is None for entry in caplog.records)
+    for protected in ("synthetic private provider failure", "synthetic provider deadline", ANALYSIS["question"],
+                      SECRET, PASSWORD, DSN, "192.0.2.3", "AIza" + "f" * 35):
+        assert protected not in caplog.text
+
+
+def test_research_preload_failure_is_sanitized_and_preserves_disabled_endpoint(demo_env, monkeypatch, caplog):
+    monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+    monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "f" * 35)
+
+    def fail_preload():
+        raise RuntimeError("synthetic private preload data")
+
+    monkeypatch.setattr(v2_retrieval, "lexical", fail_preload)
+    app = demo.create_public_app(connect=lambda _settings: MagicMock())
+    with TestClient(app) as client:
+        reply = client.post(RESEARCH, headers={**research_headers(),
+                            demo.RESEARCH_ID_HEADER: "synthetic private header"}, json=ANALYSIS)
+    assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
+    events = [json.loads(entry.getMessage()) for entry in caplog.records
+              if entry.name == "uvicorn.error.macropulse.research" and entry.levelno == logging.WARNING]
+    assert [(event["stage"], event["error_type"]) for event in events] == [
+        ("fastapi.research_preload", "RuntimeError"), ("fastapi.admission", "ResearchUnavailable"),
+    ]
+    assert events[0]["research_id"] is None and events[1]["research_id"]
+    assert "synthetic private" not in caplog.text

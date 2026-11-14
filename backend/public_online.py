@@ -16,6 +16,7 @@ from .public_demo import (
     GENERAL_FALLBACK_FLAG, SHARED_PROJECT_REF, DemoConfigurationError, DemoSettings, create_public_app, demo_target,
     parse_research, resolve_demo_settings, tls_dsn,
 )
+from .research_logging import research_stage
 
 ROLE = "macropulse_online_ro"
 SCHEMA = "macropulse_online"
@@ -218,22 +219,29 @@ def run_online_research(settings, request, key, model, deadline):
             if monotonic() >= deadline:
                 raise TimeoutError
             if connection is None:
-                connection = stack.enter_context(connect_online(settings))
+                with research_stage("supabase.connect"):
+                    connection = stack.enter_context(connect_online(settings))
             return connection
 
         def read(indicator, window):
-            return load_history(reader(), CATALOG[indicator], window, schema=SCHEMA, known_at=known_at)
+            db = reader()
+            with research_stage("supabase.history"):
+                return load_history(db, CATALOG[indicator], window, schema=SCHEMA, known_at=known_at)
 
         def retrieve(*arguments):
             options = {"dynamic": True} if dynamic else {}
-            return retrieve_online(reader(), *arguments, **options)
+            db = reader()
+            with research_stage("supabase.editorial"):
+                return retrieve_online(db, *arguments, **options)
 
         def compose(evidence):
-            stack.close()
+            with research_stage("supabase.transaction_close"):
+                stack.close()
             return provider.compose(evidence)
 
         def general(*args, **kwargs):
-            stack.close()
+            with research_stage("supabase.transaction_close"):
+                stack.close()
             return provider.general(*args, **kwargs)
 
         interpret = partial(provider.interpret, knowledge_cutoff=cutoff) if cutoff else provider.interpret
