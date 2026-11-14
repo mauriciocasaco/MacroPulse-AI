@@ -368,6 +368,14 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
                     'review-ticket', 'Verified figure', 'approved', '2023-01-03T10:00Z')
         """)
         admin.commit()
+        def dynamic_read(cutoff=window.end):
+            with read_online(online_db) as online:
+                return online_evidence.retrieve_online(online, *query, cutoff, dynamic=True)
+
+        assert not dynamic_read(date(2023, 1, 2))
+        ((dynamic, _),) = dynamic_read()
+        assert dynamic.claim_version == "b" * 64
+        assert dynamic.available_at.isoformat() == "2023-01-03T10:00:00+00:00"
         with read_online(online_db) as online:
             assert online_evidence.retrieve_online(online, *query, date(2023, 1, 2)) == []
             ((source, claim),) = online_evidence.retrieve_online(online, *query, date(2023, 1, 3))
@@ -403,21 +411,33 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
                     WHERE claim_id = 'fixture-spot'
                 """, (when,))
 
+        with psycopg.connect(online_db) as revision_admin:
+            revision_admin.execute("UPDATE news_editorial.editorial_review SET withdrawn_at = now()")
+            revision_admin.commit()
+            assert not dynamic_read()
+            revision_admin.execute("""
+                INSERT INTO news_editorial.editorial_review
+                    (claim_id, claim_version, rights_version, reviewer_id, review_evidence, reason, status, decided_at)
+                VALUES ('fixture-spot', repeat('b', 64), repeat('c', 64), 'reviewer-fixture',
+                        'review-ticket-2', 'Verified again', 'approved', '2023-01-04T10:00Z')
+            """)
+        assert dynamic_read()
+
         # Isolate withdrawal from the rights-revocation test below.
         with admin.transaction() as tx:
             assert admin.execute("""
                 UPDATE news_editorial.editorial_review SET withdrawn_at = now()
-                WHERE claim_id = 'fixture-spot'
+                WHERE claim_id = 'fixture-spot' AND decided_at = '2023-01-04T10:00Z'
                 RETURNING withdrawn_at IS NOT NULL
             """).fetchone() == (True,)
             assert admin.execute("""
-                SELECT count(*) FROM macropulse_online.news_evidence WHERE claim_id = 'fixture-spot'
+                SELECT count(*) FROM macropulse_online.news_evidence WHERE claim_id = 'fixture-spot' AND decided_at = '2023-01-04T10:00Z'
             """).fetchone() == (0,)
             for value in (None, "2024-01-01T00:00Z"):
                 with pytest.raises(psycopg.errors.CheckViolation, match="immutable"), admin.transaction():
                     admin.execute("""
                         UPDATE news_editorial.editorial_review SET withdrawn_at = %s
-                        WHERE claim_id = 'fixture-spot'
+                        WHERE claim_id = 'fixture-spot' AND decided_at = '2023-01-04T10:00Z'
                     """, (value,))
             raise psycopg.Rollback(tx)
         admin.execute("""
@@ -427,3 +447,4 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
         admin.commit()
         with read_online(online_db) as online:
             assert online_evidence.retrieve_online(online, *query, window.end) == []
+        assert not dynamic_read()
