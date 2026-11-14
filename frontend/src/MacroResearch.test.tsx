@@ -149,3 +149,99 @@ it('labels a deterministic fallback without showing raw calculations', async () 
   expect(within(summary).getByText('The euro rose over the selected period.')).toBeTruthy();
   expect(screen.queryByText('Raw calculation.')).toBeNull();
 });
+
+it('verifies the administrator on the server, retains consent and clears credentials on exit or reload', async () => {
+  const credential = 'a1b2c3d4'.repeat(8);
+  const header = 'X-MacroPulse-Admin-Secret';
+  let verified!: (response: Response) => void;
+  const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+    const headers = new Headers(init.headers);
+    if (headers.has('X-MacroPulse-Admin-Check')) return new Promise<Response>((resolve) => { verified = resolve; });
+    const body = JSON.parse(String(init.body));
+    return Response.json({
+      ...response(body.question), research_v2: true, publication_cutoff: covid.end, support: 'insufficient',
+    });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const renderWidget = vi.fn(() => 'widget');
+  const removeWidget = vi.fn();
+  vi.stubGlobal('turnstile', { render: renderWidget, remove: removeWidget });
+  const view = render(<MacroResearch {...props} publicDemo sitekey="fixture-sitekey" />);
+  const details = screen.getByText('Administrator access').closest('details')!;
+  expect(details.open).toBe(false);
+  fireEvent.click(details.querySelector('summary')!);
+  const input = screen.getByLabelText('Administrator secret');
+  const ask = screen.getByRole<HTMLButtonElement>('button', { name: 'Ask LLM Model' });
+  expect(input).toHaveProperty('type', 'password');
+  expect(screen.getByText('Credential not checked')).toBeTruthy();
+  expect(screen.getByLabelText('Turnstile verification')).toBeTruthy();
+  fireEvent.change(input, { target: { value: credential } });
+  fireEvent.click(screen.getByRole('button', { name: 'Show secret' }));
+  expect(input).toHaveProperty('type', 'text');
+  fireEvent.click(screen.getByRole('button', { name: 'Hide secret' }));
+  expect(input).toHaveProperty('type', 'password');
+  const verify = screen.getByRole('button', { name: 'Verify credential' });
+
+  fireEvent.click(verify);
+  expect(screen.getByText('Checking credential…')).toBeTruthy();
+  expect(screen.queryByText('Authenticated')).toBeNull();
+  verified(new Response(null, { status: 401 }));
+  await screen.findByText('Invalid credential');
+  expect(ask.disabled).toBe(true);
+  fireEvent.click(verify);
+  verified(new Response(null, { status: 204 }));
+  await screen.findByText('Authenticated');
+  expect(screen.queryByLabelText('Turnstile verification')).toBeNull();
+  expect(ask.disabled).toBe(true);
+  fireEvent.click(screen.getByRole('checkbox', { name: /I agree to send my question/ }));
+  expect(ask.disabled).toBe(false);
+  fireEvent.click(ask);
+  await screen.findByText('There is insufficient evidence to answer this question.');
+  expect(fetch.mock.calls).toHaveLength(3);
+  for (const [url, init] of fetch.mock.calls) {
+    expect(url).toBe('/api/macro/analysis');
+    expect(init).toMatchObject({ redirect: 'error', mode: 'same-origin', cache: 'no-store' });
+    const headers = new Headers(init.headers);
+    expect(headers.get(header)).toBe(credential);
+    expect(headers.has('X-MacroPulse-Turnstile')).toBe(false);
+    expect(init.body).not.toContain(credential);
+  }
+  expect(fetch.mock.calls[0][1].body).toBe('{}');
+  expect(window.localStorage.length).toBe(0);
+  expect(window.sessionStorage.length).toBe(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Exit administrator mode' }));
+  expect(input).toHaveProperty('value', '');
+  expect(screen.getByText('Credential not checked')).toBeTruthy();
+  expect(screen.getByLabelText('Turnstile verification')).toBeTruthy();
+  expect(ask.disabled).toBe(true);
+
+  fireEvent.change(input, { target: { value: credential } });
+  fireEvent.click(screen.getByRole('button', { name: 'Verify credential' }));
+  verified(new Response(null, { status: 204 }));
+  await screen.findByText('Authenticated');
+  view.unmount();
+  render(<MacroResearch {...props} publicDemo sitekey="fixture-sitekey" />);
+  expect(screen.getByLabelText('Administrator secret')).toHaveProperty('value', '');
+  expect(screen.queryByText('Authenticated')).toBeNull();
+  expect(screen.getByLabelText('Turnstile verification')).toBeTruthy();
+});
+
+it('allows validation without the public challenge and clears authentication after rotation', async () => {
+  const credential = 'a1b2c3d4'.repeat(8);
+  const fetch = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    .mockResolvedValueOnce(new Response(null, { status: 401 }));
+  vi.stubGlobal('fetch', fetch);
+  render(<MacroResearch {...props} enabled={false} publicDemo />);
+  fireEvent.click(screen.getByText('Administrator access'));
+  const input = screen.getByLabelText('Administrator secret');
+  fireEvent.change(input, { target: { value: credential } });
+  fireEvent.click(screen.getByRole('button', { name: 'Verify credential' }));
+  await screen.findByText('Authenticated');
+  fireEvent.click(screen.getByRole('checkbox', { name: /I agree to send my question/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  await screen.findByText('Invalid credential');
+  expect(input).toHaveProperty('value', '');
+  expect(screen.queryByRole('button', { name: 'Ask LLM Model' })).toBeNull();
+  expect(fetch.mock.calls).toHaveLength(2);
+});

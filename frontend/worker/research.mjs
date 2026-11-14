@@ -23,14 +23,47 @@ const encoder = new TextEncoder();
 export const publicResearchHeader = 'X-MacroPulse-Public-Research';
 export const siteKeyHeader = 'X-MacroPulse-Turnstile-Sitekey';
 export const maxResearchBody = 4096;
+export const adminHeader = 'X-MacroPulse-Admin-Secret';
+export const adminCheckHeader = 'X-MacroPulse-Admin-Check';
+const adminSecretPattern = /^[a-f0-9]{64}$/;
+
+export function configuredAdminSecret(env) {
+  const secret = env.MACROPULSE_ADMIN_SECRET;
+  if (typeof secret !== 'string' || !adminSecretPattern.test(secret)
+    || new Set(secret).size < 12 || /^(.{1,32})\1+$/.test(secret)
+    || secret === env.MARKETPULSE_DEMO_ORIGIN_SECRET || secret === env.MACROPULSE_RESEARCH_HASH_KEY
+    || secret === env.MACROPULSE_TURNSTILE_SECRET) return null;
+  return secret;
+}
+
+export async function authenticateAdmin(env, ip, secret, credential) {
+  if (!secret) return { code: 'invalid' };
+  // Fixed-size buffers keep the credential comparison in the native crypto implementation.
+  const expected = encoder.encode(secret);
+  const valid = adminSecretPattern.test(credential)
+    && crypto.subtle.timingSafeEqual(expected, encoder.encode(credential));
+  const key = await crypto.subtle.importKey('raw', expected, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const hash = await crypto.subtle.sign('HMAC', key, encoder.encode(ip));
+  const visitor = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  // This instance stores only authentication failures. The public admission instance is untouched.
+  const auth = env.RESEARCH_QUOTA.getByName('macropulse-research-admin-auth-v1');
+  const response = await quotaRequest(auth, '/admin-auth', { visitor, valid });
+  if (!response.ok) throw new Error('Administrator verification unavailable');
+  return response.json();
+}
+
+export function researchEnabled(env, url) {
+  const hostname = env.MACROPULSE_RESEARCH_HOSTNAME ?? '';
+  return env.MACROPULSE_RESEARCH_ENABLED === 'true' && url.protocol === 'https:' && !url.port
+    && hostname === url.hostname && /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(hostname);
+}
 
 export function researchConfig(env, url) {
   const hostname = env.MACROPULSE_RESEARCH_HOSTNAME ?? '';
   const sitekey = env.MACROPULSE_TURNSTILE_SITE_KEY ?? '';
   const secret = env.MACROPULSE_TURNSTILE_SECRET ?? '';
   const hashKey = env.MACROPULSE_RESEARCH_HASH_KEY ?? '';
-  if (env.MACROPULSE_RESEARCH_ENABLED !== 'true' || url.protocol !== 'https:' || url.port
-    || hostname !== url.hostname || !/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(hostname)
+  if (!researchEnabled(env, url)
     || !/^[A-Za-z0-9_-]{12,80}$/.test(sitekey) || !/^[A-Za-z0-9_-]{20,160}$/.test(secret)
     || !/^[a-f0-9]{64}$/.test(hashKey) || new Set(hashKey).size < 12
     || /^(.{1,32})\1+$/.test(hashKey) || hashKey === env.MARKETPULSE_DEMO_ORIGIN_SECRET
@@ -45,7 +78,7 @@ export function researchConfig(env, url) {
   }
 }
 
-export function readResearchPayload(bytes) {
+export function readResearchPayload(bytes, adminSecret) {
   const raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   const value = JSON.parse(raw);
   // The schema only allows top-level strings. Count JSON member names
@@ -65,7 +98,8 @@ export function readResearchPayload(bytes) {
     || (value.event_id !== undefined && (!window || value.start !== window[0] || value.end !== window[1]))
     || (value.indicator_id !== undefined && !indicators.has(value.indicator_id)) || value.research_version !== 'v2'
     || questionLength < 5 || Array.from(value.question).length > 500
-    || /[\u0000-\u001f]/.test(value.question)) throw new Error('Invalid request');
+    || /[\u0000-\u001f]/.test(value.question)
+    || (adminSecret && value.question.includes(adminSecret))) throw new Error('Invalid request');
   return raw;
 }
 
