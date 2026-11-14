@@ -1,6 +1,6 @@
 """Research v2 contracts. Only catalogued series can become tool inputs."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
@@ -69,6 +69,12 @@ class CuratedEvidence(Evidence):
     locator: str
     qualifiers: str
     claim_type: str
+    claim_version: str | None = None
+    available_at: datetime | None = None
+    measure: str | None = None
+    unit: str | None = None
+    event_linkage: str | None = None
+    source_id: str | None = None
 
 
 Category = Literal["official observation", "calculated from official observations",
