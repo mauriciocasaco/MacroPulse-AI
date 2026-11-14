@@ -68,6 +68,40 @@ it('accepts safe empty-evidence abstention without a fabricated model or score',
   expect(result.evidence).toEqual([]);
   expect(result.model_id).toBeNull();
 });
+
+it('validates the fallback as isolated unverified text with the same RAG diagnosis', async () => {
+  const fallback = {
+    status: 'answered', triggered: true, verified: false, reason: 'ambiguous_interpretation',
+    model_id: 'gemini-3.6-flash',
+    answer: 'M3 includes liquid deposits. During COVID-19, ECB policy could affect saving. Eurostat can provide economic context.',
+  };
+  const payload = {
+    ...response(), status: 'insufficient_evidence', research_v2: true, support: 'insufficient',
+    publication_cutoff: end, narrative: [], evidence: [],
+    insufficiency_reason: fallback.reason, general_fallback: fallback,
+  };
+  const invoke = (body: unknown) => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(body)));
+    return askMacroAnalysis(question, start, end, new AbortController().signal,
+      { ...context, research_version: 'v2' });
+  };
+  await expect(invoke(payload)).resolves.toMatchObject({ general_fallback: fallback });
+  for (const change of [
+    { verified: true }, { triggered: false }, { model_id: 'gemini-other-model' }, { citations: [] },
+    { reason: 'missing_official_observations' }, { answer: 'An invented result of 25 percent.' },
+    { answer: 'COVID-19 reduced the money stock by five percent.' },
+    { answer: 'M3 fell to €５ billion while households shifted their savings.' },
+    { answer: 'The ECB reports that AI boosted broad money growth.' },
+    { answer: 'Eurostat’s latest figures show that broad money rose during the boom.' },
+    { answer: 'For more information see invented-source.test/macro.' },
+    { answer: 'A plausible reason. Reference: https://example.test.' },
+    { status: 'failed', error: 'timeout' }, // an error cannot also include an answer
+  ]) await expect(invoke({ ...payload, general_fallback: { ...fallback, ...change } })).rejects.toThrow('fallback');
+  await expect(invoke({ ...payload, status: 'answered', support: 'supported',
+    narrative: [{ text: 'Valid cited claim.', category: 'official observation', citations: [series.id] }],
+  })).rejects.toThrow('fallback');
+});
+
 it('accepts a reviewed claim available after the economic window and checks its version and cutoff', async () => {
   const claimVersion = 'a'.repeat(64);
   const source = { ...document, id: 'claim:fixture-review:' + claimVersion,

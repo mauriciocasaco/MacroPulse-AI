@@ -15,6 +15,8 @@ services:
         value: 'false'
       - key: MARKETPULSE_DEMO_RESEARCH_ENABLED
         value: 'false'
+      - key: MACROPULSE_RESEARCH_GENERAL_FALLBACK_ENABLED
+        value: 'false'
       - key: MARKETPULSE_DEMO_GEMINI_MODEL
         value: gemini-3.6-flash
       - key: MACROPULSE_ONLINE_DSN

@@ -92,6 +92,24 @@ export interface ObservedChange {
   citation: string;
 }
 
+const fallbackReasons = [
+  'ambiguous_interpretation', 'unsupported_operation_or_series', 'missing_official_observations',
+  'insufficient_documentary_evidence', 'unsupported_causal_inference',
+] as const;
+const researchDiagnostics = [
+  ...fallbackReasons, 'interpretation_unavailable', 'evidence_reader_unavailable',
+  'citation_validation_failed', 'no_verified_statements',
+] as const;
+export type ResearchDiagnostic = typeof researchDiagnostics[number];
+type FallbackReason = typeof fallbackReasons[number];
+type FallbackError = 'timeout' | 'provider_unavailable' | 'invalid_response';
+type GeneralFallback = {
+  triggered: true;
+  reason: FallbackReason;
+  model_id: 'gemini-3.6-flash' | 'gemini-3.5-flash-lite';
+  verified: false;
+} & ({ status: 'answered'; answer: string } | { status: 'failed'; error: FallbackError });
+
 export interface MacroAnalysis {
   status: 'answered' | 'insufficient_evidence';
   question: string;
@@ -112,6 +130,8 @@ export interface MacroAnalysis {
   research_v2?: true;
   support?: 'supported' | 'partial' | 'insufficient';
   publication_cutoff?: string;
+  insufficiency_reason?: ResearchDiagnostic;
+  general_fallback?: GeneralFallback;
 }
 
 const ids = new Set(['eur-usd', 'm3-stock', 'deposit-rate', 'real-gdp-qoq', 'hicp-yoy']);
@@ -122,6 +142,50 @@ const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function oneOf<const T extends string>(options: readonly T[], value: unknown): value is T {
+  return typeof value === 'string' && (options as readonly string[]).includes(value);
+}
+
+// Keep the text checks in sync with GeneralDraft in v2_models.py.
+const numberedNames = /\b(?:M[0-4]|COVID[\s\-\u2010-\u2013\u2212]?19|G7|G20|EA(?:19|20|21)|EU-?27)\b/giu;
+const institution = '(?:ECB|Eurostat|European Central Bank)';
+const sourceWord = '(?:data|figures|statistics|report|study|release|bulletin|analysis|estimates)';
+const reportingVerb = '(?:says?|said|shows?|showed|shown|finds?|found|reports?|reported|confirms?|confirmed|'
+  + 'publishes?|published|documents?|documented|estimates?|estimated|concludes?|concluded|'
+  + 'indicates?|indicated|states?|stated|suggests?|suggested|reveals?|revealed|claims?|claimed)';
+const institutionalAttribution = new RegExp(
+  String.raw`\b${institution}(?:['’]s)?\s+(?:(?:\w+\s+){0,3}${sourceWord}\s+)?`
+    + String.raw`(?:(?:has|have|had|also|previously|officially|recently)\s+)*${reportingVerb}\b|`
+    + String.raw`\b${reportingVerb}\s+by\s+(?:the\s+)?${institution}\b|`
+    + String.raw`\b${sourceWord}\s+(?:from|by)\s+(?:the\s+)?${institution}\s+${reportingVerb}\b|`
+    + String.raw`\b(?:per|as cited by)\s+(?:the\s+)?${institution}\b|`
+    + String.raw`\(\s*(?:the\s+)?${institution}\s*\)`, 'iu',
+);
+const references = /[%<>[\]]|https?\s*:|ftp\s*:|www\.|\b[\w-]+\.(?:com|org|net|gov|edu|eu|int|test|example)\b|\b[\w-]+\.[a-z]{2,63}\/|\b(?:sources?|references?|citations?|bibliography)\s*:|\b(?:according to|DOI)\b/iu;
+const spelledQuantity = /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|\w+ty|hundred|thousand|million|billion|trillion|half|quarter)[\s-]+(?:per\s+cent|percent(?:age\s+points?)?|basis\s+points?|hundred|thousand|million|billion|trillion|euros?|dollars?|pounds?)\b/iu;
+
+function conceptualAnswer(answer: string): boolean {
+  const length = Array.from(answer).length;
+  const checked = answer.normalize('NFKC');
+  return answer === answer.trim() && length >= 20 && length <= 2400
+    && !references.test(checked) && !spelledQuantity.test(checked) && !institutionalAttribution.test(checked)
+    && !/\p{N}/u.test(checked.replaceAll(numberedNames, ' '))
+    && !/[\p{C}\p{Zl}\p{Zp}]/u.test(answer.replaceAll('\n', ''));
+}
+
+function generalFallback(value: unknown): value is GeneralFallback {
+  if (!object(value) || value.triggered !== true || value.verified !== false
+    || !oneOf(fallbackReasons, value.reason)
+    || !oneOf(['gemini-3.6-flash', 'gemini-3.5-flash-lite'], value.model_id)) return false;
+  const fields = ['triggered', 'verified', 'reason', 'model_id', 'status'];
+  if (value.status === 'answered') {
+    return Object.keys(value).every((key) => [...fields, 'answer'].includes(key))
+      && typeof value.answer === 'string' && conceptualAnswer(value.answer);
+  }
+  return value.status === 'failed' && Object.keys(value).every((key) => [...fields, 'error'].includes(key))
+    && oneOf(['timeout', 'provider_unavailable', 'invalid_response'], value.error);
 }
 
 function officialLink(value: unknown): boolean {
@@ -346,12 +410,19 @@ export async function askMacroAnalysis(
     throw new Error('Unexpected research response.');
   }
   const researchV2 = context?.research_version === 'v2';
+  const { insufficiency_reason: diagnosis, general_fallback: fallback } = result;
   if (researchV2 && (result.research_v2 !== true || !date(result.publication_cutoff)
     || !['supported', 'partial', 'insufficient'].includes(String(result.support))
     || (result.support === 'insufficient') !== (result.status === 'insufficient_evidence')
     || !claims(result.narrative) || !result.narrative.every(({ category }) =>
       category !== undefined && researchCategories.includes(category)))) {
     throw new Error('Unexpected Research v2 response.');
+  }
+  if ((diagnosis !== undefined && (!researchV2 || result.status !== 'insufficient_evidence'
+    || !oneOf(researchDiagnostics, diagnosis)))
+    || (fallback !== undefined && (!researchV2 || result.status !== 'insufficient_evidence'
+      || !generalFallback(fallback) || fallback.reason !== diagnosis))) {
+    throw new Error('Unexpected Research v2 fallback.');
   }
   const evidence = result.evidence as ResearchEvidence[];
   if (researchV2 && !evidence.every((item) => hasV2Provenance(item, result.publication_cutoff as string))) {
@@ -379,6 +450,8 @@ export async function askMacroAnalysis(
       research_v2: true as const,
       support: result.support as MacroAnalysis['support'],
       publication_cutoff: result.publication_cutoff as string,
+      ...(diagnosis !== undefined && { insufficiency_reason: diagnosis as ResearchDiagnostic }),
+      ...(fallback !== undefined && { general_fallback: fallback as GeneralFallback }),
     } : {}),
     narrative: result.narrative as ResearchClaim[] | undefined,
     narrative_kind: result.narrative_kind as MacroAnalysis['narrative_kind'],

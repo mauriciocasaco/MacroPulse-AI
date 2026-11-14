@@ -130,6 +130,61 @@ Puede haber cargos durante la latencia de aplicación. Ante consumo anómalo,
 rotar o revocar el secreto de inmediato. Si hace falta detener todo Research,
 usar el interruptor global. [Topes y alertas de Cloud Billing](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps)
 
+## Research híbrido (Fase 9.6)
+
+El Worker mantiene un solo POST al origen por investigación. Research v2
+produce primero su resultado RAG, incluidas las respuestas parciales. Solo
+una insuficiencia elegible activa `generate_general_fallback`. El motivo
+estructurado distingue problemas de interpretación, operaciones o series sin
+soporte, observaciones faltantes, evidencia documental insuficiente e
+inferencia causal fuera del alcance. Un fallo técnico del flujo RAG no activa
+la explicación general.
+
+En una insuficiencia, `insufficiency_reason` identifica el diagnóstico. Si se
+intenta el fallback, `general_fallback` incluye `triggered: true`, `reason`
+(el mismo diagnóstico), `model_id`, `verified: false` y uno de estos resultados:
+
+| `status` | Campo adicional |
+| --- | --- |
+| `answered` | `answer`: texto conceptual de hasta 2.400 caracteres |
+| `failed` | `error`: `timeout`, `provider_unavailable` o `invalid_response` |
+
+El resultado RAG conserva su estado, soporte, evidencia, narrativa,
+limitaciones, cambios observados y fecha de corte. La explicación general no
+usa herramientas de búsqueda ni recibe documentos, series o credenciales.
+
+1. En Render, desplegar manualmente el SHA revisado y accesible en el
+   repositorio vinculado a `macropulse-online`. Mantener
+   `MACROPULSE_RESEARCH_GENERAL_FALLBACK_ENABLED=false` en la primera publicación.
+   [Despliegue de un commit específico](https://render.com/docs/deploys#deploying-a-specific-commit)
+2. En `frontend`, ejecutar `npm ci`, `npm run build:public` y, una vez
+   autorizada la publicación, `npx --yes wrangler@4.162.0 deploy --config wrangler.jsonc`.
+   Usar el Worker existente y preservar sus secretos, Turnstile y Durable Objects.
+3. En Render, cambiar `MACROPULSE_RESEARCH_GENERAL_FALLBACK_ENABLED` a `true` en
+   **Environment** y usar **Save and deploy** para aplicar la variable al build
+   instalado. Requiere que Research ya esté habilitado. No hay flag adicional
+   en Cloudflare. Para revertir, fijar `false` y volver a aplicar la variable.
+   [Variables de Render](https://render.com/docs/configure-environment-variables)
+4. Con autorización para pruebas en vivo, verificar una investigación con
+   evidencia y otra sobre una operación fuera del catálogo. En esta última
+   comprobar el aviso de Gemini, el diagnóstico RAG, una sola solicitud de
+   investigación y la navegación entre vistas. Repetir en modo administrador.
+
+Se mantienen hasta dos generaciones Gemini y hasta dos preflights
+(`countTokens`), sin reintentos. El fallback usa hasta 800 tokens de salida
+incluido el razonamiento, frente a 2.400 para las otras etapas; cada generación
+mantiene el límite de 8.000 tokens de entrada. El camino que antes se abstenía
+añade hasta 15 s de espera del proveedor y deja 2 s de margen antes del plazo
+de Render de 40 s. Worker conserva su plazo de 45 s y ambos conservan el
+límite de respuesta de 64 KiB.
+
+A tarifa estándar de texto y suponiendo el uso máximo de tokens, una
+generación de fallback se estima en USD 0,009 con Gemini 3.6 Flash hasta el
+31 de diciembre de 2026 (USD 0,018 desde enero de 2027) o USD 0,0044 con
+Gemini 3.5 Flash-Lite. Es un cálculo por tokens, no una medición. Las
+solicitudes que ya requerían interpretación y composición conservan su
+presupuesto. [Tarifas de Gemini](https://ai.google.dev/gemini-api/docs/pricing)
+
 ## Evidencia documental
 
 Render carga los 24 documentos y 47 afirmaciones de M7.B desde el repositorio.

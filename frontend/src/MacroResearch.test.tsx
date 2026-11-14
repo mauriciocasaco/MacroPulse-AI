@@ -131,6 +131,47 @@ it('renders network errors and clears the loading state', async () => {
   expect(screen.getByRole('button', { name: 'Ask LLM Model' })).toHaveProperty('disabled', false);
 });
 
+it.each(['answered', 'failed'] as const)('keeps the two views in one research request when fallback is %s', async (status) => {
+  const answer = 'A supply shock can raise costs, but identifying its effect requires a credible comparison.';
+  const reason = 'unsupported_operation_or_series';
+  const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+    const { question } = JSON.parse(String(init.body));
+    return Response.json({
+      ...response(question), research_v2: true, support: 'insufficient', publication_cutoff: covid.end,
+      insufficiency_reason: reason,
+      general_fallback: { status, triggered: true, verified: false, reason, model_id: 'gemini-3.6-flash',
+        ...(status === 'answered' ? { answer } : { error: 'timeout' }) },
+    });
+  });
+  vi.stubGlobal('fetch', fetch);
+  render(<MacroResearch {...props} researchV2Available />);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use experimental Research v2' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
+  const rag = await screen.findByRole('button', { name: 'RAG-Specific LLM' });
+  const general = screen.getByRole('button', { name: 'General LLM' });
+  if (status === 'answered') {
+    expect(general.getAttribute('aria-pressed')).toBe('true');
+    const panel = screen.getByRole('region', { name: 'General AI explanation — Not RAG-verified' });
+    const warning = within(panel).getByText(/does not support the requested operation/);
+    expect(warning.textContent).toContain("not been verified against MacroPulse's institutional sources");
+    expect(warning.compareDocumentPosition(within(panel).getByText(answer)) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(within(panel).queryByRole('link')).toBeNull();
+    fireEvent.click(rag);
+    expect(screen.queryByText(answer)).toBeNull();
+    expect(screen.getByText('Synthetic corpus has no matching context.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Institutional sources' })).toBeTruthy();
+    fireEvent.click(general);
+    expect(screen.getByText(answer)).toBeTruthy();
+  } else {
+    expect(general).toHaveProperty('disabled', true);
+    expect(rag.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('alert').textContent).toContain('timed out');
+    expect(screen.getByText('Synthetic corpus has no matching context.')).toBeTruthy();
+  }
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 
 it('labels a deterministic fallback without showing raw calculations', async () => {
   const series = { id: 'series:eur-usd', kind: 'series', title: 'ECB reference rate',

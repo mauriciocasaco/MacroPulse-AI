@@ -3,28 +3,33 @@
 from asyncio import run, timeout
 import json
 from time import monotonic
+from typing import get_args
 
 import httpx
 
-from .v2_gemini import _COMPOSE, _INTERPRET, composition_inputs, interpretation_inputs
-from .v2_models import Draft, Intent
+from .v2_gemini import _COMPOSE, _GENERAL, _INTERPRET, composition_inputs, general_inputs, interpretation_inputs
+from .v2_models import Draft, FallbackModelId, GeneralDraft, Intent
 
 
 # Both models are covered by the Worker reservation. Review prices before
 # adding a model or changing these limits.
-MODELS = frozenset({"gemini-3.6-flash", "gemini-3.5-flash-lite"})
+MODELS = frozenset(get_args(FallbackModelId))
 INPUT_TOKENS = 8_000
 # Headroom for any provider framing/schema bytes absent from countTokens.
 # Static schemas are bounded as well, so changes cannot silently exceed it.
 PREFLIGHT_TOKENS = 6_000
 SCHEMA_BYTES = 4_000
 OUTPUT_TOKENS = 2_400
+GENERAL_OUTPUT_TOKENS = 800
+GENERAL_DEADLINE_HEADROOM = 2
 MAX_GENERATIONS = 2
 MAX_PROVIDER_BODY = 64 * 1024
 
 
 class PublicGemini:
     def __init__(self, *, api_key: str, model: str, deadline: float):
+        if model not in MODELS:
+            raise ValueError("Unsupported Research model")
         self._key = api_key
         self._model = model
         self._deadline = deadline
@@ -37,7 +42,12 @@ class PublicGemini:
     def compose(self, evidence: list[dict]) -> Draft:
         return self._generate(_COMPOSE, composition_inputs(evidence), Draft)
 
-    def _generate(self, template, inputs, schema):
+    def general(self, request, reason, *, event, knowledge_cutoff) -> GeneralDraft:
+        inputs = general_inputs(request, self._key, reason, event=event, knowledge_cutoff=knowledge_cutoff)
+        return self._generate(_GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
+                              deadline_headroom=GENERAL_DEADLINE_HEADROOM)
+
+    def _generate(self, template, inputs, schema, *, output_tokens=OUTPUT_TOKENS, deadline_headroom=0):
         if self._calls >= MAX_GENERATIONS:
             raise ValueError("Research generation limit reached")
         self._calls += 1
@@ -49,20 +59,23 @@ class PublicGemini:
             "systemInstruction": {"parts": [{"text": system.content}]},
             "contents": [{"role": "user", "parts": [{"text": user.content}]}],
             "generationConfig": {
-                "candidateCount": 1, "maxOutputTokens": OUTPUT_TOKENS,
+                "candidateCount": 1, "maxOutputTokens": output_tokens,
                 "responseMimeType": "application/json", "responseJsonSchema": response_schema,
                 "thinkingConfig": {"thinkingLevel": "MINIMAL", "includeThoughts": False},
             },
         }
         try:
-            raw = run(self._invoke(payload))
+            raw = run(self._invoke(payload, deadline_headroom=deadline_headroom))
         except httpx.TimeoutException:
             raise TimeoutError("Gemini timed out") from None
         return schema.model_validate_json(raw)
 
-    async def _invoke(self, payload: dict) -> str:
+    async def _invoke(self, payload: dict, *, deadline_headroom: float) -> str:
         model = f"models/{self._model}"
-        async with timeout(min(15, max(0, self._deadline - monotonic()))):
+        remaining = self._deadline - deadline_headroom - monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Research deadline reached")
+        async with timeout(min(15, remaining)):
             async with httpx.AsyncClient(
                 base_url="https://generativelanguage.googleapis.com/v1beta/",
                 headers={"x-goog-api-key": self._key, "Accept": "application/json",
@@ -80,7 +93,8 @@ class PublicGemini:
                     "promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount",
                 ))
                 if (any(type(value) is not int or value < 0 for value in (prompt, output, thinking))
-                        or not 0 < prompt <= INPUT_TOKENS or not 0 < output + thinking <= OUTPUT_TOKENS):
+                        or not 0 < prompt <= INPUT_TOKENS
+                        or not 0 < output + thinking <= payload["generationConfig"]["maxOutputTokens"]):
                     raise ValueError("Unexpected provider token usage")
                 candidate, = result["candidates"]
                 if candidate["finishReason"] != "STOP":

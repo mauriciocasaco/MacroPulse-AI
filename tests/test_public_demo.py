@@ -259,6 +259,36 @@ def test_research_rejects_invalid_body_and_leases(research_client, monkeypatch):
                                 content=b'{"question":"duplicate","question":"again"}').status_code == 422
 
 
+def test_general_fallback_fits_render_response_and_marks_the_request_complete(research_client, monkeypatch):
+    monkeypatch.setenv(demo.GENERAL_FALLBACK_FLAG, "true")
+    question = "How would one calculate an off-catalog index during a pandemic?"
+    answer = ("Compare equivalent observations using the same definition and geographic scope. " * 32)[:2400].strip()
+    paths = []
+
+    def provider(request):
+        paths.append(request.url.path)
+        if request.url.path.endswith(":countTokens"):
+            return httpx.Response(200, json={"totalTokens": 500})
+        output = ({"purpose": "descriptive", "requirements": [{"excerpt": question, "operation": "other"}]}
+                  if len(paths) == 2 else {"answer": answer})
+        return httpx.Response(200, json={
+            "usageMetadata": {"promptTokenCount": 500, "candidatesTokenCount": 600},
+            "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(output)}]}}],
+        })
+
+    client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
+        transport=httpx.MockTransport(provider), **options,
+    ))
+    reply = research_client.post(RESEARCH, headers=research_headers(), json={**ANALYSIS, "question": question})
+    assert reply.status_code == 200 and reply.headers["X-MacroPulse-Research-Complete"] == "true"
+    assert len(reply.content) < demo.MAX_RESEARCH_RESPONSE == 65_536
+    body = reply.json()
+    assert body["status"] == "insufficient_evidence" and body["evidence"] == body["narrative"] == []
+    assert body["general_fallback"]["answer"] == answer and body["general_fallback"]["verified"] is False
+    assert len(paths) == 4
+
+
 def test_read_quota_is_per_operation_and_ip(client, monkeypatch):
     monkeypatch.setattr(demo, "monotonic", lambda: 61)
     for _ in range(30):
