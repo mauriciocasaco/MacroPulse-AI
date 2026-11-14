@@ -5,6 +5,7 @@ from time import time
 
 from fastapi.testclient import TestClient
 import psycopg
+from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 import pytest
 
@@ -32,8 +33,12 @@ def online_db(disposable_database, local_test_dsn):
             cluster.execute(f"CREATE ROLE {role}")
         try:
             with disposable_database(variable) as dsn, psycopg.connect(dsn, autocommit=True) as db:
-                for migration in sorted((ROOT / "supabase/migrations").glob("*.sql")):
-                    db.execute(migration.read_text(encoding="utf-8"))
+                migrations = sorted((ROOT / "supabase/migrations").glob("*.sql"))
+                for migration in migrations:
+                    if migration.name == "20261114001531_editorial_evidence_contract.sql":
+                        apply_editorial_as_migrator(db, dsn, migration)
+                    else:
+                        db.execute(migration.read_text(encoding="utf-8"))
                 register_catalog(db)
                 for item in CATALOG.values():
                     period = {"daily": "2019-01-02", "effective_date": "2019-01-02",
@@ -56,9 +61,76 @@ def online_db(disposable_database, local_test_dsn):
                 yield dsn
         finally:
             cluster.execute("DROP ROLE IF EXISTS macropulse_editorial_view_owner")
+            cluster.execute("DROP ROLE IF EXISTS editorial_migrator_fixture")
             cluster.execute("DROP ROLE IF EXISTS macropulse_online_ro")
             for role in roles:
                 cluster.execute(f"DROP ROLE {role}")
+
+
+def apply_editorial_as_migrator(db, dsn, migration):
+    # The earlier migrations are already deployed. Match DEV's ownership and
+    # role attributes for the new migration and execute via a real login.
+    db.execute("CREATE ROLE editorial_migrator_fixture LOGIN NOSUPERUSER CREATEROLE")
+    db.execute(sql.SQL("GRANT CREATE ON DATABASE {} TO editorial_migrator_fixture").format(
+        sql.Identifier(db.info.dbname)
+    ))
+    db.execute("""
+        ALTER SCHEMA news OWNER TO editorial_migrator_fixture;
+        ALTER SCHEMA macropulse_online OWNER TO editorial_migrator_fixture;
+        ALTER TABLE news.sources OWNER TO editorial_migrator_fixture;
+        ALTER TABLE news.articles OWNER TO editorial_migrator_fixture;
+        ALTER TABLE news.article_records OWNER TO editorial_migrator_fixture;
+        ALTER TABLE macropulse_online.news_review OWNER TO editorial_migrator_fixture;
+        ALTER VIEW macropulse_online.news_evidence OWNER TO editorial_migrator_fixture;
+    """)
+    with psycopg.connect(make_conninfo(dsn, user="editorial_migrator_fixture"), autocommit=True) as migrator:
+        assert migrator.execute("""
+            SELECT rolcreaterole, rolsuper FROM pg_roles WHERE rolname = current_user
+        """).fetchone() == (True, False)
+        source = migration.read_text(encoding="utf-8")
+        temporary_grant = "GRANT macropulse_editorial_view_owner TO CURRENT_USER"
+        before, grant, after = source.partition(temporary_grant)
+        assert grant
+        migrator.execute(before)
+        assert editorial_owner_access(migrator) == (False, False, False)
+        temporary_create = "GRANT CREATE ON SCHEMA macropulse_online TO macropulse_editorial_view_owner;"
+        membership, create, rest = (grant + after).partition(temporary_create)
+        assert create
+        migrator.execute(membership + create)
+        assert editorial_owner_access(migrator) == (True, False, True)
+        migrator.execute(rest)
+        assert editorial_owner_access(migrator) == (False, False, False)
+        assert migrator.execute("""
+            SELECT pg_get_userbyid(c.relowner), r.rolcanlogin, r.rolsuper, r.rolbypassrls
+            FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner
+            WHERE c.oid = 'macropulse_online.news_evidence'::regclass
+        """).fetchone() == ("macropulse_editorial_view_owner", False, False, False)
+        assert migrator.execute("""
+            SELECT admin_option, inherit_option, set_option
+            FROM pg_auth_members
+            WHERE roleid = 'macropulse_editorial_view_owner'::regrole
+              AND member = current_user::regrole
+        """).fetchall() == [(True, False, False)]
+    assert db.execute("""
+        SELECT NOT EXISTS (
+            SELECT FROM pg_class c
+            CROSS JOIN LATERAL aclexplode(c.relacl) a
+            WHERE c.oid = 'macropulse_online.news_evidence'::regclass AND a.grantee = 0
+        ), bool_and(
+            NOT has_table_privilege(role, 'macropulse_online.news_evidence', 'SELECT, INSERT, UPDATE, DELETE')
+            AND NOT has_schema_privilege(role, 'news_editorial', 'USAGE, CREATE')
+            AND NOT pg_has_role(role, 'macropulse_editorial_view_owner', 'SET')
+        )
+        FROM unnest(ARRAY['anon', 'authenticated', 'service_role']) AS roles(role)
+    """).fetchone() == (True, True)
+
+
+def editorial_owner_access(db):
+    return db.execute("""
+        SELECT pg_has_role(current_user, 'macropulse_editorial_view_owner', 'SET'),
+               pg_has_role(current_user, 'macropulse_editorial_view_owner', 'USAGE'),
+               has_schema_privilege('macropulse_editorial_view_owner', 'macropulse_online', 'CREATE')
+    """).fetchone()
 
 
 def read_online(dsn):
@@ -308,6 +380,46 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
             admin.execute("UPDATE news_editorial.claim_revision SET summary = 'Unreviewed change.'")
         with pytest.raises(psycopg.errors.CheckViolation), admin.transaction():
             admin.execute("DELETE FROM news_editorial.editorial_review")
+        # Attempt each base-field mutation alongside a valid withdrawal.
+        for column, value in {
+            "claim_id": "different-review",
+            "claim_version": "d" * 64,
+            "rights_version": "e" * 64,
+            "reviewer_id": "rights-fixture",
+            "review_evidence": "different-ticket",
+            "reason": "different reason",
+            "status": "rejected",
+            "decided_at": "2023-01-03T11:00Z",
+        }.items():
+            with pytest.raises(psycopg.errors.CheckViolation, match="immutable"), admin.transaction():
+                admin.execute(sql.SQL("""
+                    UPDATE news_editorial.editorial_review SET withdrawn_at = now(), {} = %s
+                    WHERE claim_id = 'fixture-spot'
+                """).format(sql.Identifier(column)), (value,))
+        for when in ("infinity", "2023-01-01T00:00Z"):
+            with pytest.raises(psycopg.errors.CheckViolation), admin.transaction():
+                admin.execute("""
+                    UPDATE news_editorial.editorial_review SET withdrawn_at = %s
+                    WHERE claim_id = 'fixture-spot'
+                """, (when,))
+
+        # Isolate withdrawal from the rights-revocation test below.
+        with admin.transaction() as tx:
+            assert admin.execute("""
+                UPDATE news_editorial.editorial_review SET withdrawn_at = now()
+                WHERE claim_id = 'fixture-spot'
+                RETURNING withdrawn_at IS NOT NULL
+            """).fetchone() == (True,)
+            assert admin.execute("""
+                SELECT count(*) FROM macropulse_online.news_evidence WHERE claim_id = 'fixture-spot'
+            """).fetchone() == (0,)
+            for value in (None, "2024-01-01T00:00Z"):
+                with pytest.raises(psycopg.errors.CheckViolation, match="immutable"), admin.transaction():
+                    admin.execute("""
+                        UPDATE news_editorial.editorial_review SET withdrawn_at = %s
+                        WHERE claim_id = 'fixture-spot'
+                    """, (value,))
+            raise psycopg.Rollback(tx)
         admin.execute("""
             UPDATE news_editorial.rights_decision SET revoked_at = now()
             WHERE claim_id = 'fixture-spot' AND use_kind = 'factual_public'
