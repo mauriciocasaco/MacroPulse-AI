@@ -80,6 +80,19 @@ The online application reads the five official macro indicators and their full a
 
 Publication requires applying the reader migration, provisioning the Render and Cloudflare configuration, and verifying the hosted endpoints. Research v2 uses the complete M7.B snapshot and reviewed institutional supplements. Activating it requires Turnstile and a dedicated Gemini key.
 
+## Security & reliability
+
+Pull requests are validated with Python, frontend and Worker tests, CodeQL
+static analysis, Gitleaks secret detection, and Python/npm dependency audits.
+GitHub Actions are pinned to commit SHAs; Dependabot proposes weekly updates.
+No CI job has access to production credentials or deploys the application.
+The public runtime also uses bounded requests, read-only PostgreSQL access,
+TLS verification, and server-side evidence validation.
+
+See the [Fase 10.1 DevSecOps checklist](docs/phase-10-1-devsecops.md)
+for the CI scope and the administrator settings required to protect `main`.
+Scan results are not a substitute for production security verification.
+
 ## Research limitations
 
 The corpus and supported intent vocabulary are deliberately small. Charts and calculations use the captured series revisions available locally. The selected date window and document publication cutoff do not reconstruct the exact information available at a historical date. Correlations describe the sample and do not establish causality. The app provides historical research rather than forecasts or investment recommendations.
