@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from ..macro_data.api import MacroHistory, MacroWindow
 from ..macro_data.contracts import CATALOG
 from . import v2_gemini, v2_retrieval
+from .editorial_presentation import ENGLISH_SUMMARIES
 from .models import EVENT_WINDOWS, Claim, EventId, IndicatorId, ObservedChange, ResearchRequest
 from .statistics import read_statistics
 from .v2_models import (
@@ -315,7 +316,21 @@ def evaluate_support(state: State) -> dict:
                 "period_end": max(previous.period_end, source.period_end),
             })
         series[source.id] = source
-    facts = [Statement(result.fact, "official observation", result.observation_prose) for result in official]
+    dynamic = runtime and runtime.dynamic_editorial
+    historical_gdp = dynamic and any(
+        source.claim_version and source.relation == "direct" and source.measure == "real_gdp_qoq"
+        for source, _ in curated
+    )
+    facts = []
+    for result in official:
+        prose = result.observation_prose
+        if historical_gdp and result.evidence.id == "series:real-gdp-qoq":
+            captured = result.evidence.updated_at
+            vintage = f" captured on {captured.date().isoformat()}" if captured else ""
+            series_label = "Eurostat EA21 series" if runtime.knowledge_cutoff else "Revised Eurostat EA21 series"
+            intro = f"{series_label}{vintage}."
+            prose = (f"{intro} {prose[0]}", f"{intro} {prose[1]}")
+        facts.append(Statement(result.fact, "official observation", prose))
     calculations = [Statement(result.calculation, "calculated from official observations", result.calculation_prose)
                     for result in official if result.calculation and result.calculation_prose]
     context = []
@@ -323,11 +338,17 @@ def evaluate_support(state: State) -> dict:
         category = ("proxy context" if source.relation == "proxy"
                     else "institutional interpretation" if source.claim_type == "institutional_interpretation"
                     else "documentary context")
-        # Keep approved documentary language intact, including any attributed
-        # mechanism. A bridge introduces the source without linking it causally to the series.
+        text = claim.text
+        if dynamic and source.claim_version:
+            text = ENGLISH_SUMMARIES.get(source.claim_version) or (
+                f"See the cited {source.attribution} publication for the approved statement "
+                "in its original language."
+            )
+            if source.relation == "direct" and source.measure == "real_gdp_qoq":
+                text = f"Historical release estimate. {text}"
         bridge = ("The documentary evidence provides indirect context." if source.relation == "proxy"
                   else "The institutional record adds context.")
-        context.append(Statement(claim, category, (claim.text, f"{bridge} {claim.text}")))
+        context.append(Statement(claim, category, (text, f"{bridge} {text}")))
     statements = list({(row.claim.text, tuple(row.claim.citations)): row
                        for row in [*facts, *context, *calculations]}.values())
     return {"evidence": [*series.values(), *(source for source, _ in curated)], "statements": statements,
