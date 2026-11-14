@@ -4,9 +4,10 @@ const TEN_MINUTES = 10 * MINUTE;
 const TOKEN_LIFETIME = 5 * MINUTE;
 const LEASE = 60_000;
 const MAX_ACTIVE = 2;
-// USD 0.10 reserved per admitted investigation, even on timeout or failure.
-// This covers 2 × (8k input at $1.50/M + 2.4k output at $7.50/M) = $0.06.
-const MAX_MONTHLY_RESERVATIONS = 100;
+const MAX_VISITOR_ROLLING = 20;
+const MAX_VISITOR_DAILY = 50;
+const MAX_GLOBAL_DAILY = 300;
+const MAX_MONTHLY_RESERVATIONS = 1_000;
 const HASH = /^[a-f0-9]{64}$/;
 const ID = /^[a-f0-9-]{36}$/;
 
@@ -35,6 +36,10 @@ export class ResearchQuota {
       CREATE TABLE IF NOT EXISTS leases (
         id TEXT PRIMARY KEY, expires INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS admin_failures (
+        visitor TEXT PRIMARY KEY, total INTEGER NOT NULL, expires INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS admin_failure_expiry ON admin_failures(expires);
     `);
   }
 
@@ -46,6 +51,13 @@ export class ResearchQuota {
       return new Response(null, { status: 204 });
     }
     const payload = await request.json();
+    if (path === '/admin-auth' && HASH.test(payload.visitor ?? '') && typeof payload.valid === 'boolean') {
+      const result = this.storage.transactionSync(() => this.checkAdmin(payload, Date.now()));
+      if (result.code === 'invalid' && await this.storage.getAlarm() === null) {
+        await this.storage.setAlarm(Date.now() + MINUTE);
+      }
+      return Response.json(result);
+    }
     if (path === '/release' && ID.test(payload.id ?? '')) {
       this.sql.exec('DELETE FROM leases WHERE id = ?', payload.id);
       return new Response(null, { status: 204 });
@@ -67,7 +79,8 @@ export class ResearchQuota {
     const firstLease = this.sql.exec('SELECT min(expires) AS first FROM leases').one().first;
     const day = Math.floor(now / DAY) * DAY;
     const firstAttempt = count > 0 && day + (now < day + TEN_MINUTES ? TEN_MINUTES : DAY + TEN_MINUTES);
-    const pending = [firstToken, firstLease, firstAttempt].filter(Boolean);
+    const firstFailure = this.sql.exec('SELECT min(expires) AS first FROM admin_failures').one().first;
+    const pending = [firstToken, firstLease, firstAttempt, firstFailure].filter(Boolean);
     if (pending.length) await this.storage.setAlarm(Math.min(...pending));
   }
 
@@ -75,7 +88,20 @@ export class ResearchQuota {
     const day = Math.floor(now / DAY) * DAY;
     this.sql.exec('DELETE FROM leases WHERE expires <= ?', now);
     this.sql.exec('DELETE FROM tokens WHERE expires <= ?', now);
+    this.sql.exec('DELETE FROM admin_failures WHERE expires <= ?', now);
     this.sql.exec('DELETE FROM attempts WHERE admitted < ? AND admitted <= ?', day, now - TEN_MINUTES);
+  }
+
+  checkAdmin({ visitor, valid }, now) {
+    this.sql.exec('DELETE FROM admin_failures WHERE expires <= ?', now);
+    const failures = this.sql.exec('SELECT total, expires FROM admin_failures WHERE visitor = ?', visitor).toArray()[0];
+    if (failures?.total >= 5) return { code: 'locked', retry: seconds(failures.expires - now) };
+    if (valid) return { code: 'ok' };
+    this.sql.exec(`
+      INSERT INTO admin_failures VALUES (?, 1, ?)
+      ON CONFLICT(visitor) DO UPDATE SET total = total + 1
+    `, visitor, now + MINUTE);
+    return { code: 'invalid' };
   }
 
   admit({ visitor, token, challengeTime }, now) {
@@ -100,14 +126,15 @@ export class ResearchQuota {
              min(admitted) FILTER (WHERE admitted > ?) AS oldest
       FROM attempts WHERE visitor = ? AND admitted >= ?
     `, shortWindow, day, shortWindow, visitor, Math.min(day, shortWindow)).one();
-    if (local.daily >= 10) return { code: 'quota', retry: seconds(day + DAY - now) };
-    if (local.recent >= 3) return { code: 'quota', retry: seconds(local.oldest + TEN_MINUTES - now) };
     const daily = this.sql.exec('SELECT count(*) AS total FROM attempts WHERE admitted >= ?', day).one().total;
-    if (daily >= 100) return { code: 'quota', retry: seconds(day + DAY - now) };
+    const rollingReset = local.recent >= MAX_VISITOR_ROLLING ? local.oldest + TEN_MINUTES : 0;
     const budget = this.sql.exec('SELECT total FROM monthly_reservations WHERE month = ?', month).toArray()[0];
     if ((budget?.total ?? 0) >= MAX_MONTHLY_RESERVATIONS) {
-      return { code: 'budget', retry: seconds(nextMonth - now) };
+      return { code: 'budget', retry: seconds(Math.max(nextMonth, rollingReset) - now) };
     }
+    const dailyReset = local.daily >= MAX_VISITOR_DAILY || daily >= MAX_GLOBAL_DAILY ? day + DAY : 0;
+    const reset = Math.max(dailyReset, rollingReset);
+    if (reset) return { code: 'quota', retry: seconds(reset - now) };
     const active = this.sql.exec('SELECT count(*) AS total, min(expires) AS first FROM leases').one();
     if (active.total >= MAX_ACTIVE) return { code: 'busy', retry: Math.min(15, seconds(active.first - now)) };
     const id = crypto.randomUUID();

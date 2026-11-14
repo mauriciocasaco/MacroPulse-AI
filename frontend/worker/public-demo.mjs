@@ -1,7 +1,8 @@
 import { boundedBody } from './bounded-body.mjs';
 import {
-  maxResearchBody, publicResearchHeader, quotaReady, readResearchPayload, releaseResearch,
-  researchConfig, reserveResearch, siteKeyHeader,
+  adminCheckHeader, adminHeader, authenticateAdmin, configuredAdminSecret, maxResearchBody,
+  publicResearchHeader, quotaReady, readResearchPayload, releaseResearch,
+  researchConfig, researchEnabled, reserveResearch, siteKeyHeader,
 } from './research.mjs';
 
 export { ResearchQuota } from './research-quota.mjs';
@@ -141,28 +142,47 @@ async function publicResearch(request, env, ctx, url) {
   const ip = request.headers.get('CF-Connecting-IP');
   let timeout;
   try {
-    const config = researchConfig(env, url);
-    if (!config || !base || !ip || !/^[0-9a-fA-F:.]{1,45}$/.test(ip)) {
+    if (!researchEnabled(env, url) || !base || !ip || !/^[0-9a-fA-F:.]{1,45}$/.test(ip)) {
       return error(503, 'Public Research is unavailable');
     }
+    const credential = request.headers.get(adminHeader);
+    const check = request.headers.get(adminCheckHeader);
+    const adminRequested = credential !== null || check !== null;
+    const config = adminRequested ? null : researchConfig(env, url);
+    if (!adminRequested && !config) return error(503, 'Public Research is unavailable');
     const bytes = await boundedBody(request.body, maxResearchBody, AbortSignal.timeout(3000));
     if (!bytes) return error(413, 'Request too large');
+    const adminSecret = configuredAdminSecret(env);
+    let id;
+    let expires;
+    if (adminRequested) {
+      const auth = await authenticateAdmin(env, ip, adminSecret, credential ?? '');
+      if (auth.code === 'locked') return error(429, 'Administrator verification temporarily limited', auth.retry);
+      if (auth.code !== 'ok') return error(401, 'Administrator credentials rejected');
+      if (check !== null) {
+        if (check !== 'true' || new TextDecoder().decode(bytes) !== '{}') return error(422, 'Invalid request parameters');
+        return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+      }
+      expires = Date.now() + 60_000;
+    }
     let body;
     try {
-      body = readResearchPayload(bytes);
+      body = readResearchPayload(bytes, adminSecret);
     } catch {
       return error(422, 'Invalid request parameters');
     }
-    const reservation = await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip);
-    if (reservation.code !== 'ok') {
-      const reason = Object.hasOwn(researchErrors, reservation.code) && researchErrors[reservation.code];
-      return reason ? error(...reason, reservation.retry) : error(503, 'Public Research is unavailable');
-    }
-    const { id, expires } = reservation;
-    const remaining = expires - Date.now();
-    if (!/^[a-f0-9-]{36}$/.test(id ?? '') || !Number.isSafeInteger(expires)
-      || remaining < researchTimeoutMs + 2_000 || remaining > 60_000) {
-      return error(503, 'Public Research is unavailable');
+    if (config) {
+      const reservation = await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip);
+      if (reservation.code !== 'ok') {
+        const reason = Object.hasOwn(researchErrors, reservation.code) && researchErrors[reservation.code];
+        return reason ? error(...reason, reservation.retry) : error(503, 'Public Research is unavailable');
+      }
+      ({ id, expires } = reservation);
+      const remaining = expires - Date.now();
+      if (!/^[a-f0-9-]{36}$/.test(id ?? '') || !Number.isSafeInteger(expires)
+        || remaining < researchTimeoutMs + 2_000 || remaining > 60_000) {
+        return error(503, 'Public Research is unavailable');
+      }
     }
     timeout = AbortSignal.timeout(researchTimeoutMs);
     const upstream = await fetch(new URL('/macro/analysis', base), {
@@ -176,7 +196,7 @@ async function publicResearch(request, env, ctx, url) {
     });
     const knownCompleted = [200, 400, 403, 405, 408, 413, 415, 422].includes(upstream.status)
       && upstream.headers.get('X-MacroPulse-Research-Complete') === 'true';
-    if (knownCompleted) {
+    if (knownCompleted && config) {
       const release = releaseResearch(config, id).catch(() => {});
       if (ctx) ctx.waitUntil(release);
       else await release;

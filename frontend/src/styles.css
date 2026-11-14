@@ -133,6 +133,10 @@ legend { margin-bottom: 8px; padding: 0; }
 .research-details { margin-top: 14px; }
 .research-details summary { width: fit-content; cursor: pointer; color: var(--muted); }
 .research-details p { margin-top: 6px; }
+.research-admin { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 8px 0 14px; }
+.research-admin label { display: grid; gap: 4px; max-width: 100%; }
+.research-admin input { width: min(24ch, 100%); padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; color: inherit; background: var(--control); font-size: 16px; }
+.research-admin output { flex-basis: 100%; }
 .price-change { padding: 16px; border-radius: 10px; background: #0d0e10; }
 .price-change h3, .result-section h3 { font-size: 1.05rem; margin-bottom: 8px; }
 .research-analysis h3 { font-size: 1.2rem; }

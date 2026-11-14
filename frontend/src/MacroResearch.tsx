@@ -1,5 +1,8 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { askMacroAnalysis, type MacroAnalysis, type MacroIndicator, type ObservedChange, type ResearchEvidence } from './macro-api';
+import {
+  AdministratorCredentialError, askMacroAnalysis, checkAdministrator,
+  type MacroAnalysis, type MacroIndicator, type ObservedChange, type ResearchEvidence,
+} from './macro-api';
 import { QuestionComposer, type QuestionSubmission } from './QuestionComposer';
 import { TurnstileCheck } from './TurnstileCheck';
 
@@ -60,18 +63,60 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
   const [consent, setConsent] = useState(false);
   const [token, setToken] = useState('');
   const [challengeAttempt, setChallengeAttempt] = useState(0);
+  const [adminSecret, setAdminSecret] = useState('');
+  const [adminStatus, setAdminStatus] = useState<'unchecked' | 'checking' | 'authenticated' | 'invalid'>('unchecked');
+  const [adminError, setAdminError] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
+  const adminCheck = useRef<AbortController>(null);
+  useEffect(() => () => adminCheck.current?.abort(), []);
+  const isAdmin = publicDemo && adminStatus === 'authenticated';
+  const researchAvailable = enabled || isAdmin;
   const [request, setRequest] = useState<{
     indicatorId: string; controller: AbortController; pending: boolean; error?: string; result?: MacroAnalysis;
   }>();
   const active = useRef<AbortController>(null);
   useEffect(() => () => active.current?.abort(), [indicatorId, enabled, researchV2]);
-  const current = enabled && request?.indicatorId === indicatorId && !request.controller.signal.aborted ? request : undefined;
+  const current = researchAvailable && request?.indicatorId === indicatorId && !request.controller.signal.aborted ? request : undefined;
   const pending = current?.pending ?? false;
   const error = current?.error;
   const result = current?.result;
 
+  async function validateAdministrator() {
+    if (!adminSecret || pending || isAdmin || adminStatus === 'checking') return;
+    adminCheck.current?.abort();
+    const controller = new AbortController();
+    adminCheck.current = controller;
+    setAdminStatus('checking');
+    setAdminError('');
+    setShowSecret(false);
+    try {
+      const valid = await checkAdministrator(adminSecret, controller.signal);
+      if (controller.signal.aborted) return;
+      setAdminStatus(valid ? 'authenticated' : 'invalid');
+      if (valid) setToken('');
+    } catch (cause) {
+      if (controller.signal.aborted) return;
+      setAdminStatus('unchecked');
+      setAdminError(cause instanceof Error ? cause.message : 'Administrator verification is currently unavailable.');
+    }
+  }
+
+  function leaveAdministrator() {
+    adminCheck.current?.abort();
+    if (isAdmin && pending) {
+      active.current?.abort();
+      setRequest(undefined);
+    }
+    setAdminSecret('');
+    setAdminStatus('unchecked');
+    setAdminError('');
+    setShowSecret(false);
+  }
+
+  const canSubmit = !publicDemo || (consent && (isAdmin || Boolean(token)));
+
   function submit(submission: QuestionSubmission) {
-    if (!enabled || pending || submission.indicatorId !== indicatorId || (publicDemo && (!token || !consent))) return;
+    if (!researchAvailable || pending || submission.indicatorId !== indicatorId || !canSubmit) return;
     active.current?.abort();
     const controller = new AbortController();
     active.current = controller;
@@ -82,11 +127,18 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
     }
     askMacroAnalysis(submission.question, submission.start, submission.end, controller.signal,
       { indicator_id: submission.indicatorId, event_id: submission.eventId,
-        ...(researchV2 ? { research_version: 'v2' as const } : {}) }, publicDemo ? token : undefined).then((data) => {
+        ...(researchV2 ? { research_version: 'v2' as const } : {}) },
+      publicDemo && !isAdmin ? token : undefined, isAdmin ? adminSecret : undefined).then((data) => {
       if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, result: data } : current);
     }, (cause: unknown) => {
       const error = publicDemo && cause instanceof Error ? cause.message : 'Local macro research is currently unavailable.';
-      if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, error } : current);
+      if (controller.signal.aborted) return;
+      if (cause instanceof AdministratorCredentialError) {
+        setAdminStatus('invalid');
+        setAdminSecret('');
+        setShowSecret(false);
+      }
+      setRequest((current) => current?.controller === controller ? { ...current, error } : current);
     }).finally(() => {
       if (!controller.signal.aborted) setRequest((current) => current?.controller === controller ? { ...current, pending: false } : current);
     });
@@ -120,17 +172,42 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
         Research v2 sends your original question to Google Gemini. Keep secrets and credentials out of your question.
       </p>
     </div>}
-    {enabled ? <QuestionComposer enabled={enabled} pending={pending} indicators={indicators}
+    {publicDemo && <details className="research-details">
+      <summary>Administrator access</summary>
+      <form className="research-admin" onSubmit={(event) => { event.preventDefault(); void validateAdministrator(); }} autoComplete="off">
+        <label>Administrator secret
+          <input type={showSecret ? 'text' : 'password'} value={adminSecret}
+            autoComplete="off" spellCheck={false} autoCapitalize="none" maxLength={64}
+            disabled={pending || isAdmin || adminStatus === 'checking'}
+            onChange={(event) => {
+              setAdminSecret(event.target.value);
+              setAdminStatus('unchecked');
+              setAdminError('');
+            }} />
+        </label>
+        <button type="button" disabled={!adminSecret}
+          onClick={() => setShowSecret(!showSecret)}>{showSecret ? 'Hide secret' : 'Show secret'}</button>
+        {!isAdmin && <button type="submit" disabled={!adminSecret || pending || adminStatus === 'checking'}>
+          Verify credential
+        </button>}
+        {(adminSecret || isAdmin) && <button type="button" onClick={leaveAdministrator}>Exit administrator mode</button>}
+        <output className="muted">{adminError || ({
+          unchecked: 'Credential not checked', checking: 'Checking credential…',
+          authenticated: 'Authenticated', invalid: 'Invalid credential',
+        })[adminStatus]}</output>
+      </form>
+    </details>}
+    {researchAvailable ? <QuestionComposer enabled={researchAvailable} pending={pending} indicators={indicators}
       indicatorId={indicatorId} onIndicatorChange={onIndicatorChange} onSubmit={submit}
       allowCustomWindow={researchV2}
-      canSubmit={!publicDemo || Boolean(token && consent)}
+      canSubmit={canSubmit}
       verification={publicDemo && <>
         <label className="muted">
           <input type="checkbox" checked={consent} disabled={pending}
             onChange={(event) => setConsent(event.target.checked)} />
           {' '}I agree to send my question to Google Gemini. I will keep secrets and credentials out of it.
         </label>
-        {!pending && <TurnstileCheck key={challengeAttempt} sitekey={sitekey} onToken={setToken} />}
+        {!pending && !isAdmin && <TurnstileCheck key={challengeAttempt} sitekey={sitekey} onToken={setToken} />}
       </>} />
       : <p className="muted">{publicDemo ? 'Public AI research is currently unavailable.'
         : 'AI research is available only in an enabled local workspace.'}</p>}

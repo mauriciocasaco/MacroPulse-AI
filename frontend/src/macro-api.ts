@@ -276,19 +276,51 @@ export async function getMacroHistory(
   };
 }
 
+const analysisPath = '/api/macro/analysis';
+const adminHeader = 'X-MacroPulse-Admin-Secret';
+
+export class AdministratorCredentialError extends Error {
+  constructor() { super('Administrator credentials rejected.'); }
+}
+
+export async function checkAdministrator(secret: string, signal: AbortSignal): Promise<boolean> {
+  if (!/^[a-f0-9]{64}$/.test(secret)) return false;
+  const unavailable = 'Administrator verification is currently unavailable.';
+  const response = await fetch(analysisPath, {
+    method: 'POST', signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+    cache: 'no-store', redirect: 'error', mode: 'same-origin',
+    headers: { 'Content-Type': 'application/json', [adminHeader]: secret, 'X-MacroPulse-Admin-Check': 'true' },
+    body: '{}',
+  }).catch(() => { throw new Error(unavailable); });
+  if (response.status === 204) return true;
+  if (response.status === 401) return false;
+  throw new Error(response.status === 429
+    ? 'Too many credential attempts. Please try again shortly.'
+    : unavailable);
+}
+
 export async function askMacroAnalysis(
   question: string, start: string, end: string, signal: AbortSignal,
   context?: { indicator_id: string; event_id?: 'covid' | 'ukraine' | 'generative-ai'; research_version?: 'v2' },
-  turnstileToken?: string,
+  turnstileToken?: string, adminSecret?: string,
 ): Promise<MacroAnalysis> {
-  const response = await fetch('/api/macro/analysis', {
+  const response = await fetch(analysisPath, {
     method: 'POST', signal, cache: 'no-store',
+    ...(adminSecret && { redirect: 'error', mode: 'same-origin' }),
     headers: { 'Content-Type': 'application/json', Accept: 'application/json',
-      ...(turnstileToken ? { 'X-MacroPulse-Turnstile': turnstileToken } : {}) },
+      ...(adminSecret ? { [adminHeader]: adminSecret }
+        : turnstileToken ? { 'X-MacroPulse-Turnstile': turnstileToken } : {}) },
     body: JSON.stringify({ question, start, end, ...context }),
+  }).catch((cause: unknown) => {
+    if (adminSecret) throw new Error('Research is currently unavailable.');
+    throw cause;
   });
   if (!response.ok) {
-    if (!turnstileToken) throw new Error('Local macro research is unavailable.');
+    if (adminSecret) {
+      if (response.status === 401) throw new AdministratorCredentialError();
+      if (response.status === 429) throw new Error('Too many credential attempts. Please try again shortly.');
+    }
+    if (!turnstileToken && !adminSecret) throw new Error('Local macro research is unavailable.');
     if (response.status === 403) throw new Error('Complete a new Turnstile check.');
     if (response.status === 429) throw new Error('The public research quota has been reached. Please try again later.');
     if (response.status === 408 || response.status === 504) throw new Error('Research timed out. Please try again.');

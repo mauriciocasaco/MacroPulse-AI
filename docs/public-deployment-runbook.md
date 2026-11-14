@@ -55,8 +55,11 @@ los logs de acceso, la depuración y las trazas de LangSmith. [Planes gratuitos]
 2. Para activar Research, crear una clave Gemini dedicada al servicio y guardarla
    como `MARKETPULSE_DEMO_GEMINI_API_KEY` solo en Render. Configurar
    `MARKETPULSE_DEMO_RESEARCH_ENABLED=true`. El perfil usa `gemini-3.6-flash`
-   y conserva dos generaciones como máximo, preflight de tokens y un límite
-   mensual de 100 admisiones. [Precios de Gemini](https://ai.google.dev/gemini-api/docs/pricing)
+   y conserva hasta dos generaciones por investigación y el preflight de tokens.
+   Research público admite 20 solicitudes por IP en 10 minutos móviles, 50 por IP
+   al día UTC, 300 globales al día UTC y 1.000 globales al mes UTC, con hasta dos
+   investigaciones simultáneas. Cada admisión cuenta aunque falle.
+   [Precios de Gemini](https://ai.google.dev/gemini-api/docs/pricing)
 3. Crear un widget Turnstile para ese dominio. Configurar
    `MACROPULSE_RESEARCH_HOSTNAME`, `MACROPULSE_TURNSTILE_SITE_KEY`,
    `MACROPULSE_TURNSTILE_SECRET` y `MACROPULSE_RESEARCH_HASH_KEY` en Cloudflare.
@@ -71,6 +74,61 @@ los logs de acceso, la depuración y las trazas de LangSmith. [Planes gratuitos]
    con `ALTER ROLE macropulse_online_ro NOLOGIN PASSWORD NULL` y cerrar sus
    sesiones activas. Para revertir una versión, desplegar un SHA compatible con
    las vistas y repetir las comprobaciones del catálogo y de Research.
+
+## Acceso administrador de Research
+
+La PWA verifica la credencial por HTTPS en el mismo Worker antes de habilitar
+el modo administrador. El Worker vuelve a verificarla en cada investigación.
+Cinco fallos desde la misma IP bloquean la verificación durante el resto de
+la ventana de un minuto, contada desde el primer fallo. El modo administrador
+comparte los límites de Render y Gemini y queda sujeto al interruptor global
+de Research.
+
+1. Generar **32 bytes aleatorios con un generador criptográfico**, en
+   **64 caracteres hexadecimales en minúscula**, usando un gestor de contraseñas
+   o un generador seguro local. Usar una clave exclusiva para este acceso.
+   Pegar el valor directamente en el campo enmascarado de Wrangler. Mantenerlo
+   fuera de archivos, argumentos, historial de shell y registros.
+2. Desde el directorio de este checkout, desplegar el código en el Worker
+   existente una vez revisado. El nombre, la clase SQLite y el nombre de
+   instancia de cuotas públicas son los mismos, por lo que se preservan los
+   contadores. El build público se ejecuta desde la configuración de Wrangler.
+
+   ```powershell
+   Set-Location frontend
+   npm ci
+   npm run test:worker
+   npm test
+   npx --yes wrangler@4.162.0 deploy --config wrangler.jsonc
+   ```
+
+3. Desde ese mismo directorio, cargar o rotar el secreto con el siguiente
+   comando. Wrangler solicita el valor de forma interactiva. Este comando
+   publica de inmediato una nueva versión del Worker activo. Para rotar,
+   repetirlo con un nuevo valor aleatorio. Para revocar el acceso, usar
+   `npx --yes wrangler@4.162.0 secret delete MACROPULSE_ADMIN_SECRET --config wrangler.jsonc`.
+   [Cloudflare Worker Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+
+   ```powershell
+   npx --yes wrangler@4.162.0 secret put MACROPULSE_ADMIN_SECRET --config wrangler.jsonc
+   ```
+
+4. En la PWA, abrir **Administrator access** y seleccionar **Verify credential**.
+   Comprobar que la nueva clave valida y, en una rotación, que la anterior
+   falla. Con el consentimiento marcado, ejecutar una investigación de prueba.
+   Salir del modo administrador y verificar que el flujo público pide Turnstile.
+   Mantener las cabeceras de solicitudes fuera de cualquier registro de borde.
+
+### Control de gasto
+
+En Cloud Billing, crear un presupuesto con alertas al 50 %, 80 % y 100 % y,
+si está disponible en la cuenta, habilitar el tope de gasto para Gemini API.
+Seleccionar el proyecto dedicado de MacroPulse y configurar notificaciones
+para los responsables de operación. Este control es independiente de las
+reservas del Worker y cubre tanto el uso administrativo como el público.
+Puede haber cargos durante la latencia de aplicación. Ante consumo anómalo,
+rotar o revocar el secreto de inmediato. Si hace falta detener todo Research,
+usar el interruptor global. [Topes y alertas de Cloud Billing](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps)
 
 ## Evidencia documental
 
