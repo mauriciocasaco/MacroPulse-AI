@@ -431,7 +431,7 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
                 RETURNING withdrawn_at IS NOT NULL
             """).fetchone() == (True,)
             assert admin.execute("""
-                SELECT count(*) FROM macropulse_online.news_evidence WHERE claim_id = 'fixture-spot' AND decided_at = '2023-01-04T10:00Z'
+                SELECT count(*) FROM macropulse_online.news_evidence WHERE claim_id = 'fixture-spot'
             """).fetchone() == (0,)
             for value in (None, "2024-01-01T00:00Z"):
                 with pytest.raises(psycopg.errors.CheckViolation, match="immutable"), admin.transaction():
@@ -448,3 +448,4 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
         with read_online(online_db) as online:
             assert online_evidence.retrieve_online(online, *query, window.end) == []
         assert not dynamic_read()
+
