@@ -1,7 +1,9 @@
 """Production API over least-privilege views of the shared Supabase data."""
 
 from contextlib import ExitStack
+from datetime import date, datetime, time, timezone
 from functools import partial
+import re
 from os import environ
 from time import monotonic
 
@@ -178,11 +180,35 @@ def read_online_catalog(connection: psycopg.Connection):
     return result
 
 
+_AS_OF = re.compile(r"\b(?:as[ -]of|con corte al?|al cierre de)\s+(\d{4}(?:-\d{2}-\d{2})?)(?![\w-])", re.I)
+
+
+def online_knowledge_cutoff(question: str) -> date | None:
+    dates = {date.fromisoformat(value if len(value) > 4 else f"{value}-12-31")
+             for value in _AS_OF.findall(question)}
+    if len(dates) > 1:
+        raise ValueError("Research requires a single knowledge cutoff")
+    return next(iter(dates), None)
+
+
+def parse_online_research(body: bytes):
+    request = parse_research(body, online=True)
+    if environ.get("MACROPULSE_ONLINE_DYNAMIC_RAG") == "true":
+        online_knowledge_cutoff(request.question)
+    return request
+
+
 def run_online_research(settings, request, key, model, deadline):
     from .macro_ai.online_evidence import retrieve_online
     from .macro_ai.public_gemini import PublicGemini
     from .macro_ai.v2_service import ResearchRuntime, run
 
+    dynamic = environ.get("MACROPULSE_ONLINE_DYNAMIC_RAG") == "true"
+    cutoff = online_knowledge_cutoff(request.question) if dynamic else None
+    known_at = None
+    if cutoff:
+        now = datetime.now(timezone.utc)
+        known_at = min(datetime.combine(cutoff, time.max, timezone.utc), now)
     provider = PublicGemini(api_key=key, model=model, deadline=deadline)
     with ExitStack() as stack:
         connection = None
@@ -196,18 +222,22 @@ def run_online_research(settings, request, key, model, deadline):
             return connection
 
         def read(indicator, window):
-            return load_history(reader(), CATALOG[indicator], window, schema=SCHEMA)
+            return load_history(reader(), CATALOG[indicator], window, schema=SCHEMA, known_at=known_at)
 
         def retrieve(*arguments):
-            return retrieve_online(reader(), *arguments)
+            options = {"dynamic": True} if dynamic else {}
+            return retrieve_online(reader(), *arguments, **options)
 
         def compose(evidence):
             stack.close()
             return provider.compose(evidence)
 
-        runtime = ResearchRuntime(read, provider.interpret, compose, model,
+        interpret = partial(provider.interpret, knowledge_cutoff=cutoff) if cutoff else provider.interpret
+        runtime = ResearchRuntime(read, interpret, compose, model,
                                   supplemental_retriever=retrieve,
-                                  capture_vintage="latest available Supabase")
+                                  capture_vintage=(f"Supabase as of {known_at.date()}" if known_at
+                                                   else "latest available Supabase"),
+                                  dynamic_editorial=dynamic, knowledge_cutoff=cutoff)
         return run(request, runtime=runtime)
 
 
@@ -215,6 +245,6 @@ def create_online_app():
     return create_public_app(
         settings=resolve_online_settings(environ), connect=connect_online,
         history_reader=partial(load_history, schema=SCHEMA), catalog_reader=read_online_catalog,
-        research_runner=run_online_research, research_parser=partial(parse_research, online=True),
+        research_runner=run_online_research, research_parser=parse_online_research,
         max_window_days=MAX_DAYS,
     )

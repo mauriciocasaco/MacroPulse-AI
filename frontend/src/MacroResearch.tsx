@@ -188,6 +188,9 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
             {item.similarity_metric === 'cosine' && item.similarity_score != null
               && <> · Cosine similarity {item.similarity_score.toFixed(3)}</>}
             {item.rights_url && <> · <a href={item.rights_url}>Reuse terms</a></>}
+            {item.available_at && <> · Editorially available <time dateTime={item.available_at}>{item.available_at}</time></>}
+            {item.measure && <> · {item.measure} · {item.unit}</>}
+            {item.claim_version && <> · Claim version {item.claim_version}</>}
             {item.series_key && <> · {item.series_key} · {item.unit} · {item.adjustment}</>}
             {item.claim_id && <> · Claim {item.claim_id} · Document {item.document_id} · Relation {item.relation}
               {' · '}{item.geography}{' · '}{item.locator}

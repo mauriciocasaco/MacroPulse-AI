@@ -63,6 +63,11 @@ export interface ResearchEvidence {
   similarity_score?: number | null;
   similarity_metric?: 'cosine' | null;
   claim_id?: string;
+  claim_version?: string | null;
+  available_at?: string | null;
+  measure?: string | null;
+  event_linkage?: string | null;
+  source_id?: string | null;
   document_id?: string;
   event?: string;
   indicator?: string;
@@ -70,9 +75,9 @@ export interface ResearchEvidence {
   relation?: 'direct' | 'context' | 'proxy';
   locator?: string;
   qualifiers?: string;
-  claim_type?: 'observed' | 'institutional_interpretation';
+  claim_type?: 'observed' | 'institutional_interpretation' | 'proxy' | 'historical_context';
   series_key?: string;
-  unit?: string;
+  unit?: string | null;
   multiplier?: number;
   adjustment?: string;
 }
@@ -198,14 +203,23 @@ function hasV2Provenance(item: ResearchEvidence, cutoff: string): boolean {
       typeof item[key as keyof ResearchEvidence] === 'string') && Number.isInteger(item.multiplier);
   }
   const sha256 = /^[a-f0-9]{64}$/;
-  return typeof item.claim_id === 'string' && sha256.test(item.claim_id) && item.id === `claim:${item.claim_id}`
+  const version = item.claim_version;
+  const available = item.available_at == null ? NaN : Date.parse(item.available_at);
+  const identity = typeof item.claim_id === 'string' && (version != null
+    ? /^[a-zA-Z0-9_-]{1,100}$/.test(item.claim_id) && sha256.test(version)
+      && item.id === `claim:${item.claim_id}:${version}`
+      && Number.isFinite(available) && new Date(available).toISOString().slice(0, 10) <= cutoff
+      && ['measure', 'unit', 'event_linkage', 'source_id'].every((key) =>
+        typeof item[key as keyof ResearchEvidence] === 'string')
+    : sha256.test(item.claim_id) && item.id === `claim:${item.claim_id}`);
+  return identity
     && typeof item.document_id === 'string' && sha256.test(item.document_id)
     && item.published_on !== null && item.published_on <= cutoff
     && typeof item.indicator === 'string' && ids.has(item.indicator)
     && typeof item.geography === 'string' && typeof item.locator === 'string' && typeof item.qualifiers === 'string'
     && ['covid', 'ukraine', 'genai'].includes(item.event ?? '')
     && ['direct', 'context', 'proxy'].includes(item.relation ?? '')
-    && ['observed', 'institutional_interpretation'].includes(item.claim_type ?? '');
+    && ['observed', 'institutional_interpretation', 'proxy', 'historical_context'].includes(item.claim_type ?? '');
 }
 
 async function get(path: string, signal: AbortSignal, onResponse?: (response: Response) => void): Promise<unknown> {
@@ -301,7 +315,7 @@ export async function askMacroAnalysis(
   }
   const researchV2 = context?.research_version === 'v2';
   if (researchV2 && (result.research_v2 !== true || !date(result.publication_cutoff)
-    || result.publication_cutoff > end || !['supported', 'partial', 'insufficient'].includes(String(result.support))
+    || !['supported', 'partial', 'insufficient'].includes(String(result.support))
     || (result.support === 'insufficient') !== (result.status === 'insufficient_evidence')
     || !claims(result.narrative) || !result.narrative.every(({ category }) =>
       category !== undefined && researchCategories.includes(category)))) {

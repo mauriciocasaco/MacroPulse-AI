@@ -4,6 +4,8 @@ import json
 import os
 import re
 
+from datetime import date
+
 from langchain_core.prompts import ChatPromptTemplate
 
 from ..macro_data.contracts import CATALOG
@@ -58,7 +60,9 @@ _CREDENTIAL = re.compile(
 )
 
 
-def interpretation_inputs(request: ResearchRequest, key: str) -> dict[str, str]:
+def interpretation_inputs(
+    request: ResearchRequest, key: str, *, knowledge_cutoff: date | None = None,
+) -> dict[str, str]:
     if (key and key in request.question) or _CREDENTIAL.search(request.question):
         raise ValueError("Sensitive input")
     scope = {
@@ -71,6 +75,13 @@ def interpretation_inputs(request: ResearchRequest, key: str) -> dict[str, str]:
         "events": list(EVENT_WINDOWS),
         "filters": request.model_dump(mode="json", exclude={"question"}),
     }
+    if knowledge_cutoff is not None:
+        scope["knowledge_cutoff"] = knowledge_cutoff.isoformat()
+        scope["cutoff_instruction"] = (
+            "The server applies the recognized as-of date. Use it only as a knowledge cutoff. "
+            "Keep the economic observation period independent and omit this handled qualifier "
+            "from other_constraints."
+        )
     return {"question": request.question, "scope": json.dumps(scope)}
 
 
