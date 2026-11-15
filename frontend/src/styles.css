@@ -24,14 +24,20 @@ label, legend { font-size: .875rem; font-weight: 600; }
 fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
 legend { margin-bottom: 8px; padding: 0; }
 h1, h2, h3, h4, p { margin: 0; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 600; }
 h3 { line-height: 1.2; font-size: 1.2rem; letter-spacing: -.025em; }
+time, input[type='date'], .chart-latest, .coverage, .research-change-value,
+.macro-tooltip span, .data-panel .macro-presets button {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
 .muted { color: var(--muted); font-size: .875rem; overflow-wrap: anywhere; }
 .eyebrow {
   display: flex;
   align-items: center;
   gap: 9px;
   color: var(--mint);
-  font: 11px/1.45 var(--mono);
+  font: 600 11px/1.45 var(--sans);
   letter-spacing: .16em;
   text-transform: uppercase;
 }
@@ -79,9 +85,8 @@ h3 { line-height: 1.2; font-size: 1.2rem; letter-spacing: -.025em; }
 .hero-content { align-self: start; text-align: center; padding-top: clamp(90px, 14vh, 163px); padding-bottom: clamp(125px, 24vh, 250px); }
 .hero-eyebrow { justify-content: center; }
 .hero-eyebrow::before { box-shadow: 0 0 14px var(--mint); }
-.hero h1, .section-intro h2 { font: 400 1rem/.92 var(--display); }
-.hero h1 { font-size: clamp(83px, 10.8vw, 172px); letter-spacing: -.05em; margin-top: 22px; }
-.hero h1 em { color: var(--mint); margin-left: .08em; }
+.hero h1 { font-size: clamp(72px, 10vw, 158px); line-height: 1.02; letter-spacing: -.07em; margin-top: 22px; }
+.hero h1 em { color: var(--mint); margin-left: .03em; }
 .hero-intro { max-width: 42ch; margin: 24px auto 0; color: var(--muted); font-size: clamp(15px, 1.7vw, 18px); text-wrap: balance; }
 .hero-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 .action { display: inline-flex; align-items: center; justify-content: center; gap: 18px; min-height: 49px; padding: 10px 19px; border: 1px solid transparent; border-radius: 8px; font-size: .875rem; font-weight: 620; text-decoration: none; }
@@ -92,23 +97,23 @@ h3 { line-height: 1.2; font-size: 1.2rem; letter-spacing: -.025em; }
 .ripple { position: relative; overflow: hidden; }
 .ripple-ink { position: absolute; width: 24px; height: 24px; margin: -12px; border-radius: 50%; background: currentColor; opacity: 0; pointer-events: none; }
 .hero-baseline { display: flex; justify-content: flex-end; min-height: 60px; padding-bottom: 16px; }
-.motion-control { align-self: start; font: 11px var(--mono); background: var(--bg); color: var(--muted); }
+.motion-control { align-self: start; font-size: 11px; background: var(--bg); color: var(--muted); }
 
 .content-section { padding-block: clamp(64px, 8vw, 120px); }
 .section-intro { margin-bottom: 32px; }
-.section-intro h2 { font-size: clamp(52px, 7vw, 93px); letter-spacing: -.025em; margin: 13px 0; }
+.section-intro h2 { font-size: clamp(38px, 5.25vw, 74px); line-height: 1.05; letter-spacing: -.055em; margin: 13px 0; }
 .section-intro .muted { max-width: 40ch; font-size: 1rem; }
 .panel { padding: clamp(16px, 3vw, 32px); background: var(--panel); border: 1px solid var(--border); border-radius: 16px; min-width: 0; }
 .overview { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
 .overview > div:first-child { min-width: 0; }
 .indicator-label { font: 400 .875rem var(--mono); }
 .chart-latest { color: var(--mint); margin-top: 5px; overflow-wrap: anywhere; }
-.chart-latest strong { font: 400 clamp(34px, 5vw, 65px)/1 var(--display); }
-.chart-latest span, .chart-footer time { font: .75rem var(--mono); }
+.chart-latest strong { font-size: clamp(30px, 4.6vw, 60px); font-weight: 400; line-height: 1; letter-spacing: -.045em; }
+.chart-latest span, .chart-footer time { font-size: .75rem; }
 .coverage { margin-top: 6px; }
 .asset-select { display: grid; gap: 6px; width: min(100%, 290px); }
 .macro-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 16px; }
-.macro-presets button { min-width: 48px; padding-inline: 9px; font: .8125rem var(--mono); }
+.macro-presets button { min-width: 48px; padding-inline: 9px; font-size: .8125rem; }
 .macro-presets button[aria-pressed='true'], .composer-choices button[aria-pressed='true'] {
   background: var(--selected);
   color: var(--hover);
@@ -126,8 +131,7 @@ h3 { line-height: 1.2; font-size: 1.2rem; letter-spacing: -.025em; }
 .research-change { border-block-start: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
 .research-change-value {
   font-size: clamp(2.65rem, 9vw, 4.4rem);
-  font-weight: 760;
-  font-variant-numeric: tabular-nums;
+  font-weight: 400;
   letter-spacing: -.055em;
   line-height: 1.08;
   margin-bottom: 6px;
@@ -141,7 +145,7 @@ h3 { line-height: 1.2; font-size: 1.2rem; letter-spacing: -.025em; }
   border-radius: 10px;
   padding: clamp(14px, 4vw, 26px);
 }
-.research-narrative { max-width: 68ch; font-size: 1.05rem; line-height: 1.65; }
+.research-narrative { max-width: 66ch; font-size: clamp(1rem, .95rem + .3vw, 1.125rem); line-height: 1.7; }
 .research-narrative + .research-narrative { margin-top: .8em; }
 .research-limitations { max-width: 68ch; margin: 12px 0 0; padding-inline-start: 1.25em; }
 .research-sources li { margin-bottom: 10px; }
@@ -167,7 +171,7 @@ h3 { line-height: 1.2; font-size: 1.2rem; letter-spacing: -.025em; }
 
 .macro-plot-container { position: relative; background: radial-gradient(ellipse at 56% 90%, var(--ocean-deep), var(--bg)); border: 1px solid var(--border); border-radius: 9px; }
 .macro-plot { display: block; width: 100%; height: clamp(230px, 32vw, 365px); border-radius: inherit; touch-action: pan-y pinch-zoom; }
-.macro-plot text { fill: var(--muted); font: 12px var(--mono); }
+.macro-plot text { fill: var(--muted); font: 12px var(--mono); font-variant-numeric: tabular-nums; }
 .macro-plot[data-compact="true"] text { font-size: 10px; }
 .macro-gridline { stroke: var(--border); }
 .macro-guide { stroke: var(--amber); stroke-dasharray: 3 5; opacity: .7; pointer-events: none; }
@@ -185,13 +189,14 @@ h3 { line-height: 1.2; font-size: 1.2rem; letter-spacing: -.025em; }
   :root { --header: 60px; }
   .shell { width: calc(100% - 38px); }
   .hero-content { padding-top: clamp(65px, 12svh, 112px); }
-  .hero h1 { font-size: clamp(65px, 12vw, 105px); }
+  .hero h1 { font-size: clamp(52px, 11.5vw, 84px); }
   .ask-section { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .brand { font-size: .9375rem; gap: 7px; }
   .brand svg { width: 29px; }
   .topbar nav a { font-size: .75rem; }
+  .hero h1 { font-size: clamp(44px, 16.67vw, 65px); }
   .hero h1 em { display: block; margin-left: 0; }
   .hero-actions { gap: 8px; }
   .hero-actions .action { gap: 8px; padding-inline: 10px; font-size: .75rem; }

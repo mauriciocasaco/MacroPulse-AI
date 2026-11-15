@@ -3,6 +3,20 @@
 For the primary macroeconomic workspace, see the [root setup guide](../README.md#local-development).
 The asset workspace described below is available at `/?workspace=market`.
 
+## Institutional AI typography
+
+The macro workspace uses Sora for headings, IBM Plex Sans for UI and research prose,
+and IBM Plex Mono for economic values and technical details. `src/tokens.css` loads
+four local WOFF2 faces. The upright cuts come from Fontsource 5.3.0.
+
+The mint “Analyst” uses Sora's authentic SemiBold Italic. Fontsource ships the upright
+cut. The local italic comes from `Sora-SemiBoldItalic.ttf`, subset to basic Latin
+(`U+0020-007E`) and converted with FontTools 4.68.0 using
+`--unicodes=U+0020-007E --name-IDs=* --flavor=woff2`. [Sora project source](https://github.com/sora-xor/sora-font/tree/7f9a9c5d0ccd1c099cfac420aa27133df1c5fdc4/fonts/ttf/v2.1beta)
+
+The build includes the SIL Open Font License notices. [Sora](public/fonts/sora-OFL.txt),
+[IBM Plex](public/fonts/ibm-plex-OFL.txt)
+
 ## Inicio en Windows
 
 Usá Python 3.12, PowerShell 7.4+ y una versión LTS de Node compatible con `package.json`, por ejemplo Node 24.15 o posterior dentro de la rama 24. Abrí las dos terminales en la raíz del repositorio.
