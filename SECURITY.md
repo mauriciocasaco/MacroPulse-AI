@@ -21,7 +21,7 @@ Do not run destructive tests or stress production infrastructure.
 ## Security development
 
 Pull requests are checked by CI, CodeQL and Gitleaks. Dependabot proposes
-dependency updates. Security failures must be triaged before merging;
+security patches for known vulnerable dependencies. Security failures must be triaged before merging;
 there is no automatic production deployment.
 
 A passing scan is not a guarantee of security. The offline CI jobs do not

@@ -6,6 +6,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '23 7 * * 1' # weekly dependency audits; no deploys
 
 permissions:
   contents: read
@@ -17,6 +19,7 @@ concurrency:
 jobs:
   backend:
     name: Backend tests
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -44,6 +47,7 @@ jobs:
 
   frontend:
     name: Frontend and Worker tests
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
