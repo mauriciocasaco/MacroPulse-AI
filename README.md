@@ -84,7 +84,9 @@ Publication requires applying the reader migration, provisioning the Render and 
 
 Pull requests are validated with Python, frontend and Worker tests, CodeQL
 static analysis, Gitleaks secret detection, and Python/npm dependency audits.
-GitHub Actions are pinned to commit SHAs; Dependabot proposes weekly updates.
+GitHub Actions are pinned to commit SHAs; dependency audits run weekly.
+Dependabot alerts and security-only PRs are enabled; routine version-update
+PRs are disabled.
 No CI job has access to production credentials or deploys the application.
 The public runtime also uses bounded requests, read-only PostgreSQL access,
 TLS verification, and server-side evidence validation.
