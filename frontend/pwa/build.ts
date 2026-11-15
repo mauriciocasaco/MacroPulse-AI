@@ -20,7 +20,11 @@ export function marketPulsePwa(): Plugin {
     async writeBundle({ dir }, bundle) {
       if (!dir) throw new Error('The PWA build requires a static output directory.');
 
-      const assets = Object.keys(bundle).filter((name) => /^assets\/[\w-]+\.(?:js|css)$/.test(name));
+      // Decorative WebGL loads only when the hero is visible and motion is enabled.
+      const assets = Object.values(bundle).filter((entry) => {
+        if (entry.type === 'chunk') return entry.name !== 'ocean';
+        return /^assets\/[\w-]+\.(?:css|woff2?)$/.test(entry.fileName);
+      }).map(({ fileName }) => fileName);
       const files = await Promise.all([...publicShell, ...assets.sort()].map(async (name) => {
         const content = await readFile(join(dir, name));
         const hash = createHash('sha256').update(content).digest('base64');

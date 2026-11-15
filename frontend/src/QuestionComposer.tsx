@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import type { MacroIndicator } from './macro-api';
 import { indicatorPresentation } from './macro-chart';
 import { historicalEvents, type HistoricalEventId, type QuestionSubmission } from './question-events';
+import { RippleButton } from './RippleButton';
 import './QuestionComposer.css';
 
 export type { HistoricalEventId, QuestionSubmission } from './question-events';
@@ -51,19 +52,19 @@ export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, p
     <fieldset disabled={disabled} className="composer-options">
       <legend>Indicator</legend>
       <div className="composer-choices">
-        {indicators.map((item) => <button key={item.id} type="button"
+        {indicators.map((item) => <RippleButton key={item.id} type="button"
           aria-pressed={item.id === indicatorId} onClick={() => onIndicatorChange(item.id)}>
           {indicatorPresentation(item).label}
-        </button>)}
+        </RippleButton>)}
       </div>
     </fieldset>
     <fieldset disabled={disabled} className="composer-options">
       <legend>Historical event</legend>
       <div className="composer-choices">
-        {historicalEvents.map((item) => <button key={item.id} type="button"
-          aria-pressed={item.id === eventId} onClick={() => setEventId(item.id)}>{item.label}</button>)}
-        {allowCustomWindow && <button type="button" aria-pressed={!eventId}
-          onClick={() => setEventId(undefined)}>Custom dates</button>}
+        {historicalEvents.map((item) => <RippleButton key={item.id} type="button"
+          aria-pressed={item.id === eventId} onClick={() => setEventId(item.id)}>{item.label}</RippleButton>)}
+        {allowCustomWindow && <RippleButton type="button" aria-pressed={!eventId}
+          onClick={() => setEventId(undefined)}>Custom dates</RippleButton>}
       </div>
       {!selectedEvent && <div className="composer-choices">
         <label>Start <input type="date" required value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label>
@@ -84,10 +85,10 @@ export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, p
     </output>}
     {verification}
     <div className="composer-actions">
-      {custom && <button type="button" disabled={disabled || !indicator} onClick={() => setCustom(undefined)}>
+      {custom && <RippleButton type="button" disabled={disabled || !indicator} onClick={() => setCustom(undefined)}>
         Use generated question
-      </button>}
-      <button type="submit" className="primary" disabled={disabled || !indicator || !valid || !validWindow || !canSubmit}>Ask LLM Model</button>
+      </RippleButton>}
+      <RippleButton type="submit" className="primary" disabled={disabled || !indicator || !valid || !validWindow || !canSubmit}>Ask LLM Model</RippleButton>
     </div>
   </form>;
 }

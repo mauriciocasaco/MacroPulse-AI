@@ -1,0 +1,29 @@
+:root {
+  color-scheme: dark;
+  --bg: #08090B;
+  --panel: #111214;
+  --control: #17191C;
+  --border: #292B30;
+  --text: #F5F5F5;
+  --muted: #a6adb0;
+  --mint: #7BE5C4;
+  --hover: #A2EED8;
+  --amber: #FFCE88;
+  --red: #FF9A9A;
+  --ink: #092018;
+  --selected: #1c2b26;
+  --selected-border: #527f74;
+  --ocean-deep: #0b1c17;
+  --ocean-glow: #12342970;
+  --error-bg: #291c22;
+  --error-border: #653a46;
+  --mono: 'IBM Plex Mono', monospace;
+  --display: 'Instrument Serif', Georgia, serif;
+  --sans: 'Geist Variable', system-ui, sans-serif;
+  --header: 68px;
+  --chart-motion: 420ms;
+  color: var(--text);
+  background: var(--bg);
+  font: 16px/1.55 var(--sans);
+  scroll-padding-top: calc(var(--header) + 18px);
+}

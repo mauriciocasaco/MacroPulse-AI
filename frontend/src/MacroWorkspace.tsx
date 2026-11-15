@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getMacroIndicators } from './macro-api';
 import { MacroPlot } from './MacroPlot';
-import { unitLabel, loadChartHistory, selectHistory, indicatorPresentation, chartPeriods, type ChartHistory, type ChartPeriod } from './macro-chart';
+import { unitLabel, numeric, loadChartHistory, selectHistory, indicatorPresentation, chartPeriods, type ChartHistory, type ChartPeriod } from './macro-chart';
+import { RippleButton } from './RippleButton';
 import { MacroResearch } from './MacroResearch';
 
 const frequencyLabels = {
@@ -48,47 +49,72 @@ export function MacroWorkspace({ analysisEnabled, publicDemo = false }: { analys
   const history = loaded?.id === id ? selectHistory(loaded.history, period) : undefined;
   const presentation = selected ? indicatorPresentation(selected) : undefined;
 
-  if (failed) return <div className="notice error" role="alert">
-    <p>Unable to load the official indicator catalog.</p>
-    <button type="button" onClick={() => { setFailed(false); setAttempt(attempt + 1); }}>Retry</button>
-  </div>;
-  if (!selected) return <output className="notice">Loading the official indicator catalog…</output>;
+  const latest = history?.observations.filter(numeric).at(-1);
+  function changeIndicator(next: string) {
+    if (next === id) return;
+    setLoaded(undefined);
+    setHistoryFailed(false);
+    setId(next);
+  }
 
   return <>
-    <section className="macro-intro" aria-labelledby="macro-title">
-      <p className="eyebrow">Euro area research</p>
-      <h1 id="macro-title">RAG-Powered Macroeconomic Research Assistant</h1>
-      <p className="muted">Technology stack: Gemini LLMs · LangChain · LangGraph · Official ECB &amp; Eurostat data.</p>
-    </section>
-    <section className="overview" aria-label="Macroeconomic indicator">
-      <div>
-        <h2>{presentation?.label}</h2>
-        <p className="coverage muted">{unitLabel(selected.unit, selected.multiplier)} · {frequencyLabels[selected.frequency]}</p>
+    <section className="content-section" id="data" tabIndex={-1} aria-labelledby="data-title">
+      <div className="section-intro">
+        <p className="eyebrow">Macro data</p>
+        <h2 id="data-title">Signals over time</h2>
+        <p className="muted">Explore five official ECB and Eurostat indicators.</p>
       </div>
-      <div className="asset-select">
-        <label htmlFor="macro-indicator">Indicator</label>
-        <select id="macro-indicator" value={id} onChange={(event) => { setHistoryFailed(false); setId(event.target.value); }}>
-          {indicators?.map((item) => <option key={item.id} value={item.id}>{indicatorPresentation(item).label}</option>)}
-        </select>
+      {failed ? <div className="notice error" role="alert">
+        <p>Unable to load the official indicator catalog.</p>
+        <RippleButton onClick={() => { setFailed(false); setAttempt((value) => value + 1); }}>Retry</RippleButton>
+      </div> : selected && presentation ? <div className="panel data-panel">
+        <div className="overview">
+          <div>
+            <h3 className="indicator-label">{presentation.label}</h3>
+            {latest && <p className="chart-latest">
+              <strong>{latest.value}</strong> <span>{unitLabel(selected.unit, selected.multiplier)}</span>
+            </p>}
+            <p className="coverage muted">{latest ? <>{latest.period_raw} · </> : <>{unitLabel(selected.unit, selected.multiplier)} · </>}
+              {frequencyLabels[selected.frequency]}</p>
+          </div>
+          <div className="asset-select">
+            <label htmlFor="macro-indicator">Indicator</label>
+            <select id="macro-indicator" value={id} onChange={(event) => changeIndicator(event.target.value)}>
+              {indicators?.map((item) => <option key={item.id} value={item.id}>{indicatorPresentation(item).label}</option>)}
+            </select>
+          </div>
+        </div>
+        <h3 className="sr-only">Official history</h3>
+        <fieldset className="macro-presets" aria-label="History period">
+          {(publicDemo && availableFrom ? [...chartPeriods, 'All' as const] : chartPeriods).map((value) =>
+            <RippleButton key={value} aria-pressed={period === value}
+              onClick={() => {
+                if (historyFailed) setHistoryAttempt((attempt) => attempt + 1);
+                setHistoryFailed(false);
+                setPeriod(value);
+              }}>{value}</RippleButton>)}
+        </fieldset>
+        {historyFailed ? <div className="notice error" role="alert">
+          <p>Unable to load official observations.</p>
+          <RippleButton onClick={() => { setHistoryFailed(false); setHistoryAttempt((value) => value + 1); }}>Retry</RippleButton>
+        </div> : history ? <MacroPlot history={history} /> : <output className="chart-empty">Loading official observations…</output>}
+        <div className="chart-footer muted">
+          <p className="macro-source">Source <a href={selected.source_url}>{selected.attribution}</a> · <a href={selected.reuse_url}>Reuse terms</a></p>
+          {history?.updated_at && <p>Updated <time dateTime={history.updated_at}>{history.updated_at}</time></p>}
+        </div>
+      </div> : <output className="notice">Loading the official indicator catalog…</output>}
+    </section>
+    <section className="content-section ask-section" id="ask" tabIndex={-1} aria-labelledby="ask-title">
+      <div className="section-intro">
+        <p className="eyebrow">Research</p>
+        <h2 id="ask-title">Ask LLM Model</h2>
+        <p className="muted">Ask about a macroeconomic indicator or historical event and inspect the evidence behind the answer.</p>
       </div>
+      {selected ? <MacroResearch enabled={publicDemo ? Boolean(sitekey) : analysisEnabled} indicatorId={id} indicators={indicators ?? []}
+        publicDemo={publicDemo} sitekey={sitekey} researchV2Available={localResearchV2}
+        onIndicatorChange={changeIndicator} />
+        : <output className="notice">{failed ? 'Research requires the official indicator catalog.'
+          : 'Loading research indicators…'}</output>}
     </section>
-    <section className="panel" aria-labelledby="macro-history-title">
-      <h2 id="macro-history-title">Official history</h2>
-      <fieldset className="macro-presets" aria-label="History period">
-        {(publicDemo && availableFrom ? [...chartPeriods, 'All' as const] : chartPeriods).map((value) => <button key={value} type="button" aria-pressed={period === value}
-          onClick={() => { if (historyFailed) setHistoryAttempt((attempt) => attempt + 1); setHistoryFailed(false); setPeriod(value); }}>{value}</button>)}
-      </fieldset>
-      {historyFailed ? <div className="notice error" role="alert">
-        <p>Unable to load official observations.</p>
-        <button type="button" onClick={() => { setHistoryFailed(false); setHistoryAttempt((value) => value + 1); }}>Retry</button>
-      </div> : history ? <MacroPlot history={history} /> : <output className="chart-empty">Loading official observations…</output>}
-      <p className="macro-source muted">
-        Source <a href={selected.source_url}>{selected.attribution}</a> · <a href={selected.reuse_url}>Reuse terms</a>
-      </p>
-    </section>
-    <MacroResearch enabled={publicDemo ? Boolean(sitekey) : analysisEnabled} indicatorId={id} indicators={indicators ?? []}
-      publicDemo={publicDemo} sitekey={sitekey}
-      researchV2Available={localResearchV2}
-      onIndicatorChange={(next) => { setHistoryFailed(false); setId(next); }} />
   </>;
 }
