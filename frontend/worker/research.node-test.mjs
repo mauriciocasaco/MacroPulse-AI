@@ -78,13 +78,16 @@ test('SQLite admissions are atomic and survive instance recreation, timeout and 
   const first = await Promise.all(['1', '2', '3'].map((token) => attempt(token)));
   assert.equal(first.filter((result) => result.code === 'ok').length, 2);
   assert.equal(first.filter((result) => result.code === 'busy').length, 1);
+  assert.equal(first[0].expires, now + 90_000);
   quota = fixture.instance();
   assert.equal((await attempt('1')).code, 'challenge');
   assert.equal((await attempt('3')).code, 'challenge');
   assert.equal((await attempt('4')).code, 'busy');
   assert.equal((await internal(quota, '/release', { id: first[0].id })).status, 204);
   assert.equal((await attempt('5')).code, 'ok');
-  now += minute;
+  now += 89_999;
+  assert.equal((await attempt('still-active')).code, 'busy');
+  now += 1;
   const reclaimed = await attempt('6');
   assert.equal(reclaimed.code, 'ok');
   await internal(quota, '/release', { id: reclaimed.id });
@@ -205,7 +208,8 @@ test('edge verifies same-origin Turnstile before origin, strips secrets, and kee
   assert.equal((await worker.fetch(post('valid', { headers: {
     Authorization: 'spoof', 'X-MarketPulse-Origin': 'spoof', 'X-MarketPulse-Client-IP': '192.0.2.2',
   } }), env)).status, 200);
-  assert.ok(timeouts.mock.calls.some(({ arguments: [duration] }) => duration === 45_000));
+  assert.ok(timeouts.mock.calls.some(({ arguments: [duration] }) => duration === 70_000));
+  assert.ok(timeouts.mock.calls.some(({ arguments: [duration] }) => duration === 20_000));
   assert.equal((await worker.fetch(post('valid'), env)).status, 403);
   for (const changes of [
     { action: 'wrong' }, { hostname: 'wrong.example' }, { challenge_ts: '2020-01-01T12:00:00Z' }, { success: false },
@@ -251,6 +255,63 @@ test('origin 504 keeps lease, and Siteverify redirect or outage fail closed', as
   assert.ok(busy.headers.has('Retry-After'));
   assert.equal(origins, 2);
 });
+
+for (const slowStage of ['worker.render_fetch', 'worker.render_response']) {
+  test(`70 s edge deadline applies to ${slowStage} and discards late results`, async (t) => {
+    const fixture = sqliteFixture(t);
+    const env = fixtureEnv(fixture.instance());
+    const records = [];
+    t.mock.method(console, 'warn', (event) => records.push(event));
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const controller = new AbortController();
+    const originalTimeout = AbortSignal.timeout;
+    t.mock.method(AbortSignal, 'timeout', (ms) => {
+      if ([2_500, 3_000, 4_000].includes(ms)) return originalTimeout(ms);
+      setTimeout(() => controller.abort(new DOMException('Synthetic deadline', 'TimeoutError')), ms);
+      return controller.signal;
+    });
+    const entered = Promise.withResolvers();
+    const late = Promise.withResolvers();
+    let streamCancelled = false;
+    t.mock.method(globalThis, 'fetch', async (url, init) => {
+      if (String(url).startsWith('https://challenges.cloudflare.com/')) {
+        return Response.json({
+          success: true, hostname: 'demo.example', action: 'research', challenge_ts: new Date().toISOString(),
+        });
+      }
+      assert.equal(init.signal, controller.signal);
+      if (slowStage === 'worker.render_fetch') {
+        entered.resolve();
+        return late.promise;
+      }
+      return new Response(new ReadableStream({
+        pull() { entered.resolve(); },
+        cancel() { streamCancelled = true; },
+      }, { highWaterMark: 0 }), {
+        headers: { 'Content-Type': 'application/json', 'X-MacroPulse-Research-Complete': 'true' },
+      });
+    });
+
+    const pending = worker.fetch(post('timeout'), env);
+    await entered.promise;
+    t.mock.timers.tick(69_999);
+    assert.equal(controller.signal.aborted, false);
+    t.mock.timers.tick(1);
+    assert.equal(controller.signal.aborted, true);
+    late.resolve(Response.json({}, { headers: { 'X-MacroPulse-Research-Complete': 'true' } }));
+    const reply = await pending;
+    assert.equal(reply.status, 504);
+    assert.deepEqual(await reply.json(), { detail: 'Public Research timed out' });
+    assert.equal(fixture.db.prepare('SELECT count(*) AS count FROM leases').get().count,
+      slowStage === 'worker.render_fetch' ? 1 : 0);
+    assert.equal(streamCancelled, slowStage === 'worker.render_response');
+    const event = records.find(({ stage }) => stage === slowStage);
+    assert.equal(event.error_type, 'TimeoutError');
+    assert.equal(event.http_status, 504);
+    assert.ok(records.some(({ stage, research_id }) => stage === 'worker.research_total'
+      && research_id === event.research_id));
+  });
+}
 
 test('Research logs distinguish Turnstile, quota and Render failures with safe fields', async (t) => {
   const fixture = sqliteFixture(t);
@@ -442,7 +503,7 @@ test('public and administrator Research share Render validation and separate adm
     assert.equal(init.headers.Authorization, undefined);
     assert.equal(init.headers['X-MacroPulse-Turnstile'], undefined);
     assert.equal(JSON.stringify(init.headers).includes(credential), false);
-    assert.ok(Number(init.headers['X-MacroPulse-Research-Expires']) - Date.now() > 47_000);
+    assert.ok(Number(init.headers['X-MacroPulse-Research-Expires']) - Date.now() >= 72_000);
     assert.deepEqual(JSON.parse(init.body), payload);
     generated++;
     return Response.json(hybridResult, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
@@ -618,7 +679,7 @@ test('administrator reservations enforce atomic concurrency, rolling/day/month c
   assert.equal(burst.filter(({ code }) => code === 'busy').length, 2);
   quota = fixture.instance();
   assert.equal((await admit()).code, 'busy');
-  now += minute; // uncertain completion retains a lease until expiry
+  now += 90_000; // uncertain completion retains a lease until expiry
   const next = await admit();
   assert.equal(next.code, 'ok');
   await internal(quota, '/release', { id: next.id });

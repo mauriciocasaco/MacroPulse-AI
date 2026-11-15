@@ -19,13 +19,14 @@ frontera si se agregan Workers que hagan subrequests al mismo sitio.
 | GET catálogo e históricos | 30/minuto/IP y 20/minuto/IP, respectivamente |
 
 La vía administrativa autentica antes de reservar. La verificación de
-credenciales no inicia una investigación. Las reservas viven 60 s y cuentan
+credenciales no inicia una investigación. Las reservas viven 90 s y cuentan
 aunque falle el origen. Si la finalización es dudosa, la plaza se conserva
 hasta expirar. FastAPI valida el secreto de origen y los plazos, y aplica su
 propio límite de dos investigaciones en curso. Un administrador puede
 competir por esos recursos aunque el presupuesto esté aislado. Las reservas
 limitan investigaciones, con hasta dos generaciones Gemini por investigación,
-y no representan un límite de facturación del proveedor.
+y no representan un límite de facturación del proveedor. Consultá el
+[presupuesto temporal de Research](public-deployment-runbook.md#presupuesto-temporal-de-research).
 
 Los abusos limitados reciben 429 con `Retry-After`, un desafío rechazado
 recibe 403, y un fallo de infraestructura o falta de capacidad recibe 503.

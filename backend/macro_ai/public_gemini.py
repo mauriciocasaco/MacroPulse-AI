@@ -23,6 +23,8 @@ PREFLIGHT_TOKENS = 6_000
 SCHEMA_BYTES = 4_000
 OUTPUT_TOKENS = 2_400
 GENERAL_OUTPUT_TOKENS = 800
+GEMINI_STAGE_SECONDS = 25
+GEMINI_HTTP_SECONDS = 20
 GENERAL_DEADLINE_HEADROOM = 2
 MAX_GENERATIONS = 2
 MAX_PROVIDER_BODY = 64 * 1024
@@ -87,24 +89,32 @@ class PublicGemini:
 
     async def _invoke(self, payload: dict, *, deadline_headroom: float) -> str:
         model = f"models/{self._model}"
-        remaining = self._deadline - deadline_headroom - monotonic()
+        now = monotonic()
+        deadline = min(self._deadline - deadline_headroom, now + GEMINI_STAGE_SECONDS)
+        remaining = deadline - now
         if remaining <= 0:
             raise TimeoutError("Research deadline reached")
-        async with timeout(min(15, remaining)):
+        async with timeout(remaining):
             async with httpx.AsyncClient(
                 base_url="https://generativelanguage.googleapis.com/v1beta/",
                 headers={"x-goog-api-key": self._key, "Accept": "application/json",
                          "Accept-Encoding": "identity"},
-                trust_env=False, follow_redirects=False, timeout=12,
+                trust_env=False, follow_redirects=False, timeout=GEMINI_HTTP_SECONDS,
             ) as client:
                 with _gemini_stage("gemini.count_tokens"):
+                    if monotonic() >= deadline:
+                        raise TimeoutError("Gemini stage deadline reached")
                     counts = await self._post(client, f"{model}:countTokens",
                                               {"generateContentRequest": {"model": model, **payload}})
                     tokens = counts.get("totalTokens")
                     if type(tokens) is not int or not 0 < tokens <= PREFLIGHT_TOKENS:
                         raise ValueError("Research prompt exceeds the input token limit")
+                    if monotonic() >= deadline:
+                        raise TimeoutError("Gemini stage deadline reached")
                 with _gemini_stage("gemini.generate_content"):
                     result = await self._post(client, f"{model}:generateContent", payload)
+                    if monotonic() >= deadline:
+                        raise TimeoutError("Gemini stage deadline reached")
                     usage = result["usageMetadata"]
                     prompt, output, thinking = (usage.get(key, 0) for key in (
                         "promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount",

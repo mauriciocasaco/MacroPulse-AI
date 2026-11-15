@@ -221,6 +221,8 @@ def run_online_research(settings, request, key, model, deadline):
             if connection is None:
                 with research_stage("supabase.connect"):
                     connection = stack.enter_context(connect_online(settings))
+            if monotonic() >= deadline:
+                raise TimeoutError
             return connection
 
         def read(indicator, window):

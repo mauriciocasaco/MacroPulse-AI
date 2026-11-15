@@ -1,3 +1,4 @@
+from asyncio import Event as AsyncEvent, timeout as asyncio_timeout
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -9,7 +10,6 @@ from types import SimpleNamespace
 import subprocess
 import sys
 from threading import Event
-from time import time
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
 
@@ -20,7 +20,7 @@ from psycopg.conninfo import conninfo_to_dict
 import pytest
 
 from backend import public_demo as demo
-from backend.macro_ai import v2_retrieval, v2_service
+from backend.macro_ai import public_gemini, v2_retrieval, v2_service
 from backend.macro_ai.public_gemini import PREFLIGHT_TOKENS
 from backend.macro_data.api import MacroHistory, MacroObservation, indicator_metadata
 from backend.macro_data.contracts import parse_period
@@ -48,7 +48,7 @@ ANALYSIS = {"question": "What happened?", "event_id": "covid", "indicator_id": "
 
 
 def research_headers():
-    return {**HEADERS, "X-MacroPulse-Research-Expires": str(int(time() * 1000) + 60_000)}
+    return {**HEADERS, "X-MacroPulse-Research-Expires": str(int(demo.time() * 1000) + 90_000)}
 
 
 @pytest.fixture
@@ -264,13 +264,24 @@ def research_client(demo_env, monkeypatch):
 
 
 def test_research_rejects_invalid_body_and_leases(research_client, monkeypatch):
+    now = 1_800_000_000
+    monkeypatch.setattr(demo, "time", lambda: now)
     monkeypatch.setattr(demo, "run_public_research", lambda *args: pytest.fail("Invalid research started work"))
     assert research_client.get(CATALOG, headers=HEADERS).headers[demo.RESEARCH_HEADER] == "true"
     assert research_client.post(RESEARCH, headers=HEADERS, json=ANALYSIS).status_code == 403
-    assert research_client.post(RESEARCH, headers={**HEADERS, "X-MacroPulse-Research-Expires": "1234567890123"},
+    expiration = "X-MacroPulse-Research-Expires"
+    for invalid in ("invalid", *(str(now * 1000 + offset) for offset in (-1, 0, 60_000, 67_000, 95_001))):
+        assert research_client.post(RESEARCH, headers={**HEADERS, expiration: invalid},
+                                    json=ANALYSIS).status_code == 403
+    headers = research_headers()
+    assert research_client.post(RESEARCH, headers=[*headers.items(), (expiration, headers[expiration])],
                                 json=ANALYSIS).status_code == 403
-    short_lease = {**HEADERS, "X-MacroPulse-Research-Expires": str(int(time() * 1000) + 41_000)}
-    assert research_client.post(RESEARCH, headers=short_lease, json=ANALYSIS).status_code == 403
+    assert research_client.post(RESEARCH, headers={**headers, demo.ORIGIN_HEADER: "invalid"},
+                                json=ANALYSIS).status_code == 403
+    for offset in (67_001, 90_000, 95_000):
+        # Admission reaches the parser, which rejects the synthetic body.
+        assert research_client.post(RESEARCH, headers={**HEADERS, expiration: str(now * 1000 + offset)},
+                                    json={}).status_code == 422
     for invalid in ({**ANALYSIS, "question": "x" * 501}, {**ANALYSIS, "research_version": "v1"},
                     {**ANALYSIS, "event_id": None}, {**ANALYSIS, "start": 1580515200},
                     {**ANALYSIS, "end": "2021-01-01"}, {**ANALYSIS, "extra": True},
@@ -289,9 +300,14 @@ def test_general_fallback_fits_render_response_and_marks_the_request_complete(re
     question = "How would one calculate an off-catalog index during a pandemic?"
     answer = ("Compare equivalent observations using the same definition and geographic scope. " * 32)[:2400].strip()
     paths = []
+    clock = [0]
+    monkeypatch.setattr(demo, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(public_gemini, "monotonic", lambda: clock[0])
 
     def provider(request):
         paths.append(request.url.path)
+        assert request.extensions["timeout"] == dict.fromkeys(("connect", "read", "write", "pool"), 20)
+        clock[0] += 12
         if request.url.path.endswith(":countTokens"):
             return httpx.Response(200, json={"totalTokens": 500})
         output = ({"purpose": "descriptive", "requirements": [{"excerpt": question, "operation": "other"}]}
@@ -312,6 +328,65 @@ def test_general_fallback_fits_render_response_and_marks_the_request_complete(re
     assert body["status"] == "insufficient_evidence" and body["evidence"] == body["narrative"] == []
     assert body["general_fallback"]["answer"] == answer and body["general_fallback"]["verified"] is False
     assert len(paths) == 4
+    assert clock[0] == 48
+
+
+@pytest.mark.parametrize("slow_call", ["countTokens", "generateContent"])
+def test_gemini_stage_has_one_25_second_budget_for_both_http_calls(
+    research_client, monkeypatch, caplog, slow_call,
+):
+    clock = [0]
+    paths = []
+    monkeypatch.setattr(demo, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(public_gemini, "monotonic", lambda: clock[0])
+
+    def provider(request):
+        operation = request.url.path.split(":")[-1]
+        paths.append(operation)
+        duration = {"countTokens": 12, "generateContent": 13}
+        if slow_call == "countTokens":
+            duration["countTokens"] = 25
+        clock[0] += duration[operation]
+        return httpx.Response(200, json={"totalTokens": 500})
+
+    client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
+        transport=httpx.MockTransport(provider), **options,
+    ))
+    with caplog.at_level(logging.INFO, logger="uvicorn.error.macropulse.research"):
+        reply = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
+    assert reply.status_code == 504
+    assert "X-MacroPulse-Research-Complete" not in reply.headers
+    assert paths == (["countTokens"] if slow_call == "countTokens" else ["countTokens", "generateContent"])
+    stage = "gemini.count_tokens" if slow_call == "countTokens" else "gemini.generate_content"
+    assert any(record.get("stage") == stage and record.get("error_type") == "TimeoutError"
+               for record in map(lambda entry: json.loads(entry.message), caplog.records))
+
+
+@pytest.mark.parametrize("elapsed,budget", [(0, 25), (50, 13)])
+def test_fallback_provider_cancels_a_stalled_call_within_render_budget(monkeypatch, elapsed, budget):
+    monkeypatch.setattr(public_gemini, "monotonic", lambda: elapsed)
+    paths = []
+
+    def short_timeout(seconds):
+        assert seconds == budget
+        return asyncio_timeout(0.02)
+
+    async def provider(request):
+        paths.append(request.url.path.split(":")[-1])
+        await AsyncEvent().wait()
+        pytest.fail("The stalled provider was not cancelled")
+
+    client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
+        transport=httpx.MockTransport(provider), **options,
+    ))
+    monkeypatch.setattr(public_gemini, "timeout", short_timeout)
+    gemini = public_gemini.PublicGemini(api_key="synthetic", model="gemini-3.6-flash", deadline=65)
+    with pytest.raises(TimeoutError):
+        gemini.general(demo.parse_research(json.dumps(ANALYSIS).encode()), "unsupported_requirement",
+                       event=None, knowledge_cutoff=None)
+    assert paths == ["countTokens"]
 
 
 def test_read_quota_is_per_operation_and_ip(client, monkeypatch):
@@ -333,24 +408,63 @@ def test_research_concurrency_and_timeouts_keep_reads_available(research_client,
     release = Event()
     pending = iter(started)
 
-    def wait(*_args):
+    def wait(_settings, _params, _key, _model, deadline):
+        assert 64 < deadline - demo.monotonic() <= 65
         next(pending).set()
         assert release.wait(5)
-        raise RuntimeError("synthetic unavailable provider")
+        return SimpleNamespace(model_dump_json=lambda: pytest.fail("A late result was serialized"))
+
+    # Use a short real asyncio timer after checking the production budget.
+    def short_timeout(seconds):
+        if seconds == 3:
+            return asyncio_timeout(seconds)
+        assert 64 < seconds <= 65
+        return asyncio_timeout(0.15)
 
     monkeypatch.setattr(demo, "run_public_research", wait)
-    monkeypatch.setattr(demo, "RESEARCH_SECONDS", 0.15)
+    monkeypatch.setattr(demo, "timeout", short_timeout)
     with ThreadPoolExecutor(2) as pool:
         calls = [pool.submit(research_client.post, RESEARCH, headers=research_headers(), json=ANALYSIS)
                  for _ in started]
         try:
             assert all(event.wait(2) for event in started)
             assert research_client.get(CATALOG, headers=HEADERS).status_code == 200
-            assert all(call.result(timeout=2).status_code == 504 for call in calls)
+            for call in calls:
+                reply = call.result(timeout=2)
+                assert reply.status_code == 504
+                assert "X-MacroPulse-Research-Complete" not in reply.headers
             blocked = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
             assert blocked.status_code == 503 and blocked.headers["Retry-After"] == "1"
         finally:
             release.set()
+
+
+def test_render_discards_serialization_that_reaches_the_deadline(research_client, monkeypatch, caplog):
+    clock = [0]
+    monkeypatch.setattr(demo, "monotonic", lambda: clock[0])
+
+    def run(_settings, _params, _key, _model, deadline):
+        assert deadline == 65
+        clock[0] = 64
+
+        def serialize():
+            clock[0] = 65
+            return '{"synthetic":"late"}'
+
+        return SimpleNamespace(model_dump_json=serialize)
+
+    monkeypatch.setattr(demo, "run_public_research", run)
+    headers = {**research_headers(), demo.RESEARCH_ID_HEADER: RESEARCH_ID}
+    reply = research_client.post(RESEARCH, headers=headers, json=ANALYSIS)
+    assert reply.status_code == 504
+    assert reply.json() == {"detail": "Public Research timed out"}
+    assert "X-MacroPulse-Research-Complete" not in reply.headers
+    records = {record["stage"]: record for record in (
+        json.loads(entry.message) for entry in caplog.records if entry.name == "uvicorn.error.macropulse.research"
+    )}
+    for stage in ("fastapi.serialize", "fastapi.deadline"):
+        assert records[stage]["research_id"] == RESEARCH_ID
+        assert records[stage]["error_type"] == "TimeoutError"
 
 
 def test_repository_errors_never_echo_internals(client, monkeypatch):
@@ -419,6 +533,7 @@ def test_connection_requires_tls_and_read_only_privileges(monkeypatch, tls, role
 def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, monkeypatch, shared):
     question = "How did the war in Ukraine relate to euro-area inflation?"
     connections = []
+    transaction_open = False
     connection = object()
     ref = DEV_PROJECT_REF if shared else REF
     if shared:
@@ -430,12 +545,18 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
 
     @contextmanager
     def connect(settings):
+        nonlocal transaction_open
         assert settings.shared_project is shared
         assert conninfo_to_dict(settings.dsn)["host"] == f"db.{ref}.supabase.co"
         connections.append(settings)
-        yield connection
+        transaction_open = True
+        try:
+            yield connection
+        finally:
+            transaction_open = False
 
     def read(db, item, window, *, max_points):
+        assert transaction_open
         assert db is connection and item.id == "hicp-yoy" and max_points == 2600
         observations = []
         for raw, value in [("2022-02", "5.9"), ("2022-09", "9.9"), ("2022-10", "10.6")]:
@@ -462,6 +583,7 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
     invalid_plan = False
 
     def simulate(request):
+        assert not transaction_open
         assert request.url.host == "generativelanguage.googleapis.com"
         assert request.headers["x-goog-api-key"] == "AIza" + "f" * 35
         payload = json.loads(request.content)

@@ -261,7 +261,7 @@ def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch
         path = "/macro/indicators/eur-usd/history?start=2019-01-01&end=2026-11-11"
         assert client.get(path, headers=HEADERS).status_code == 200
         reply = client.post("/macro/analysis", headers={
-            **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 60) * 1000)),
+            **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 90) * 1000)),
         }, json={"question": question, "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2"})
         assert reply.status_code == 200
         result = reply.json()
@@ -285,7 +285,7 @@ def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeyp
     }))
     with TestClient(public_online.create_online_app()) as client:
         response = client.post("/macro/analysis", headers={
-            **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 60) * 1000)),
+            **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 90) * 1000)),
         }, json={
             "question": "How did the COVID-19 pandemic affect Eurozone Inflation?",
             "indicator_id": "hicp-yoy", "event_id": "covid", "start": "2020-02-01",
@@ -392,7 +392,7 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
         }))
         with TestClient(public_online.create_online_app()) as client:
             response = client.post("/macro/analysis", headers={
-                **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 60) * 1000)),
+                **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 90) * 1000)),
             }, json={
                 "question": "How did the war in Ukraine affect EUR/USD rate?",
                 "research_version": "v2", "event_id": "ukraine", "indicator_id": "eur-usd",
