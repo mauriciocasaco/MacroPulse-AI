@@ -243,3 +243,28 @@ those files without credentials, serves cached shell content at the app root
 and `index.html`, and removes only obsolete shell caches in its own scope.
 API calls, financial documents, and cross-origin resources use the network
 without service-worker caching.
+
+### Macro Analyst browser verification
+
+Run `npm.cmd run test:browser` from `frontend/` with Microsoft Edge installed.
+The test starts Vite on loopback, intercepts the existing API paths with
+synthetic test responses, and writes desktop and touch captures under
+`.local/codex-telemetry/macro-analyst` at the repository root. It covers anchor
+navigation, period filtering, true date spacing, exact decimal tooltips,
+both Research v2 result views, motion pause and WebGL context loss.
+
+To run the iPhone viewport and touch test on Playwright WebKit:
+
+```powershell
+npm.cmd exec playwright-core -- install webkit
+$env:MACRO_BROWSER = 'webkit'
+npm.cmd run test:browser
+Remove-Item Env:MACRO_BROWSER
+```
+
+For a manual check with the authorized development backend, launch
+**MacroPulse AI.bat**, open `http://127.0.0.1:5173/`, and select **Explore Macro Data**.
+Switch indicators and periods, check the source and exact tooltip values, then
+open **Ask LLM Model** and submit an edited question for a historical event.
+Enable **Use experimental Research v2** in a local workspace that advertises
+it to exercise Gemini's optional general explanation on a qualifying abstention.

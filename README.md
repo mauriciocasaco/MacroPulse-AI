@@ -12,7 +12,9 @@ MacroPulse AI is an evidence-based research workspace for the euro area. Its ins
 | M3 money stock | ECB | Monthly, millions of euros |
 | ECB deposit facility rate | ECB | Effective-date events, percent per year |
 
-Select an indicator and dates, then inspect the chart and its observation table. The workspace shows source links, series keys, units, geography, status and capture time when available. Missing observations stay visible in the table as gaps. The deposit rate chart shows applicability only where continuous coverage was verified. The original asset explorer is available under **Market archive**.
+From the **Macro Analyst** hero, choose **Explore Macro Data** or **Ask LLM Model** to jump to the corresponding section. Select an indicator and a period, then hover, tap, or focus the chart and use the arrow keys to inspect exact readings. The chart shows the series unit, source, reuse terms and update time when available. The deposit rate chart shows applicability only where continuous coverage was verified.
+
+**Pause motion** stops the ocean, scroll animations and decorative effects. The ocean loads on demand and falls back to a static rendering when WebGL is unavailable or the system requests reduced motion. The visual scene was adapted from the local Macro Ocean V1 prototype. Three.js and Lenis use MIT, the self-hosted fonts use OFL-1.1, and GSAP uses its [Standard License](https://gsap.com/standard-license/). Vite emits bundled license notices in `frontend/dist/.vite/license.md`.
 
 ## Architecture
 
@@ -33,7 +35,7 @@ FastAPI and psycopg serve bounded historical reads. PostgreSQL stores observatio
 
 For the default local AI research flow, LangGraph routes a supported question to read-only statistical tools, retrieves source material, checks sufficiency and answers or abstains. The RAG index ranks eight reviewed ECB and Eurostat summaries with topic filtering, TF-IDF term vectors and cosine similarity. It filters out documents published after the selected end date. LangChain requests a structured selection of evidence IDs from Gemini. The server validates those IDs and assembles the response from deterministic statistics and attributed summaries. The original question stays local in this flow.
 
-[Experimental Research v2](docs/m7d/research-v2.md) is available in the loopback PWA with explicit activation. It sends the original question to Gemini for structured interpretation and uses the approved M7.B corpus for documentary context.
+[Experimental Research v2](docs/m7d/research-v2.md) is available in the loopback PWA with explicit activation. It sends the original question to Gemini for structured interpretation and uses the approved M7.B corpus for documentary context. When the backend provides a Gemini explanation for a qualifying abstention, **Pure LLM Answer** displays it with its evidence warning alongside the **RAG-Based LLM Answer** view.
 
 ## Local development
 
@@ -69,6 +71,7 @@ For database integration tests, follow the [disposable PostgreSQL workflow](docs
 ```powershell
 npm.cmd test
 npm.cmd run test:worker
+npm.cmd run test:browser
 npm.cmd run lint
 npm.cmd run build
 npm.cmd run build:public

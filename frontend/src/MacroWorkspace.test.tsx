@@ -148,7 +148,7 @@ it('opts into Research v2 only after the catalog advertises it and renders cited
   await screen.findByText('Partial descriptive answer');
   expect(JSON.parse(String(analysis.mock.calls[0][1].body)).research_version).toBe('v2');
   const summary = screen.getByRole('region', { name: 'Evidence-based analysis' });
-  expect(screen.getByRole('button', { name: 'General LLM' })).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', { name: 'Pure LLM Answer' })).toHaveProperty('disabled', true);
   expect(screen.getByText(/Paragraph 1 · Official data/).closest('details')?.open).toBe(false);
   expect(within(summary).getByRole('link', { name: 'Source 1, ECB reference rate' }).getAttribute('href'))
     .toBe('https://data.ecb.europa.eu/');
@@ -182,7 +182,7 @@ it('plots monthly observations without filling gaps and preserves source decimal
     point('2026-06', '2026-06-01', '2026-06-30', '17612461.010'),
   ]);
   render(<App />);
-  expect(await screen.findByRole('heading', { name: 'RAG-Powered Macroeconomic Research Assistant' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Macro Analyst' })).toBeTruthy();
   fireEvent.change(await screen.findByLabelText('Indicator'), { target: { value: 'm3-stock' } });
   const svg = await screen.findByLabelText('Eurozone M3: official observations by period');
   expect(svg.querySelectorAll('circle')).toHaveLength(1);
@@ -206,7 +206,7 @@ it('displays deposit events separately from bounded applicability', async () => 
   expect(screen.queryByRole('table')).toBeNull();
 });
 
-it('shows five friendly names and colors and preserves the selected period across indicators', async () => {
+it('shows five friendly names with mint and amber accents and preserves the selected period across indicators', async () => {
   const fetch = stubMacroApi([
     point('2026-01', '2026-01-01', '2026-01-31', '1'),
     point('2026-06', '2026-06-01', '2026-06-30', '2'),
@@ -217,9 +217,9 @@ it('shows five friendly names and colors and preserves the selected period acros
   expect(periods.getAllByRole('button').map((button) => button.textContent)).toEqual(['1M', '3M', '6M', '1Y', '3Y', '7Y']);
   fireEvent.click(periods.getByRole('button', { name: '3M' }));
   const expected = [
-    ['eur-usd', 'EUR/USD rate', '#16A34A'], ['m3-stock', 'Eurozone M3', '#2563EB'],
-    ['deposit-rate', 'ECB rate', '#EA580C'], ['real-gdp-qoq', 'Eurozone GDP', '#C58B13'],
-    ['hicp-yoy', 'Eurozone Inflation', '#9333EA'],
+    ['eur-usd', 'EUR/USD rate', 'var(--mint)'], ['m3-stock', 'Eurozone M3', 'var(--mint)'],
+    ['deposit-rate', 'ECB rate', 'var(--amber)'], ['real-gdp-qoq', 'Eurozone GDP', 'var(--amber)'],
+    ['hicp-yoy', 'Eurozone Inflation', 'var(--mint)'],
   ];
   for (const [id, label, color] of expected) {
     fireEvent.change(screen.getByLabelText('Indicator'), { target: { value: id } });
@@ -273,7 +273,7 @@ it('limits the longest preset to seven years and preserves attribution without r
   expect(screen.queryByRole('table')).toBeNull();
   expect(screen.queryByText('fixture')).toBeNull();
   expect(screen.getByRole('link', { name: 'Reuse terms' })).toBeTruthy();
-  expect(screen.getByText('Technology stack: Gemini LLMs · LangChain · LangGraph · Official ECB & Eurostat data.')).toBeTruthy();
+  expect(screen.getByText('Explore and analyze macro data with RAG, LangGraph, LangChain, Gemini API LLM.')).toBeTruthy();
   expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/macro/indicators'))).toBe(true);
 });
 

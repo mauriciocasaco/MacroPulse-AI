@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+const tokens = readFileSync(resolve('src/tokens.css'), 'utf8');
 import { createHash } from 'node:crypto';
 import type { MacroHistory, MacroIndicator, MacroObservation } from './macro-api';
 import { MacroPlot } from './MacroPlot';
@@ -152,7 +155,10 @@ it('provides 3:1 contrast using the exact data color or its neutral edge on ligh
   };
   for (const { color } of Object.values(indicatorStyles)) {
     for (const background of ['#111214', '#FFFFFF']) {
-      const values = [luminance(color), luminance(background)].sort((a, b) => a - b);
+      const token = color.slice(4, -1);
+      const hex = tokens.match(new RegExp(`${token}: (#[0-9a-fA-F]{6})`, 'i'))?.[1];
+      expect(hex).toBeDefined();
+      const values = [luminance(hex!), luminance(background)].sort((a, b) => a - b);
       const contrast = (values[1] + .05) / (values[0] + .05);
       const edge = [luminance('#111214'), luminance(background)].sort((a, b) => a - b);
       expect(Math.max(contrast, (edge[1] + .05) / (edge[0] + .05))).toBeGreaterThanOrEqual(3);
@@ -267,7 +273,7 @@ it('shows the exact decimal in a colored tooltip for pointer and keyboard intera
   const svg = container.querySelector('svg')!;
   fireEvent.pointerEnter(svg.querySelector('circle')!);
   expect(screen.getByRole('tooltip').textContent).toContain('2026-06-05 \u00b7 1.000000000001 USD per EUR');
-  expect(screen.getByRole('tooltip').getAttribute('style')).toContain('#16A34A');
+  expect(svg.getAttribute('style')).toContain('var(--mint)');
   fireEvent.pointerLeave(svg);
   expect(screen.queryByRole('tooltip')).toBeNull();
   fireEvent.focus(svg);

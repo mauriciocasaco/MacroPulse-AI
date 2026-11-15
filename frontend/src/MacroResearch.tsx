@@ -1,3 +1,4 @@
+import { RippleButton } from './RippleButton';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AdministratorCredentialError, askMacroAnalysis, checkAdministrator,
@@ -185,8 +186,8 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
     return <Fragment key={id}>{' '}<a href={source.url} aria-label={`Source ${number}, ${source.title}`}>[{number}]</a></Fragment>;
   }
 
-  return <section className="panel" aria-labelledby="macro-research-title">
-    <h2 id="macro-research-title">RAG-Powered Macro Research</h2>
+  return <section className="panel research-panel" aria-labelledby="macro-research-title">
+    <h3 id="macro-research-title">Macro research</h3>
     {enabled && !publicDemo && researchV2Available && <div>
       <label>
         <input type="checkbox" checked={researchV2} disabled={pending}
@@ -240,11 +241,11 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
     {error && <p role="alert" className="notice error">{error}</p>}
     {result && <div className="analysis-result" aria-live="polite">
       {result.research_v2 && <fieldset className="macro-presets" aria-label="Research result view">
-        <button type="button" aria-pressed={!showingGeneral} onClick={() => selectResultView('rag')}>
-          RAG-Specific LLM
-        </button>
-        <button type="button" aria-pressed={showingGeneral} disabled={fallback?.status !== 'answered'}
-          onClick={() => selectResultView('general')}>General LLM</button>
+        <RippleButton aria-pressed={!showingGeneral} onClick={() => selectResultView('rag')}>
+          RAG-Based LLM Answer
+        </RippleButton>
+        <RippleButton aria-pressed={showingGeneral} disabled={fallback?.status !== 'answered'}
+          onClick={() => selectResultView('general')}>Pure LLM Answer</RippleButton>
       </fieldset>}
       {showingGeneral ? <section className="result-section research-analysis" aria-labelledby="macro-analysis-title">
         <h3 id="macro-analysis-title">General AI explanation — Not RAG-verified</h3>

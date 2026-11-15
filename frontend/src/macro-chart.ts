@@ -3,14 +3,14 @@ import { getMacroHistory, type MacroHistory, type MacroIndicator, type MacroObse
 export const chartPeriods = ['1M', '3M', '6M', '1Y', '3Y', '7Y'] as const;
 export type ChartPeriod = typeof chartPeriods[number] | 'All';
 export const indicatorStyles: Record<string, { label: string; color: string }> = {
-  'eur-usd': { label: 'EUR/USD rate', color: '#16A34A' },
-  'm3-stock': { label: 'Eurozone M3', color: '#2563EB' },
-  'deposit-rate': { label: 'ECB rate', color: '#EA580C' },
-  'real-gdp-qoq': { label: 'Eurozone GDP', color: '#C58B13' },
-  'hicp-yoy': { label: 'Eurozone Inflation', color: '#9333EA' },
+  'eur-usd': { label: 'EUR/USD rate', color: 'var(--mint)' },
+  'm3-stock': { label: 'Eurozone M3', color: 'var(--mint)' },
+  'deposit-rate': { label: 'ECB rate', color: 'var(--amber)' },
+  'real-gdp-qoq': { label: 'Eurozone GDP', color: 'var(--amber)' },
+  'hicp-yoy': { label: 'Eurozone Inflation', color: 'var(--mint)' },
 };
 export function indicatorPresentation(indicator: MacroIndicator) {
-  return indicatorStyles[indicator.id] ?? { label: indicator.title, color: '#2563EB' };
+  return indicatorStyles[indicator.id] ?? { label: indicator.title, color: 'var(--mint)' };
 }
 const unitLabels: Record<string, string> = {
   'USD/EUR': 'USD per EUR', EUR: 'EUR', percent_per_annum: '% per year',

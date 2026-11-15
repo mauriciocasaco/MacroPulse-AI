@@ -39,7 +39,7 @@ it('keeps the public macro feature gate without falling back to the archive', ()
   expect(screen.getByText('MacroPulse research is unavailable in this environment.')).toBeTruthy();
   expect(fetch).not.toHaveBeenCalled();
   view.rerender(<App macroDemoEnabled macroAiEnabled />);
-  expect(screen.getByRole('region').textContent).toContain('AI disabled');
+  expect(screen.getByRole('region', { name: 'Macro workspace' }).textContent).toContain('AI disabled');
   expect(screen.queryByText(/synthetic|archive/i)).toBeNull();
 });
 
@@ -64,5 +64,5 @@ it('keeps the shell offline and restores macro research after reconnecting', () 
   fireEvent(window, new Event('online'));
   expect(screen.getByRole('region', { name: 'Macro workspace' })).toBeTruthy();
   fireEvent(window, new Event('offline'));
-  expect(screen.queryByRole('region')).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Macro workspace' })).toBeNull();
 });

@@ -147,8 +147,8 @@ it.each(['answered', 'failed'] as const)('keeps the two views in one research re
   render(<MacroResearch {...props} researchV2Available />);
   fireEvent.click(screen.getByRole('checkbox', { name: 'Use experimental Research v2' }));
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
-  const rag = await screen.findByRole('button', { name: 'RAG-Specific LLM' });
-  const general = screen.getByRole('button', { name: 'General LLM' });
+  const rag = await screen.findByRole('button', { name: 'RAG-Based LLM Answer' });
+  const general = screen.getByRole('button', { name: 'Pure LLM Answer' });
   if (status === 'answered') {
     expect(general.getAttribute('aria-pressed')).toBe('true');
     const panel = screen.getByRole('region', { name: 'General AI explanation — Not RAG-verified' });

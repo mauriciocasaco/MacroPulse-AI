@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { MacroHero } from './MacroHero';
+import { MotionProvider, useMotion } from './motion';
 import { MacroWorkspace } from './MacroWorkspace';
 import { usePwaUpdate } from './pwa';
 
@@ -14,6 +16,7 @@ export function App({
   const macroAvailable = publicDemo
     ? macroDemoEnabled
     : isLoopback || lanDev || (launcher && Boolean(safariUrl));
+  const [paused, setPaused] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [online, setOnline] = useState(() => navigator.onLine);
   const updateReady = usePwaUpdate();
@@ -32,25 +35,47 @@ export function App({
     };
   }, []);
 
+  const available = online && macroAvailable;
+  return <MotionProvider paused={paused}>
+    <WorkspaceHeader available={available} />
+    <main id="contenido" tabIndex={-1}>
+      <MacroHero available={available} paused={paused} toggleMotion={() => setPaused((value) => !value)} />
+      <div className="workspace shell">
+        {launcher && isLoopback && safariUrl && <p className="notice">iPhone Safari <a href={safariUrl}>{safariUrl}</a></p>}
+        {updateReady && <output className="notice">An update is ready. Close all MacroPulse AI tabs and windows, then reopen the app.</output>}
+        {available ? <MacroWorkspace key={attempt}
+          analysisEnabled={!publicDemo && macroAiEnabled} publicDemo={publicDemo} />
+          : <output className="notice">{online ? 'MacroPulse research is unavailable in this environment.'
+            : 'You are offline. Live macroeconomic data is unavailable.'}</output>}
+      </div>
+    </main>
+    <WorkspaceFooter />
+  </MotionProvider>;
+}
+
+function WorkspaceHeader({ available }: { available: boolean }) {
+  const { navigate } = useMotion();
   return <>
-    <a className="skip-link" href="#contenido">Skip to content</a>
+    <a className="skip-link" href="#contenido" onClick={navigate}>Skip to content</a>
     <header className="topbar">
       <div className="shell topbar-inner">
-        <div className="brand">
+        <a className="brand" href="#top" onClick={navigate} aria-label="MacroPulse AI home">
           <svg aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M4 18h6l4-8 5 13 4-7h5" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" /></svg>
           <span>MacroPulse <em>AI</em></span>
-        </div>
-        <span className="local"><i aria-hidden="true" /> {publicDemo ? 'Online workspace' : 'Local workspace'}</span>
+        </a>
+        {available && <nav aria-label="Primary">
+          <a href="#data" onClick={navigate}>Macro Data</a>
+          <a href="#ask" onClick={navigate}>Ask LLM <span aria-hidden="true">↗</span></a>
+        </nav>}
       </div>
     </header>
-    <main className="shell" id="contenido">
-      {launcher && isLoopback && safariUrl && <p className="notice">iPhone Safari <a href={safariUrl}>{safariUrl}</a></p>}
-      {updateReady && <output className="notice">An update is ready. Close all MacroPulse AI tabs and windows, then reopen the app.</output>}
-      {online ? macroAvailable ? <MacroWorkspace key={attempt}
-        analysisEnabled={!publicDemo && macroAiEnabled} publicDemo={publicDemo} />
-        : <output className="notice">MacroPulse research is unavailable in this environment.</output>
-        : <output className="notice">You are offline. Live macroeconomic data is unavailable.</output>}
-    </main>
-    <footer className="shell footer"><span>MacroPulse AI</span><span>Historical macroeconomic research</span></footer>
   </>;
+}
+
+function WorkspaceFooter() {
+  const { navigate } = useMotion();
+  return <footer className="footer"><div className="shell">
+    <span>MacroPulse AI</span>
+    <a href="#top" onClick={navigate}>Back to top <span aria-hidden="true">↑</span></a>
+  </div></footer>;
 }

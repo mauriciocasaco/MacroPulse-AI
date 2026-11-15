@@ -1,5 +1,5 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role -- A keyboard-operable SVG data plot requires SVG slider semantics; an HTML input cannot contain the plotted marks. */
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState, type PointerEvent, type CSSProperties } from 'react';
 import { indicatorPresentation, unitLabel, numeric, pointDay, rateSegments, type ChartHistory } from './macro-chart';
 export function MacroPlot({ history }: { history: ChartHistory }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -7,6 +7,7 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
   const [size, setSize] = useState({ width: 720, height: 225 });
   const tooltipId = useId();
   const helpId = useId();
+  const clipId = useId();
   const points = history.observations.filter(numeric);
   const effective = history.indicator.frequency === 'effective_date';
   const segments = effective ? rateSegments(history) : [];
@@ -29,12 +30,19 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
   const last = dates[dates.length - 1];
   const minimumDate = Date.parse(first);
   const maximumDate = Date.parse(last);
-  const x = (day: string) => maximumDate === minimumDate ? 377
-    : 76 + ((Date.parse(day) - minimumDate) / (maximumDate - minimumDate)) * 602;
   const lower = Math.min(...values);
   const upper = Math.max(...values);
-  const y = (value: number) => upper === lower ? 103 : 178 - ((value - lower) / (upper - lower)) * 150;
   const format = new Intl.NumberFormat('en', { maximumSignificantDigits: 6 });
+  const labelWidth = Math.max(format.format(lower).length, format.format(upper).length);
+  const compact = size.width < 480;
+  const left = Math.max(compact ? 58 : 76, labelWidth * (compact ? 6.1 : 7.25) + 16);
+  const right = size.width - (compact ? 18 : 42);
+  const top = 28;
+  const bottom = size.height - 47;
+  const center = (left + right) / 2;
+  const x = (day: string) => maximumDate === minimumDate ? center
+    : left + ((Date.parse(day) - minimumDate) / (maximumDate - minimumDate)) * (right - left);
+  const y = (value: number) => upper === lower ? (top + bottom) / 2 : bottom - ((value - lower) / (upper - lower)) * (bottom - top);
   const presentation = indicatorPresentation(history.indicator);
   const unit = unitLabel(history.indicator.unit, history.indicator.multiplier);
   const linePoints = points.map((row) => `${x(pointDay(row))},${y(Number(row.value))}`).join(' ');
@@ -46,14 +54,21 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
   };
   const selectedIndex = activeIndex === null ? null : Math.min(activeIndex, Math.max(0, points.length - 1));
   const active = selectedIndex === null ? undefined : points[selectedIndex];
-  // SVG's default aspect-ratio preservation may letterbox narrow containers.
-  const scale = Math.min(size.width / 720, size.height / 225);
-  const offsetX = (size.width - 720 * scale) / 2;
-  const offsetY = (size.height - 225 * scale) / 2;
+  function inspectPointer(event: PointerEvent<SVGSVGElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!bounds.width || !bounds.height || !points.length) return;
+    const scale = Math.min(bounds.width / size.width, bounds.height / size.height);
+    const cursor = (event.clientX - bounds.left - (bounds.width - size.width * scale) / 2) / scale;
+    let nearest = 0;
+    points.forEach((row, index) => {
+      if (Math.abs(x(pointDay(row)) - cursor) < Math.abs(x(pointDay(points[nearest])) - cursor)) nearest = index;
+    });
+    setActiveIndex(nearest);
+  }
   const description = (row: typeof points[number]) => `${presentation.label} · ${row.period_raw} · ${row.value} ${unit} · ${row.status_kind}`;
   return <div className="macro-plot-container">
     <p id={helpId} className="sr-only">Hover or touch the chart to inspect an observation. Focus the chart and use Left and Right Arrow keys to move between observations, Home and End to jump, and Escape to dismiss the value.</p>
-    <svg ref={svgRef} className="macro-plot" viewBox="0 0 720 225"
+    <svg ref={svgRef} className="macro-plot" viewBox={`0 0 ${size.width} ${size.height}`}
     role="slider" tabIndex={points.length ? 0 : undefined}
     aria-valuemin={0} aria-valuemax={Math.max(0, points.length - 1)}
     aria-valuenow={selectedIndex ?? Math.max(0, points.length - 1)}
@@ -73,54 +88,52 @@ export function MacroPlot({ history }: { history: ChartHistory }) {
         setActiveIndex(next);
       }
     }}
-    onPointerMove={(event) => {
-      const bounds = event.currentTarget.getBoundingClientRect();
-      if (!bounds.width || !points.length) return;
-      const pointerScale = Math.min(bounds.width / 720, bounds.height / 225);
-      const cursor = (event.clientX - bounds.left - (bounds.width - 720 * pointerScale) / 2) / pointerScale;
-      let nearest = 0;
-      points.forEach((row, index) => {
-        if (Math.abs(x(pointDay(row)) - cursor) < Math.abs(x(pointDay(points[nearest])) - cursor)) nearest = index;
-      });
-      setActiveIndex(nearest);
-    }}
-    onPointerLeave={() => setActiveIndex(null)}
+    onPointerMove={inspectPointer}
+    onPointerDown={inspectPointer}
+    onPointerLeave={(event) => { if (event.pointerType !== 'touch') setActiveIndex(null); }}
     style={{ '--indicator-color': presentation.color } as CSSProperties}
-    data-domain-start={first} data-domain-end={last}
+    data-compact={compact} data-domain-start={first} data-domain-end={last}
     aria-label={`${presentation.label}: ${effective ? 'effective events and verified periods of applicability' : 'official observations by period'}`}>
     <title>{presentation.label} · {unit}</title>
     {[upper, lower].filter((value, i, all) => all.indexOf(value) === i).map((value) =>
       <g key={value}>
-        <line className="macro-gridline" x1="76" x2="678" y1={y(value)} y2={y(value)} />
-        <text x="69" y={y(value) + 4} textAnchor="end">{format.format(value)}</text>
+        <line className="macro-gridline" x1={left} x2={right} y1={y(value)} y2={y(value)} />
+        <text x={left - 7} y={y(value) + 4} textAnchor="end">{format.format(value)}</text>
       </g>)}
-    <line className="macro-gridline" x1="76" x2="678" y1="188" y2="188" />
-    {!effective && points.length > 1 && <g>
-      <polyline className="macro-outline" points={linePoints} aria-hidden="true" />
-      <polyline className="macro-line" fill="none" points={linePoints} />
-    </g>}
-    {segments.map(({ first: start, last: end, value, nextValue }, index) => <g key={index}>
-      <line className="macro-outline" aria-hidden="true" x1={x(start)} x2={x(end)} y1={y(value)} y2={y(value)} />
-      <line className="macro-segment" x1={x(start)} x2={x(end)} y1={y(value)} y2={y(value)} />
-      {nextValue !== null && <>
-        <line className="macro-outline" aria-hidden="true" x1={x(end)} x2={x(end)} y1={y(value)} y2={y(nextValue)} />
-        <line className="macro-step" x1={x(end)} x2={x(end)} y1={y(value)} y2={y(nextValue)} />
-      </>}
-    </g>)}
-    {points.map((row, index) => <circle key={row.period_raw} className="macro-dot" cx={x(pointDay(row))} cy={y(Number(row.value))}
-      r={selectedIndex === index ? 5 : points.length > 150 ? 1.6 : 3.5}
-      onPointerEnter={() => setActiveIndex(index)}>
-      <title>{description(row)}</title>
-    </circle>)}
-    <text x={first === last ? '377' : '76'} y="211" textAnchor={first === last ? 'middle' : 'start'}>{label(first)}</text>
-    {first !== last && <text x="678" y="211" textAnchor="end">{label(last)}</text>}
+    <line className="macro-gridline" x1={left} x2={right} y1={bottom + 10} y2={bottom + 10} />
+    {/* Reveal the marks via clipping while the date and value coordinates stay fixed. */}
+    <defs><clipPath id={clipId}>
+      <rect key={`${history.indicator.id}/${history.start}/${history.end}`} className="macro-reveal"
+        width={size.width} height={size.height} />
+    </clipPath></defs>
+    {active && <line className="macro-guide" x1={x(pointDay(active))} x2={x(pointDay(active))} y1={top} y2={bottom + 10} />}
+    <g clipPath={`url(#${clipId})`}>
+      {!effective && points.length > 1 && <g>
+        <polyline className="macro-outline" points={linePoints} aria-hidden="true" />
+        <polyline className="macro-line" fill="none" points={linePoints} />
+      </g>}
+      {segments.map(({ first: start, last: end, value, nextValue }, index) => <g key={index}>
+        <line className="macro-outline" aria-hidden="true" x1={x(start)} x2={x(end)} y1={y(value)} y2={y(value)} />
+        <line className="macro-segment" x1={x(start)} x2={x(end)} y1={y(value)} y2={y(value)} />
+        {nextValue !== null && <>
+          <line className="macro-outline" aria-hidden="true" x1={x(end)} x2={x(end)} y1={y(value)} y2={y(nextValue)} />
+          <line className="macro-step" x1={x(end)} x2={x(end)} y1={y(value)} y2={y(nextValue)} />
+        </>}
+      </g>)}
+      {points.map((row, index) => <circle key={row.period_raw} className={selectedIndex === index ? 'macro-dot is-active' : 'macro-dot'} cx={x(pointDay(row))} cy={y(Number(row.value))}
+        r={selectedIndex === index ? 5 : points.length > 150 ? 1.6 : 3.5}
+        onPointerEnter={() => setActiveIndex(index)}>
+        <title>{description(row)}</title>
+      </circle>)}
+    </g>
+    <text x={first === last ? center : left} y={size.height - 14} textAnchor={first === last ? 'middle' : 'start'}>{label(first)}</text>
+    {first !== last && <text x={right} y={size.height - 14} textAnchor="end">{label(last)}</text>}
     </svg>
     {active && <div id={tooltipId} role="tooltip" className="macro-tooltip"
       aria-live="polite"
-      style={{ '--indicator-color': presentation.color,
-        '--tooltip-left': `${(offsetX + x(pointDay(active)) * scale) / size.width * 100}%`,
-        top: `${(offsetY + y(Number(active.value)) * scale) / size.height * 100}%`,
-        transform: y(Number(active.value)) < 85 ? 'translate(-50%, 12px)' : 'translate(-50%, calc(-100% - 12px))',
+      style={{ '--tooltip-left': `${x(pointDay(active)) / size.width * 100}%`,
+        top: `${y(Number(active.value)) / size.height * 100}%`,
+        transform: y(Number(active.value)) < 100 ? 'translate(-50%, 12px)' : 'translate(-50%, calc(-100% - 12px))',
       } as CSSProperties}>
       <strong>{presentation.label}</strong>
       <span>{active.period_raw} · {active.value} {unit}</span>
