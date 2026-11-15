@@ -1,8 +1,16 @@
 # MacroPulse AI
 
-MacroPulse AI is an evidence-based research workspace for the euro area. Its installable web app charts official ECB and Eurostat observations and, in an enabled local workspace, answers macroeconomic questions with reproducible calculations and linked institutional context.
+MacroPulse AI is an AI-powered research workspace for the euro area. The installable web app charts official ECB and Eurostat history and uses retrieval-augmented generation (RAG) to explain past events with attributed institutional evidence and reproducible, deterministic calculations.
 
-## Explore the workspace
+**[Open the live demo](https://macropulse-public-demo.mauricio-casaco.workers.dev/)**
+
+![Public MacroPulse AI home screen with links to historical charts and macroeconomic research](docs/assets/macropulse-overview.png)
+
+## Key capabilities
+
+Explore interactive historical charts by indicator and period. Inspect exact observations by mouse, touch, or keyboard. Charts show units, source links, reuse terms, and update timestamps when available. The deposit rate chart shows when a rate applied within verified coverage. The responsive progressive web application (PWA) can be installed on supported browsers and caches its app shell.
+
+**Pause motion** stops the decorative animation. The ocean scene loads on demand and uses a static view when WebGL is unavailable or reduced motion is requested. Vite generates bundled dependency notices in `frontend/dist/.vite/license.md`.
 
 | Indicator | Source | Frequency and unit |
 | --- | --- | --- |
@@ -10,100 +18,112 @@ MacroPulse AI is an evidence-based research workspace for the euro area. Its ins
 | Real GDP growth | Eurostat | Quarterly, percent change from the previous quarter |
 | Headline HICP inflation | Eurostat | Monthly, percent change from the same month a year earlier |
 | M3 money stock | ECB | Monthly, millions of euros |
-| ECB deposit facility rate | ECB | Effective-date events, percent per year |
+| ECB deposit facility rate | ECB | Effective-date changes, percent per year |
 
-From the **Macro Analyst** hero, choose **Explore Macro Data** or **Ask LLM Model** to jump to the corresponding section. Select an indicator and a period, then hover, tap, or focus the chart and use the arrow keys to inspect exact readings. The chart shows the series unit, source, reuse terms and update time when available. The deposit rate chart shows applicability only where continuous coverage was verified.
+Choose an indicator and a preset event or custom dates to scope a research question. The public form presents an explicit consent step before a question can be shared with Gemini. Research availability depends on the deployed feature flags and admission controls.
 
-**Pause motion** stops the ocean, scroll animations and decorative effects. The ocean loads on demand and falls back to a static rendering when WebGL is unavailable or the system requests reduced motion. The visual scene was adapted from the local Macro Ocean V1 prototype. Three.js and Lenis use MIT, the self-hosted fonts use OFL-1.1, and GSAP uses its [Standard License](https://gsap.com/standard-license/). Vite emits bundled license notices in `frontend/dist/.vite/license.md`.
+| Answer mode | What the app returns |
+| --- | --- |
+| **RAG-Based LLM Answer** | Research grounded in supported official observations, deterministic statistics, and reviewed institutional claims where available. The workflow checks the scope and evidence, attributes citations, and returns partial results or abstains when support is insufficient. |
+| **Pure LLM Answer** | An optional Gemini explanation after an eligible RAG abstention, when enabled on the public backend. The explanation is labelled unverified, receives no retrieved evidence or calculation results, and appears alongside the original RAG result. A technical failure in RAG does not trigger this mode. |
 
-## Architecture
+## Technology stack
+
+| Responsibility | Implementation |
+| --- | --- |
+| Frontend | React 19, TypeScript 6, Vite 8, uPlot for charts, Three.js, GSAP, and Lenis for the motion-enabled interface |
+| Backend | Python 3.12, FastAPI, Pydantic, psycopg |
+| AI orchestration | LangGraph 1.2 and LangChain Core 1.7 |
+| Language model | Gemini Developer API through a bounded HTTP client in the public profile. The Render manifest selects Gemini 3.6 Flash. |
+| Retrieval | TF-IDF ranking over versioned, human-reviewed claims with topic, geography, date, and eligibility filters |
+| Data engineering | Python ingestion from ECB and Eurostat, PostgreSQL capture and revision tracking, Supabase read-only views |
+| Cloud and security | Cloudflare Workers, Turnstile, rate-limit bindings, a SQLite-backed Durable Object, and an authenticated FastAPI origin on Render |
+| Testing and CI | pytest, Vitest, Node.js Worker tests, GitHub Actions, CodeQL, pip-audit, npm audit, and Gitleaks |
+
+See the [frontend manifest](frontend/package.json) and [public backend requirements](backend/requirements-public-research.txt) for exact pins.
+
+## Production architecture
 
 ```mermaid
-flowchart LR
-    A[ECB and Eurostat] --> B[Validated Python ingestion]
-    B --> C[(PostgreSQL)]
-    C --> D[Read-only FastAPI]
-    D --> E[React and TypeScript PWA]
-    D --> F[Local LangGraph workflow]
-    G[Reviewed institutional summaries] --> F
-    F --> H[LangChain Gemini citation selection]
-    H --> F
-    F --> D
+flowchart TD
+    PWA["Browser · React PWA"] --> EDGE["Cloudflare Worker"]
+    EDGE -->|"Catalog and history · edge cache"| API["Render · FastAPI"]
+    EDGE -->|"Research POST · per-IP limits"| ADMIT["Turnstile and Durable Object quota"]
+    ADMIT -->|"Admitted request · origin credential"| API
+    API -->|"Read-only history"| DB[("Supabase PostgreSQL")]
+    API -->|"Research enabled"| GRAPH["LangGraph and LangChain Core"]
+    GRAPH -->|"Time series and approved supplemental evidence"| DB
+    CORPUS["Versioned institutional evidence"] --> GRAPH
+    GRAPH -->|"Interpretation and structured answer plan"| GEMINI["Gemini API"]
+    GRAPH -.->|"Eligible abstention · fallback enabled"| PURE["Unverified general explanation via Gemini"]
+
+    subgraph PREP["Data preparation · outside the request path"]
+        OFFICIAL["ECB and Eurostat"] --> INGEST["Validated Python ingestion"]
+        SOURCES["Institutional publications"] --> REVIEW["Human review and attribution"]
+    end
+    INGEST --> DB
+    REVIEW --> CORPUS
 ```
 
-FastAPI and psycopg serve bounded historical reads. PostgreSQL stores observations and ingestion provenance. React, TypeScript and Vite deliver the charts and PWA shell. A Cloudflare Worker and a separate Render origin configuration serve the public MacroPulse application.
+The Worker serves the PWA and proxies same-origin API requests to an authenticated Render origin. It can cache validated catalog and history reads at the edge. Public research submissions pass through per-IP attempt limits, Turnstile verification and a global quota reservation. The backend reads persisted observations through restricted Supabase views. ECB and Eurostat retrieval happens during ingestion, outside the interactive request path.
 
-For the default local AI research flow, LangGraph routes a supported question to read-only statistical tools, retrieves source material, checks sufficiency and answers or abstains. The RAG index ranks eight reviewed ECB and Eurostat summaries with topic filtering, TF-IDF term vectors and cosine similarity. It filters out documents published after the selected end date. LangChain requests a structured selection of evidence IDs from Gemini. The server validates those IDs and assembles the response from deterministic statistics and attributed summaries. The original question stays local in this flow.
+On Render, the research graph validates a question against the supported catalog and time window, reads observations, computes statistics, and retrieves evidence. Gemini can interpret custom questions and propose the order and style of approved statements. The server validates the plan and builds the cited answer from those statements. It can render a deterministic summary when drafting fails and verified evidence is available. The optional general explanation is a separate branch after an eligible abstention.
 
-[Experimental Research v2](docs/m7d/research-v2.md) is available in the loopback PWA with explicit activation. It sends the original question to Gemini for structured interpretation and uses the approved M7.B corpus for documentary context. When the backend provides a Gemini explanation for a qualifying abstention, **Pure LLM Answer** displays it with its evidence warning alongside the **RAG-Based LLM Answer** view.
+Public Research availability is controlled at the Worker and origin. Dynamic editorial retrieval and supported as-of queries are also flag-controlled on the backend. The standard local RAG flow uses Gemini for citation selection. The experimental local Research v2 profile requires explicit activation on loopback, and E5 retrieval is an optional local experiment. [Deployment runbook](docs/public-deployment-runbook.md) · [Local Research v2 guide](docs/m7d/research-v2.md)
+
+## Engineering Highlights
+
+- **Bounded orchestration and output validation.** LangGraph gates a fixed set of read operations behind scope checks. The model supplies structured intent and presentation choices. The server checks the plan, statement IDs, and citations before rendering, which limits the effects of malformed model output.
+- **Deterministic statistics and provenance.** Python computes comparisons from dated observations using series-specific definitions and units. Responses retain source links, dates, capture information, and calculation inputs where available. That makes a result traceable to the data and revision used. [Series contracts](docs/macro/official-series-contracts.md) · [Data reuse policy](docs/macro/data-reuse-policy.md)
+- **Reviewed retrieval.** The current versioned corpus contains 30 institutional documents and 53 approved claims. Claim metadata preserves scope, publication dates, attribution, and source locators. Ranking and support checks keep contextual evidence within its stated scope. [Corpus expansion and coverage](docs/m8/corpus-expansion.md)
+- **Admission and timeout budgets.** A SQLite-backed Durable Object checks per-visitor and global quotas and reserves concurrent capacity in one transaction. The configured Worker fetch window is 70 seconds, the origin research deadline is 65 seconds, and the quota lease expires after 90 seconds. Confirmed completion frees capacity early. Uncertain completion holds the lease until expiry, which bounds concurrency at the cost of temporary capacity. [Timeout configuration](docs/public-deployment-runbook.md#presupuesto-temporal-de-research)
+- **Scoped database access.** FastAPI uses a dedicated reader, restricted views, read-only transactions, and PostgreSQL TLS with hostname and CA verification. Startup and connection checks test the reader's effective role and grants. [Security audit](docs/security/fase-10-audit.md)
 
 ## Local development
 
-On Windows 11, double-click **MacroPulse AI.bat**. It opens MacroPulse AI in the default browser at `http://127.0.0.1:5173/` and shows the iPhone Safari URL on the page. Connect the iPhone and PC to the same trusted network and use the **Private** network profile on the PC. The launcher detects the PC's address each time the services start.
+Use **Python 3.12** and **Node.js 24.15+ in the 24.x line**. The frontend also declares compatible Node 22 and 26+ releases. From the repository root, create a virtual environment and activate it with `source .venv/bin/activate` on POSIX shells or `.\.venv\Scripts\Activate.ps1` in PowerShell.
 
-1. Run **Install MacroPulse AI.bat** once to add **MacroPulse AI** to Start. Find it in Start search and choose **Pin to taskbar** if that option is available. The shortcut uses the Windows command processor and the MacroPulse icon. [Windows taskbar instructions](https://support.microsoft.com/en-us/windows/experience/personalization/customize-the-taskbar-in-windows)
-2. If Windows Firewall blocks Safari on the private network, run **Enable MacroPulse AI LAN.bat** once and approve the Windows elevation prompt. It adds an inbound rule for Node on TCP 5173, the selected interface, the Private profile and local subnet. Run setup again if you switch adapters or change the Node installation path. Daily launches run with ordinary user permissions.
-3. Click **MacroPulse AI** again to reopen the page using the running services. Use **Stop MacroPulse AI.bat** to stop them. Restart the launcher after changing the network or editing frontend source so it can rebuild the local frontend.
-
-The launcher uses the existing DEV read-only settings and Gemini key from the backend environment or ignored root `.env`. FastAPI listens on `127.0.0.1:8000`, and both frontend listeners serve the same compiled app. The LAN proxy accepts only peers on the selected private subnet and allows up to 60 history requests and three research submissions per rolling minute across the LAN listener. LAN access uses HTTP, so use it only on a trusted private network.
-
-If setup is missing, install Python 3.12 and a Node release supported by [frontend/package.json](frontend/package.json), then install the repository dependencies once from PowerShell at the repository root:
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements-ai.txt -r backend/requirements-dev.txt
-Set-Location frontend
-npm.cmd ci
+```sh
+python -m venv .venv
+# Activate the environment before installing.
+python -m pip install -r backend/requirements-ai.txt -r requirements-m7b.txt
+npm --prefix frontend ci
 ```
 
-The launcher reports startup errors in its window. The latest supervisor status is in `status.txt` under `%LOCALAPPDATA%\MacroPulse AI\` in the checkout's subdirectory. For hot reload and manual development, see the [frontend guide](frontend/README.md).
+For historical data, set `MACRO_API_DSN` in the backend terminal to an authorized read-only connection to a populated loopback PostgreSQL database. The default `MACRO_API_MODE` is `loopback`. Enable local research by setting `MARKETPULSE_MACRO_AI_ENABLED=true` in both terminals and providing `GEMINI_API_KEY` to the backend only. See the [macro setup and ingestion notes](docs/macro/migration-progress.md) for data preparation and the [Windows guide](docs/development/windows.md) for launchers, shortcuts, firewall setup, and private LAN testing.
 
-## Run the tests locally
+Start the backend and frontend in separate terminals from the repository root, then open [the local app](http://127.0.0.1:5173/).
 
-From the repository root, with test DSNs unset:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest -ra
+```sh
+python -m uvicorn backend.api:app --host 127.0.0.1 --port 8000
 ```
 
-For database integration tests, follow the [disposable PostgreSQL workflow](docs/market-data-postgres.md#local-tests) and set `MACRO_DATA_TEST_DSN` to the same disposable loopback instance as `MARKET_DATA_TEST_DSN`. From `frontend`, run:
-
-```powershell
-npm.cmd test
-npm.cmd run test:worker
-npm.cmd run test:browser
-npm.cmd run lint
-npm.cmd run build
-npm.cmd run build:public
+```sh
+npm --prefix frontend run dev
 ```
 
-## Security and deployment
+### Run the tests locally
 
-The online application reads the five official macro indicators and their full available histories through read-only views over Supabase `macro_data`. Research v2 is opt-in and requires Turnstile, a global SQLite reservation and the authenticated Render origin. The PWA caches its shell and excludes API responses. See the [deployment runbook](docs/public-deployment-runbook.md) for activation and rollback.
+With test database DSNs unset, run the fixture-backed suite from the repository root. Use the [disposable PostgreSQL guide](docs/market-data-postgres.md#local-tests) for database integration tests. The [frontend guide](frontend/README.md) covers local Vite development and the separate market archive workspace.
 
-Publication requires applying the reader migration, provisioning the Render and Cloudflare configuration, and verifying the hosted endpoints. Research v2 uses the complete M7.B snapshot and reviewed institutional supplements. Activating it requires Turnstile and a dedicated Gemini key.
+```sh
+python -m pytest -ra
+npm --prefix frontend test
+npm --prefix frontend run test:worker
+npm --prefix frontend run lint
+```
 
-## Security & reliability
+## Testing, security, and deployment
 
-Pull requests are validated with Python, frontend and Worker tests, CodeQL
-static analysis, Gitleaks secret detection, and Python/npm dependency audits.
-GitHub Actions are pinned to commit SHAs; dependency audits run weekly.
-Dependabot alerts and security-only PRs are enabled; routine version-update
-PRs are disabled.
-No CI job has access to production credentials or deploys the application.
-The public runtime also uses bounded requests, read-only PostgreSQL access,
-TLS verification, and server-side evidence validation.
+GitHub Actions defines Python and frontend checks for pull requests and pushes to `main`. CI runs pytest with fixtures, Vitest, Worker tests, lint, and local and public PWA builds. CodeQL analyzes Python and JavaScript/TypeScript, Gitleaks scans for exposed secrets, and pip-audit and npm audit check dependencies, including on a weekly schedule. Cloudflare and Render releases are manual. [CI and security checks](docs/phase-10-1-devsecops.md) · [Deployment and rollback](docs/public-deployment-runbook.md)
 
-See the [Fase 10.1 DevSecOps checklist](docs/phase-10-1-devsecops.md)
-for the CI scope and the administrator settings required to protect `main`.
-Scan results are not a substitute for production security verification.
+The PWA caches its shell, and research responses use `no-store`. The versioned controls still depend on effective hosted permissions and origin configuration. The security audit identifies unresolved risks involving shared origin credentials, sensitive text sent to Gemini, and the limits of filtering unverified fallback output. [Security policy](SECURITY.md) · [Audit findings](docs/security/fase-10-audit.md#4-matriz-de-amenazas-priorizada)
 
 ## Research limitations
 
-The corpus and supported intent vocabulary are deliberately small. Charts and calculations use the captured series revisions available locally. The selected date window and document publication cutoff do not reconstruct the exact information available at a historical date. Correlations describe the sample and do not establish causality. The app provides historical research rather than forecasts or investment recommendations.
+- Corpus coverage is limited by indicator, event, geography, and publication date. Some questions have enough data for a statistical summary and limited documentary support.
+- The workspace studies historical data. Descriptive changes and correlations cannot establish causal effects or support forecasts.
+- Model interpretation can miss a qualifier even when a plan passes validation. Institutional interpretations stay attributed to their sources, and general Gemini explanations remain unverified. [Research v2 review](docs/m7d/research-v2.md#limitaciones-conocidas)
+- Observation periods, publication dates, and capture timestamps represent different events. A document cutoff can restrict eligible sources while the selected series still includes later revisions. Historical windows alone cannot reconstruct the information available on a given date.
 
-- [Official series contracts](docs/macro/official-series-contracts.md)
-- [Source attribution and reuse policy](docs/macro/data-reuse-policy.md)
-- [Migration history and architecture decisions](docs/macro/migration-progress.md)
-- [M6 review and verification record](docs/macro/m6-progress.md)
-- [Market archive and PWA development guide](frontend/README.md)
+[Architecture and migration history](docs/macro/migration-progress.md) · [Local research verification record](docs/macro/m6-progress.md)
