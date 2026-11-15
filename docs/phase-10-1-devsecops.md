@@ -17,8 +17,10 @@ accounts, authorization roles, infrastructure changes, or automatic deployments.
 
 All workflows use read-only checkout. CodeQL has the narrowly scoped
 `security-events: write` permission for findings. Actions are pinned to full
-commit SHAs, and [Dependabot](../.github/dependabot.yml) checks GitHub Actions,
-npm, and Python dependencies weekly.
+commit SHAs. The CI dependency audits also run every Monday (07:23 UTC),
+including weeks with no commits. Dependabot **alerts and security updates** are
+enabled in GitHub repository settings. Routine version-update PRs are disabled
+by intentionally omitting `.github/dependabot.yml`.
 
 **Expected behavior:** dependency audits are intentionally *blocking* when
 high-risk findings are present (Python vulnerability findings at any severity,
@@ -43,7 +45,11 @@ A scanner passing does not prove the absence of vulnerabilities.
 - CodeQL's results appear in Security > Code scanning after a successful run.
   Native Secret Scanning and Push Protection are GitHub account/repository
   settings, not enabled merely by committing Gitleaks.
-- Dependabot proposes PRs; it does not auto-merge them or publish the site.
+- Dependabot proposes PRs **only when a known vulnerable dependency has a
+  compatible fix available**; it does not auto-merge them or publish the site.
+  GitHub may still flag security issues without being able to prepare a PR.
+- On scheduled CI runs only the Python and npm dependency audit jobs execute;
+  backend/frontend tests remain required on ordinary PRs and pushes.
 
 ## One-time GitHub configuration (repository administrator)
 
@@ -82,7 +88,7 @@ as enabled until GitHub confirms them.
 Open an ordinary feature branch and PR. Review test failures and scan results,
 then merge after checks pass. Keep Render and Cloudflare releases manual;
 record the deployed Git SHA and verify health and Research separately after
-deployment. Dependabot PRs undergo the same CI. Rotate any leaked key rather
+deployment. Security-fix Dependabot PRs undergo the same CI. Rotate any leaked key rather
 than suppressing an alert solely to make CI green.
 
 ## Local verification
