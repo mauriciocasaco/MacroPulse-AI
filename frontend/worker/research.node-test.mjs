@@ -516,6 +516,7 @@ test('invalid administrator credentials fail closed and lock the visitor until e
   const limited = await worker.fetch(adminPost(credential, { check: true }), env);
   assert.equal(limited.status, 429);
   assert.equal(limited.headers.get('Retry-After'), '60');
+  assert.equal((await limited.json()).code, 'admin_auth_limit');
   assert.equal((await worker.fetch(adminPost(credential, {
     check: true, headers: { 'CF-Connecting-IP': '192.0.2.2' },
   }), env)).status, 204);
@@ -580,13 +581,27 @@ test('missing or failed early protection and untrusted forwarding headers cannot
   for (const method of ['info', 'warn']) t.mock.method(console, method, () => {});
   const env = fixtureEnv(sqliteFixture(t).instance());
   const fetch = t.mock.method(globalThis, 'fetch', () => assert.fail('No external verification or origin request'));
-  for (const binding of [undefined, { limit: async () => { throw new Error('Unavailable'); } }]) {
+  for (const binding of [undefined, {}, { limit: async () => ({}) },
+    { limit: async () => { throw new Error('Unavailable'); } }]) {
     assert.equal((await worker.fetch(post('token'), { ...env, RESEARCH_ATTEMPT_RATE_LIMIT: binding })).status, 503);
   }
   assert.equal((await worker.fetch(post('token', { headers: {
     'CF-Connecting-IP': '', 'X-Forwarded-For': '192.0.2.1', 'X-MarketPulse-Client-IP': '192.0.2.1',
   } }), env)).status, 503);
   assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('catalog does not advertise public Research without required bindings', async (t) => {
+  const env = fixtureEnv(sqliteFixture(t).instance());
+  t.mock.method(globalThis, 'fetch', async () => Response.json([], {
+    headers: { 'X-MacroPulse-Public-Research': 'true' },
+  }));
+  for (const overrides of [{ RESEARCH_ATTEMPT_RATE_LIMIT: undefined }, { RESEARCH_ATTEMPT_RATE_LIMIT: {} },
+    { RESEARCH_QUOTA: undefined }]) {
+    const reply = await worker.fetch(edgeRequest(catalog), { ...env, ...overrides });
+    assert.equal(reply.status, 200);
+    assert.equal(reply.headers.get('X-MacroPulse-Turnstile-Sitekey'), null);
+  }
 });
 
 test('administrator reservations enforce atomic concurrency, rolling/day/month caps and persist across restart', async (t) => {
@@ -655,6 +670,7 @@ test('a valid leaked admin credential cannot bypass its shared budget by changin
     const reply = await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET, { headers: { 'CF-Connecting-IP': ip } }), env);
     assert.equal(reply.status, 429);
     assert.equal(reply.headers.get('Retry-After'), String((Date.UTC(2026, 11, 1) - now) / 1000));
+    assert.equal((await reply.json()).code, 'admin_research_limit');
   }
   assert.equal(origins, 1);
   assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET, { check: true }), env)).status, 204);
@@ -667,17 +683,26 @@ test('Research never uses cache and admin budget failures fail closed', async (t
   for (const method of ['info', 'warn']) t.mock.method(console, method, () => {});
   const { env } = adminFixture(t);
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'caches');
-  Object.defineProperty(globalThis, 'caches', { configurable: true, get() { assert.fail('Research must not access cache'); } });
+  const cacheAccess = t.mock.fn(() => { throw new Error('Unexpected cache access'); });
+  Object.defineProperty(globalThis, 'caches', { configurable: true, get: cacheAccess });
   t.after(() => {
     if (previous) Object.defineProperty(globalThis, 'caches', previous);
     else delete globalThis.caches;
   });
-  const origin = t.mock.method(globalThis, 'fetch', async () =>
-    Response.json({}, { headers: { 'X-MacroPulse-Research-Complete': 'true' } }));
+  const origin = t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (String(url).includes('siteverify')) return Response.json({ success: true, hostname: 'demo.example',
+      action: 'research', challenge_ts: new Date().toISOString() });
+    assert.equal(init.cache, 'no-store');
+    return Response.json({}, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
+  });
+  const publicReply = await worker.fetch(post('public-token'), env);
+  assert.equal(publicReply.status, 200);
+  assert.equal(publicReply.headers.get('Cache-Control'), 'no-store');
   assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET), env)).status, 200);
   const get = env.RESEARCH_QUOTA.getByName;
   env.RESEARCH_QUOTA.getByName = (name) => name.endsWith('budget-v1')
     ? { fetch: async () => { throw new Error('Unavailable'); } } : get(name);
   assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET), env)).status, 503);
-  assert.equal(origin.mock.callCount(), 1);
+  assert.equal(origin.mock.callCount(), 3);
+  assert.equal(cacheAccess.mock.callCount(), 0);
 });

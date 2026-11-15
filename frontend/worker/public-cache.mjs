@@ -2,7 +2,7 @@ import { boundedBody } from './bounded-body.mjs';
 
 export const publicCacheHeader = 'X-MacroPulse-Public-Cache';
 const storedAtHeader = 'X-MacroPulse-Cache-Stored-At';
-const version = 'official-v1';
+export const publicCacheVersion = 'official-v1';
 const maxBody = 3 * 1024 * 1024;
 export const catalogTTL = 60;
 export const historyTTL = 300;
@@ -34,7 +34,7 @@ export async function publicCache(request, env, base, catalog) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(
     `${base.origin}\n${env.MARKETPULSE_DEMO_ORIGIN_SECRET}`));
   const partition = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-  const key = new URL(`/__macropulse_cache/${version}${url.pathname}`, url.origin);
+  const key = new URL(`/__macropulse_cache/${publicCacheVersion}${url.pathname}`, url.origin);
   key.searchParams.set('origin', partition);
   if (!catalog) {
     key.searchParams.set('start', url.searchParams.get('start'));
@@ -59,7 +59,7 @@ export async function readPublicCache(entry) {
     const response = await entry.cache.match(entry.key);
     if (!response) return null;
     const stored = Number(response.headers.get(storedAtHeader));
-    if (response.status !== 200 || response.headers.get(publicCacheHeader) !== version
+    if (response.status !== 200 || response.headers.get(publicCacheHeader) !== publicCacheVersion
       || !Number.isSafeInteger(stored) || stored <= 0 || stored > Date.now()
       || Date.now() - stored >= entry.ttl * 1000) {
       void response.body?.cancel().catch(() => {});
@@ -71,7 +71,7 @@ export async function readPublicCache(entry) {
 }
 
 export async function writePublicCache(entry, body, headers, started) {
-  if (!entry || headers.get(publicCacheHeader) !== version || headers.has('Set-Cookie')
+  if (!entry || headers.get(publicCacheHeader) !== publicCacheVersion || headers.has('Set-Cookie')
     || headers.has('Vary') || /(?:^|,)\s*private(?:\s|,|=|$)/i.test(headers.get('Cache-Control') ?? '')
     || body.byteLength > maxBody || !validBody(body, entry)) return;
   // The origin explicitly authorizes ONLY these public payloads for internal edge caching.
@@ -80,6 +80,6 @@ export async function writePublicCache(entry, body, headers, started) {
   if (remaining <= 0) return;
   await optional(() => entry.cache.put(entry.key, new Response(body, { headers: {
     'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${remaining}`,
-    [publicCacheHeader]: version, [storedAtHeader]: String(started),
+    [publicCacheHeader]: publicCacheVersion, [storedAtHeader]: String(started),
   } })));
 }

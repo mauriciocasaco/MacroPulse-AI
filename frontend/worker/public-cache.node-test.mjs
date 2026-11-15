@@ -109,6 +109,7 @@ test('catalog caches only its body and refreshes upstream and Worker Research se
   let upstreamEnabled = true;
   let ready = true;
   const config = { ...env, MACROPULSE_RESEARCH_ENABLED: 'true', MACROPULSE_RESEARCH_HOSTNAME: 'demo.example',
+    RESEARCH_ATTEMPT_RATE_LIMIT: allowed,
     MACROPULSE_TURNSTILE_SITE_KEY: 'synthetic-site-key', MACROPULSE_TURNSTILE_SECRET: 'synthetic-turnstile-secret',
     MACROPULSE_RESEARCH_HASH_KEY: digest('synthetic hash'),
     RESEARCH_QUOTA: { getByName: () => ({ fetch: async () => new Response(null, { status: ready ? 204 : 503 }) }) },
@@ -192,10 +193,30 @@ test('catalog cache hits retain upstream errors and do not advertise stale Resea
     ? Response.json([], { headers: optIn })
     : new Response(null, { status, headers: { 'Content-Type': 'application/json', 'Retry-After': '10' } }));
   await worker.fetch(request(catalog), env);
-  for (status of [429, 503, 200]) {
+  for (status of [429, 503]) {
     const response = await worker.fetch(request(catalog), env);
-    assert.equal(response.status, status === 200 ? 503 : status);
+    assert.equal(response.status, status);
     assert.equal(response.headers.get('X-MacroPulse-Turnstile-Sitekey'), null);
     if (status === 429) assert.equal(response.headers.get('Retry-After'), '10');
   }
+});
+
+test('catalog falls back to a fresh GET if HEAD support or public cache opt-in is withdrawn', async (t) => {
+  cacheFixture(t);
+  let headStatus = 405;
+  let warmed = false;
+  const methods = [];
+  t.mock.method(globalThis, 'fetch', async (_target, init) => {
+    methods.push(init.method);
+    if (init.method === 'HEAD') return new Response(null, { status: headStatus });
+    return warmed ? Response.json(['fresh']) : Response.json(['cached'], { headers: optIn });
+  });
+  await worker.fetch(request(catalog), env);
+  warmed = true;
+  for (headStatus of [405, 200]) {
+    const reply = await worker.fetch(request(catalog), env);
+    assert.equal(reply.status, 200);
+    assert.deepEqual(await reply.json(), ['fresh']);
+  }
+  assert.deepEqual(methods, ['GET', 'HEAD', 'GET', 'HEAD', 'GET']);
 });

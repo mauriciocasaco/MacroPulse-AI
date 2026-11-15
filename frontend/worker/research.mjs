@@ -28,6 +28,11 @@ export const adminHeader = 'X-MacroPulse-Admin-Secret';
 export const adminCheckHeader = 'X-MacroPulse-Admin-Check';
 const adminSecretPattern = /^[a-f0-9]{64}$/;
 
+export function researchAttemptLimiter(env) {
+  const limiter = env.RESEARCH_ATTEMPT_RATE_LIMIT;
+  return typeof limiter?.limit === 'function' ? limiter : null;
+}
+
 export function configuredAdminSecret(env) {
   const secret = env.MACROPULSE_ADMIN_SECRET;
   if (typeof secret !== 'string' || !adminSecretPattern.test(secret)
@@ -68,7 +73,7 @@ export function researchConfig(env, url, researchId = null) {
     || !/^[A-Za-z0-9_-]{12,80}$/.test(sitekey) || !/^[A-Za-z0-9_-]{20,160}$/.test(secret)
     || !/^[a-f0-9]{64}$/.test(hashKey) || new Set(hashKey).size < 12
     || /^(.{1,32})\1+$/.test(hashKey) || hashKey === env.MARKETPULSE_DEMO_ORIGIN_SECRET
-    || !env.RESEARCH_QUOTA) return null;
+    || !env.RESEARCH_QUOTA || !researchAttemptLimiter(env)) return null;
   const started = performance.now();
   try {
     return {
