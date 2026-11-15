@@ -205,7 +205,7 @@ def test_online_fallback_distinguishes_transaction_failure_from_gemini(hybrid, m
         public_demo.ORIGIN_HEADER: settings.origin_secret,
         public_demo.CLIENT_IP_HEADER: "192.0.2.10",
         public_demo.RESEARCH_ID_HEADER: trace_id,
-        "X-MacroPulse-Research-Expires": str(int(time() * 1000) + 60_000),
+        "X-MacroPulse-Research-Expires": str(int(time() * 1000) + 90_000),
     }
     with TestClient(app) as client:
         reply = client.post("/macro/analysis", headers=headers, json={

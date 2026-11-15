@@ -173,10 +173,38 @@ usa herramientas de búsqueda ni recibe documentos, series o credenciales.
 Se mantienen hasta dos generaciones Gemini y hasta dos preflights
 (`countTokens`), sin reintentos. El fallback usa hasta 800 tokens de salida
 incluido el razonamiento, frente a 2.400 para las otras etapas; cada generación
-mantiene el límite de 8.000 tokens de entrada. El camino que antes se abstenía
-añade hasta 15 s de espera del proveedor y deja 2 s de margen antes del plazo
-de Render de 40 s. Worker conserva su plazo de 45 s y ambos conservan el
-límite de respuesta de 64 KiB.
+mantiene el límite de 8.000 tokens de entrada. El Worker y Render limitan
+la respuesta a 64 KiB.
+
+### Presupuesto temporal de Research
+
+| Componente | Máximo |
+| --- | --- |
+| Cloudflare Worker | 70 s desde el POST a Render, incluida la lectura de la respuesta |
+| Render FastAPI | 65 s desde la admisión en FastAPI, incluida la serialización |
+| Gemini | 25 s por etapa para `countTokens` y `generateContent`, con timeout HTTP de 20 s |
+| Durable Object | Lease de 90 s desde que se reserva una plaza |
+
+Son máximos. Cada etapa devuelve el control cuando termina. Dos etapas
+Gemini pueden consumir hasta 50 s en total, dentro de los 65 s que también
+cubren recuperación, cálculos y validación. El fallback general usa el
+tiempo restante hasta un máximo de 25 s y reserva 2 s para finalizar en
+Render. Catálogo e históricos conservan su timeout de 20 s hacia Render.
+
+El Worker exige al menos 72 s restantes del lease. Render exige más de
+67 s y acepta hasta 95 s para conservar la tolerancia de 5 s al desfase
+de relojes al validar `X-MacroPulse-Research-Expires`. Las vías pública y
+administrativa comparten los plazos y mantienen sus propias cuotas.
+Con finalización confirmada, el Worker libera la plaza. Ante un timeout o
+una finalización incierta, la reserva vence a los 90 s. Render mantiene su
+cupo local hasta que el hilo del ejecutor termina, aunque el cliente ya
+haya recibido un 504.
+
+Los reinicios y arranques en frío de Render pueden gastar parte del plazo
+del Worker antes de la admisión en FastAPI. Diagnosticarlos por separado
+de la duración de una investigación activa. Las versiones anterior y nueva
+exigen distintos tiempos de lease, por lo que el Worker y Render deben
+coordinarse al activar o revertir este presupuesto.
 
 A tarifa estándar de texto y suponiendo el uso máximo de tokens, una
 generación de fallback se estima en USD 0,009 con Gemini 3.6 Flash hasta el
@@ -185,7 +213,7 @@ Gemini 3.5 Flash-Lite. Es un cálculo por tokens, no una medición. Las
 solicitudes que ya requerían interpretación y composición conservan su
 presupuesto. [Tarifas de Gemini](https://ai.google.dev/gemini-api/docs/pricing)
 
-## Diagnóstico de 503 de Research
+## Diagnóstico de 503 y 504 de Research
 
 Buscá los eventos de aplicación `public_research_stage` y correlacioná Worker
 y Render por `research_id`. Cada evento indica la etapa, el resultado y la
@@ -193,13 +221,17 @@ duración en milisegundos. Los fallos incluyen el tipo de error y, donde
 corresponde, el estado HTTP. Las verificaciones de arranque de Render aparecen
 sin ID de solicitud.
 
-- `worker.turnstile` y `worker.quota_admit` ubican fallos anteriores al POST
-  a Render. `worker.render_fetch` registra el estado del origen y
-  `worker.render_response` permite detectar un fallo al validar o leer su cuerpo.
+- `worker.admission`, `worker.turnstile` y `worker.quota_admit` miden la admisión.
+  `worker.render_fetch` mide desde la conexión hasta las cabeceras de Render.
+  `worker.render_response` cubre la validación y la lectura del cuerpo.
+  `worker.research_total` incluye la admisión y el estado HTTP final.
 - En Render, `fastapi.research_preload` registra fallos al preparar el corpus
-  o el grafo. `fastapi.response` indica el estado devuelto por el endpoint.
+  o el grafo. `fastapi.response` registra el estado y el tiempo total desde
+  la admisión. `fastapi.deadline` indica que se agotó el plazo de Render.
 - Las etapas `langgraph.*`, `gemini.*` y `supabase.*` ubican el fallo dentro de
-  la investigación. En el fallback, `supabase.transaction_close` separa el
+  la investigación, con eventos para `gemini.count_tokens`,
+  `gemini.generate_content`, `gemini.validate_schema` y
+  `langgraph.validate_answer`. En el fallback, `supabase.transaction_close` separa el
   cierre de la lectura de `gemini.general`. Un fallo recuperado puede aparecer
   en los eventos aunque la respuesta HTTP sea 200.
 

@@ -361,7 +361,7 @@ def _check_imported_public_app(dsn, manifest, publications, monkeypatch):
         assert client.post(research, json=params).status_code == 403
         assert client.post(research, headers=headers, json=params).status_code == 403
         assert gemini_calls == []
-        headers["X-MacroPulse-Research-Expires"] = str(int(time() * 1000) + 60_000)
+        headers["X-MacroPulse-Research-Expires"] = str(int(time() * 1000) + 90_000)
         result = client.post(research, headers=headers, json=params)
         assert result.status_code == 200 and result.headers["X-MacroPulse-Research-Complete"] == "true"
         payload = result.json()

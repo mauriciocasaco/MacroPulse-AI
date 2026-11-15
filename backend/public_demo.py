@@ -41,7 +41,10 @@ _RESEARCH_ID = re.compile(r"[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{
 MAX_WINDOW_DAYS = 2600
 MAX_BODY = 4096
 MAX_RESEARCH_RESPONSE = 64 * 1024
-RESEARCH_SECONDS = 40
+RESEARCH_SECONDS = 65
+RESEARCH_LEASE_SECONDS = 90
+LEASE_HEADROOM_SECONDS = 2
+LEASE_CLOCK_SKEW_SECONDS = 5
 GENERAL_FALLBACK_FLAG = "MACROPULSE_RESEARCH_GENERAL_FALLBACK_ENABLED"
 RO_ROLE = "marketpulse_demo_ro"
 SHARED_PROJECT_REF = "swpithkjviavycrxpwed"
@@ -267,7 +270,14 @@ def run_public_research(settings: DemoSettings, request: ResearchRequest, key: s
                 with research_stage("supabase.connect"):
                     connection = stack.enter_context(connect_demo(settings))
             with research_stage("supabase.history"):
+                if monotonic() >= deadline:
+                    raise TimeoutError
                 return read_history(connection, CATALOG[indicator], window, max_points=MAX_WINDOW_DAYS)
+
+        def compose(evidence):
+            with research_stage("supabase.transaction_close"):
+                stack.close()
+            return provider.compose(evidence)
 
         def general(*args, **kwargs):
             with research_stage("supabase.transaction_close"):
@@ -275,7 +285,7 @@ def run_public_research(settings: DemoSettings, request: ResearchRequest, key: s
             return provider.general(*args, **kwargs)
 
         result = run(request, runtime=ResearchRuntime(
-            read, provider.interpret, provider.compose, model,
+            read, provider.interpret, compose, model,
             generate_general=general if os.environ.get(GENERAL_FALLBACK_FLAG) == "true" else None,
         ))
     if monotonic() >= deadline:
@@ -348,7 +358,9 @@ def create_public_app(
         if len(expires) != 1 or not re.fullmatch(r"[0-9]{13}", expires[0]):
             return _error(403, "Forbidden")
         remaining = int(expires[0]) / 1000 - time()
-        if not RESEARCH_SECONDS + 2 < remaining <= 65:
+        if not RESEARCH_SECONDS + LEASE_HEADROOM_SECONDS < remaining <= (
+            RESEARCH_LEASE_SECONDS + LEASE_CLOCK_SKEW_SECONDS
+        ):
             research_event("fastapi.admission", started, "InvalidResearchDeadline", http_status=403)
             return _error(403, "Forbidden")
         try:
@@ -362,10 +374,13 @@ def create_public_app(
         if len(research_tasks) >= 2:
             research_event("fastapi.admission", started, "ResearchBusy", http_status=503)
             return _error(503, "Public Research is busy", 1)
-        deadline = monotonic() + RESEARCH_SECONDS
+        research_event("fastapi.admission", started)
+        deadline = started + RESEARCH_SECONDS
 
         def execute():
             with research_stage("fastapi.research_runner"):
+                if monotonic() >= deadline:
+                    raise TimeoutError
                 return (research_runner or run_public_research)(settings, params, *research, deadline)
 
         task = get_running_loop().run_in_executor(None, copy_context().run, execute)
@@ -377,11 +392,18 @@ def create_public_app(
                 finished.exception()
 
         task.add_done_callback(settled)
+        # A cancelled HTTP waiter cannot stop an already running thread. Keep
+        # its slot until the executor actually settles and omit the completion
+        # header on timeouts so the Worker retains the lease.
         try:
-            async with timeout(RESEARCH_SECONDS):
+            async with timeout(deadline - monotonic()):
                 result = await shield(task)
             with research_stage("fastapi.serialize"):
+                if monotonic() >= deadline:
+                    raise TimeoutError
                 payload = result.model_dump_json().encode("utf-8")
+                if monotonic() >= deadline:
+                    raise TimeoutError
                 if len(payload) > MAX_RESEARCH_RESPONSE:
                     research_event("fastapi.response", started, "ResponseTooLarge", http_status=503)
                     return _error(503, "Public Research is unavailable")
@@ -389,10 +411,13 @@ def create_public_app(
             return Response(payload, media_type="application/json", headers={
                 "Cache-Control": "no-store", "X-MacroPulse-Research-Complete": "true",
             })
-        except TimeoutError:
-            research_event("fastapi.response", started, "TimeoutError", http_status=504)
-            return _error(504, "Public Research timed out")
         except Exception as error:
+            deadline_reached = monotonic() >= deadline
+            if isinstance(error, TimeoutError) or deadline_reached:
+                if deadline_reached:
+                    research_event("fastapi.deadline", started, "TimeoutError", http_status=504)
+                research_event("fastapi.response", started, "TimeoutError", http_status=504)
+                return _error(504, "Public Research timed out")
             research_event("fastapi.response", started, type(error).__name__, http_status=503)
             return _error(503, "Public Research is unavailable")
 

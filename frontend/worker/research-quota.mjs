@@ -2,7 +2,7 @@ const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
 const TEN_MINUTES = 10 * MINUTE;
 const TOKEN_LIFETIME = 5 * MINUTE;
-const LEASE = 60_000;
+export const researchLeaseMs = 90_000;
 const MAX_ACTIVE = 2;
 const MAX_VISITOR_ROLLING = 20;
 const MAX_VISITOR_DAILY = 50;
@@ -141,7 +141,7 @@ export class ResearchQuota {
     const active = this.sql.exec('SELECT count(*) AS total, min(expires) AS first FROM leases').one();
     if (active.total >= limits.active) return { code: 'busy', retry: Math.min(15, seconds(active.first - now)) };
     const id = crypto.randomUUID();
-    const expires = now + LEASE;
+    const expires = now + researchLeaseMs;
     this.sql.exec('INSERT INTO attempts VALUES (?, ?, ?)', id, visitor, now);
     this.sql.exec('INSERT INTO leases VALUES (?, ?)', id, expires);
     this.sql.exec(`

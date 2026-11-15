@@ -1,6 +1,7 @@
 import { boundedBody } from './bounded-body.mjs';
 import { publicCache, publicCacheHeader, publicCacheVersion, readPublicCache, writePublicCache } from './public-cache.mjs';
 import { researchErrorType, researchEvent, researchIdHeader } from './research-logging.mjs';
+import { researchLeaseMs } from './research-quota.mjs';
 import {
   adminCheckHeader, adminHeader, adminQuotaConfig, authenticateAdmin, configuredAdminSecret, maxResearchBody,
   publicResearchHeader, quotaReady, readResearchPayload, releaseResearch,
@@ -149,7 +150,8 @@ const researchErrors = {
   budget: [429, 'Public Research budget reached'],
   busy: [503, 'Public Research is busy'],
 };
-const researchTimeoutMs = 45_000;
+const researchTimeoutMs = 70_000;
+const leaseHeadroomMs = 2_000;
 
 async function publicResearch(request, env, ctx, url) {
   if (request.method !== 'POST') return error(405, 'Method not allowed');
@@ -161,6 +163,14 @@ async function publicResearch(request, env, ctx, url) {
   if (length !== null && !/^\d{1,10}$/.test(length)) return error(400, 'Invalid request');
   if (Number(length) > maxResearchBody) return error(413, 'Request too large');
   const researchId = crypto.randomUUID();
+  const started = performance.now();
+  const response = await serveResearch(request, env, ctx, url, researchId);
+  const outcome = response.status === 504 ? 'TimeoutError' : response.ok ? undefined : 'ResearchRejected';
+  researchEvent(researchId, 'worker.research_total', started, outcome, response.status);
+  return response;
+}
+
+async function serveResearch(request, env, ctx, url, researchId) {
   let stage = 'worker.configuration';
   let started = performance.now();
   function begin(name) {
@@ -237,10 +247,11 @@ async function publicResearch(request, env, ctx, url) {
       ({ id, expires } = reservation);
       const remaining = expires - Date.now();
       if (!/^[a-f0-9-]{36}$/.test(id ?? '') || !Number.isSafeInteger(expires)
-        || remaining < researchTimeoutMs + 2_000 || remaining > 60_000) {
+        || remaining < researchTimeoutMs + leaseHeadroomMs || remaining > researchLeaseMs) {
         record('InvalidResearchLease', 503);
         return error(503, 'Public Research is unavailable');
       }
+      record();
     }
     timeout = AbortSignal.timeout(researchTimeoutMs);
     begin('worker.render_fetch');
@@ -254,6 +265,10 @@ async function publicResearch(request, env, ctx, url) {
         [researchIdHeader]: researchId,
       },
     });
+    if (timeout.aborted) {
+      void upstream.body?.cancel().catch(() => {});
+      timeout.throwIfAborted();
+    }
     record(upstream.status === 200 ? undefined : 'UnexpectedUpstreamStatus', upstream.status);
     const knownCompleted = [200, 400, 403, 405, 408, 413, 415, 422].includes(upstream.status)
       && upstream.headers.get('X-MacroPulse-Research-Complete') === 'true';
@@ -279,6 +294,7 @@ async function publicResearch(request, env, ctx, url) {
       return error(503, 'Public Research is unavailable');
     }
     const result = await boundedBody(upstream.body, 65_536, timeout);
+    timeout.throwIfAborted();
     if (!result) {
       record('ResponseTooLarge', upstream.status);
       return error(503, 'Public Research is unavailable');
@@ -289,7 +305,7 @@ async function publicResearch(request, env, ctx, url) {
     });
   } catch (cause) {
     const timedOut = timeout?.aborted || cause?.name === 'TimeoutError';
-    record(timedOut ? 'TimeoutError' : researchErrorType(cause));
+    record(timedOut ? 'TimeoutError' : researchErrorType(cause), timedOut ? 504 : 503);
     if (timedOut) return error(504, 'Public Research timed out');
     return error(503, 'Public Research is unavailable');
   }
