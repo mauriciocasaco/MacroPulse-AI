@@ -1,9 +1,10 @@
 import { boundedBody } from './bounded-body.mjs';
+import { publicCache, publicCacheHeader, readPublicCache, writePublicCache } from './public-cache.mjs';
 import { researchErrorType, researchEvent, researchIdHeader } from './research-logging.mjs';
 import {
-  adminCheckHeader, adminHeader, authenticateAdmin, configuredAdminSecret, maxResearchBody,
+  adminCheckHeader, adminHeader, adminQuotaConfig, authenticateAdmin, configuredAdminSecret, maxResearchBody,
   publicResearchHeader, quotaReady, readResearchPayload, releaseResearch,
-  researchConfig, researchEnabled, reserveResearch, siteKeyHeader,
+  researchConfig, researchEnabled, reserveAdminResearch, reserveResearch, siteKeyHeader,
 } from './research.mjs';
 
 export { ResearchQuota } from './research-quota.mjs';
@@ -82,8 +83,13 @@ export default {
       const target = new URL(base);
       target.pathname = url.pathname.slice(4);
       target.search = url.search;
+      const cacheEntry = await publicCache(request, env, base, catalog);
+      const cached = await readPublicCache(cacheEntry);
+      const started = Date.now();
       timeout = AbortSignal.timeout(20_000);
-      const upstream = await fetch(target, {
+      const upstream = cached && !catalog ? new Response(cached, { headers: { 'Content-Type': 'application/json' } })
+        : await fetch(target, {
+        method: cached && catalog ? 'HEAD' : 'GET',
         headers: {
           Accept: 'application/json',
           'X-MarketPulse-Origin': env.MARKETPULSE_DEMO_ORIGIN_SECRET,
@@ -106,8 +112,17 @@ export default {
           /^[1-9]\d?$/.test(retry ?? '') && Number(retry) <= 60 ? retry : 60);
         return error(status, status === 503 ? 'MacroPulse service unavailable' : 'Invalid request');
       }
-      const body = await boundedBody(upstream.body, maxResponse, timeout);
+      if (cached && catalog && headers.get(publicCacheHeader) !== 'official-v1') {
+        void upstream.body?.cancel().catch(() => {});
+        return error(503, 'MacroPulse service unavailable');
+      }
+      const body = cached ?? await boundedBody(upstream.body, maxResponse, timeout);
       if (!body) return error(503, 'MacroPulse service unavailable');
+      if (!cached) {
+        const write = writePublicCache(cacheEntry, body, headers, started);
+        if (ctx) ctx.waitUntil(write);
+        else await write;
+      }
       const responseHeaders = new Headers({
         'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
       });
@@ -162,10 +177,16 @@ async function publicResearch(request, env, ctx, url) {
     const credential = request.headers.get(adminHeader);
     const check = request.headers.get(adminCheckHeader);
     const adminRequested = credential !== null || check !== null;
-    const config = adminRequested ? null : researchConfig(env, url, researchId);
+    let config = adminRequested ? null : researchConfig(env, url, researchId);
     if (!adminRequested && !config) {
       record('InvalidAdmissionConfiguration', 503);
       return error(503, 'Public Research is unavailable');
+    }
+    begin('worker.attempt_limit');
+    const limiter = env.RESEARCH_ATTEMPT_RATE_LIMIT;
+    if (!limiter) return error(503, 'Public Research is unavailable');
+    if ((await limiter.limit({ key: `${adminRequested ? 'admin' : 'public'}:${ip}` })).success !== true) {
+      return error(429, 'Research attempt limit reached', 60);
     }
     begin('worker.request_body');
     const bytes = await boundedBody(request.body, maxResearchBody, AbortSignal.timeout(3000));
@@ -183,7 +204,7 @@ async function publicResearch(request, env, ctx, url) {
         if (check !== 'true' || new TextDecoder().decode(bytes) !== '{}') return error(422, 'Invalid request parameters');
         return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
       }
-      expires = Date.now() + 60_000;
+      config = adminQuotaConfig(env);
     }
     let body;
     try {
@@ -193,7 +214,8 @@ async function publicResearch(request, env, ctx, url) {
     }
     if (config) {
       begin('worker.admission');
-      const reservation = await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip, researchId);
+      const reservation = adminRequested ? await reserveAdminResearch(config)
+        : await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip, researchId);
       if (reservation.code !== 'ok') {
         const reason = Object.hasOwn(researchErrors, reservation.code) && researchErrors[reservation.code];
         if (reservation.code === 'busy') record('ResearchBusy', 503);

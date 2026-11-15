@@ -422,7 +422,9 @@ def create_public_app(
         analysis = path == _RESEARCH_PATH
         if not (operation or analysis):
             return _error(404, "Not found")
-        if request.method != ("POST" if analysis else "GET"):
+        if request.method != ("POST" if analysis else "GET") and not (
+            operation == "catalog" and request.method == "HEAD"
+        ):
             return _error(405, "Method not allowed")
         if (analysis or operation == "catalog") and request.scope["query_string"]:
             return _error(400, "Invalid request")
@@ -466,6 +468,10 @@ def create_public_app(
         finally:
             read_in_flight -= 1
         response.headers["Cache-Control"] = "no-store"
+        if response.status_code == 200:
+            # Explicit internal contract: only allowlisted, authenticated public reads.
+            # The Worker may cache the payload, but browsers must still use no-store.
+            response.headers["X-MacroPulse-Public-Cache"] = "official-v1"
         return response
 
     @app.exception_handler(RequestValidationError)
@@ -479,6 +485,13 @@ def create_public_app(
                 response.headers[RESEARCH_HEADER] = "true"
             return (catalog_reader(connection) if catalog_reader else
                     [indicator_metadata(item) for item in CATALOG.values()])
+
+    @app.head(_MACRO_CATALOG_PATH)
+    def macro_catalog_status():
+        # Cache hits must recalculate Research availability without opening a database connection.
+        return Response(media_type="application/json", headers={
+            **({RESEARCH_HEADER: "true"} if research is not None else {}),
+        })
 
     @app.get(f"{_MACRO_CATALOG_PATH}/{{indicator_id}}/history")
     def macro_history(indicator_id: str, window: Annotated[MacroWindow, Query()]) -> MacroHistory:

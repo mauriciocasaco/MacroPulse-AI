@@ -200,6 +200,29 @@ def test_disabled_research_preserves_catalog(client, monkeypatch):
     assert demo.RESEARCH_HEADER not in client.get(CATALOG, headers=HEADERS).headers
 
 
+def test_catalog_head_uses_current_capability_without_database_access(research_client, monkeypatch):
+    monkeypatch.setattr(demo, "connect_demo", lambda *_: pytest.fail("HEAD opened a database connection"))
+    reply = research_client.head(CATALOG, headers=HEADERS)
+    assert reply.status_code == 200 and reply.content == b""
+    assert reply.headers[demo.RESEARCH_HEADER] == "true"
+    assert reply.headers["X-MacroPulse-Public-Cache"] == "official-v1"
+    assert reply.headers["Cache-Control"] == "no-store"
+    assert research_client.head(CATALOG).status_code == 403
+    assert research_client.head(CATALOG + "?extra=1", headers=HEADERS).status_code == 400
+    assert research_client.head(HISTORY, headers=HEADERS).status_code == 405
+
+
+def test_cache_opt_in_is_only_on_successful_public_reads(client):
+    reply = client.get(CATALOG, headers=HEADERS)
+    assert reply.headers["X-MacroPulse-Public-Cache"] == "official-v1"
+    assert reply.headers["Cache-Control"] == "no-store"
+    assert demo.RESEARCH_HEADER not in client.head(CATALOG, headers=HEADERS).headers
+    for response in [client.get(CATALOG), client.get(HISTORY, headers=HEADERS),
+                     client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)]:
+        assert response.status_code >= 400
+        assert "X-MacroPulse-Public-Cache" not in response.headers
+
+
 @pytest.mark.parametrize(("key", "accepted"), [
     ("AIza" + "a" * 35, True),
     ("AQ." + "A1_-b" * 7, True),

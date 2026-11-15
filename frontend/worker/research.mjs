@@ -113,6 +113,22 @@ function quotaRequest(quota, path, payload) {
   });
 }
 
+// A fixed identity makes the administrator budget independent of source IP or secret rotation.
+// Use a separate instance so public usage and authentication failures cannot exhaust this budget.
+export function adminQuotaConfig(env) {
+  return { quota: env.RESEARCH_QUOTA.getByName('macropulse-research-admin-budget-v1') };
+}
+
+export async function reserveAdminResearch(config) {
+  const token = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',
+    encoder.encode(crypto.randomUUID()))), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const response = await quotaRequest(config.quota, '/admin-admit', {
+    visitor: '0'.repeat(64), token, challengeTime: Date.now(),
+  });
+  if (!response.ok) throw new Error('Administrator budget unavailable');
+  return response.json();
+}
+
 export async function quotaReady(config) {
   try {
     return (await quotaRequest(config.quota, '/ready', {})).status === 204;

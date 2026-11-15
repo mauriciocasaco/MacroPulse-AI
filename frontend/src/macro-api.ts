@@ -382,7 +382,7 @@ export async function askMacroAnalysis(
   if (!response.ok) {
     if (adminSecret) {
       if (response.status === 401) throw new AdministratorCredentialError();
-      if (response.status === 429) throw new Error('Too many credential attempts. Please try again shortly.');
+      if (response.status === 429) throw new Error('The administrator research limit has been reached. Please try again later.');
     }
     if (!turnstileToken && !adminSecret) throw new Error('Local macro research is unavailable.');
     if (response.status === 403) throw new Error('Complete a new Turnstile check.');
