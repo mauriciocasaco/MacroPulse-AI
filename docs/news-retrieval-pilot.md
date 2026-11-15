@@ -106,7 +106,7 @@ the cache passed to `E5Small`, then set `HF_HUB_OFFLINE=1` for inference.
 
 ```powershell
 python -m pip install 'torch==2.15.0+cpu' --index-url https://download.pytorch.org/whl/cpu
-python -m pip install 'sentence-transformers==5.2.0' 'transformers==5.22.2'
+python -m pip install 'sentence-transformers==5.6.0' 'transformers==5.22.2'
 ```
 
 The offline CPU smoke test used Python 3.12, PyTorch 2.15.0+cpu,

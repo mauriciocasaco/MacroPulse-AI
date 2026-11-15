@@ -1,6 +1,19 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { askMacroAnalysis } from './macro-api';
 
+it.each([
+  ['admin_auth_limit', 'Too many credential attempts.'],
+  ['admin_research_limit', 'The administrator research limit has been reached.'],
+  ['research_attempt_limit', 'Too many administrator requests.'],
+  [undefined, 'Too many administrator requests.'],
+])('distinguishes administrator 429 responses (%s)', async (code, message) => {
+  vi.stubGlobal('fetch', vi.fn(async () => code
+    ? Response.json({ code }, { status: 429, headers: { 'Retry-After': '60' } })
+    : new Response(null, { status: 429 })));
+  await expect(askMacroAnalysis(question, start, end, new AbortController().signal, context,
+    undefined, '0'.repeat(64))).rejects.toThrow(message);
+});
+
 const question = 'How did the COVID-19 pandemic affect EUR/USD rate?';
 const start = '2020-02-01';
 const end = '2020-12-31';

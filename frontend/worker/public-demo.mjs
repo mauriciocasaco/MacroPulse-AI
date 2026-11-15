@@ -1,9 +1,10 @@
 import { boundedBody } from './bounded-body.mjs';
+import { publicCache, publicCacheHeader, publicCacheVersion, readPublicCache, writePublicCache } from './public-cache.mjs';
 import { researchErrorType, researchEvent, researchIdHeader } from './research-logging.mjs';
 import {
-  adminCheckHeader, adminHeader, authenticateAdmin, configuredAdminSecret, maxResearchBody,
+  adminCheckHeader, adminHeader, adminQuotaConfig, authenticateAdmin, configuredAdminSecret, maxResearchBody,
   publicResearchHeader, quotaReady, readResearchPayload, releaseResearch,
-  researchConfig, researchEnabled, reserveResearch, siteKeyHeader,
+  researchAttemptLimiter, researchConfig, researchEnabled, reserveAdminResearch, reserveResearch, siteKeyHeader,
 } from './research.mjs';
 
 export { ResearchQuota } from './research-quota.mjs';
@@ -15,8 +16,8 @@ const maxMacroDays = 3660;
 const dayMs = 86_400_000;
 const allowedStatuses = new Set([200, 400, 404, 405, 408, 413, 415, 422, 429, 503, 504]);
 
-function error(status, detail, retry) {
-  return Response.json({ detail }, {
+function error(status, detail, retry, code) {
+  return Response.json({ detail, ...(code && { code }) }, {
     status,
     headers: { 'Cache-Control': 'no-store', ...(retry && { 'Retry-After': String(retry) }) },
   });
@@ -82,8 +83,12 @@ export default {
       const target = new URL(base);
       target.pathname = url.pathname.slice(4);
       target.search = url.search;
+      const cacheEntry = await publicCache(request, env, base, catalog);
+      let cached = await readPublicCache(cacheEntry);
+      const started = Date.now();
       timeout = AbortSignal.timeout(20_000);
-      const upstream = await fetch(target, {
+      const originRead = (method) => fetch(target, {
+        method,
         headers: {
           Accept: 'application/json',
           'X-MarketPulse-Origin': env.MARKETPULSE_DEMO_ORIGIN_SECRET,
@@ -93,6 +98,15 @@ export default {
         redirect: 'manual',
         signal: timeout,
       });
+      let upstream = cached && !catalog ? new Response(cached, { headers: { 'Content-Type': 'application/json' } })
+        : await originRead(cached ? 'HEAD' : 'GET');
+      if (cached && catalog && ([404, 405].includes(upstream.status)
+        || (upstream.ok && upstream.headers.get(publicCacheHeader) !== publicCacheVersion))) {
+        // An older origin or one that withdrew opt-in must supply a fresh catalog.
+        void upstream.body?.cancel().catch(() => {});
+        cached = null;
+        upstream = await originRead('GET');
+      }
       const { status, headers } = upstream;
       if (!allowedStatuses.has(status) || !/^application\/json(?:;|$)/i.test(headers.get('Content-Type') ?? '')
         || Number(headers.get('Content-Length')) > maxResponse) {
@@ -106,8 +120,13 @@ export default {
           /^[1-9]\d?$/.test(retry ?? '') && Number(retry) <= 60 ? retry : 60);
         return error(status, status === 503 ? 'MacroPulse service unavailable' : 'Invalid request');
       }
-      const body = await boundedBody(upstream.body, maxResponse, timeout);
+      const body = cached ?? await boundedBody(upstream.body, maxResponse, timeout);
       if (!body) return error(503, 'MacroPulse service unavailable');
+      if (!cached) {
+        const write = writePublicCache(cacheEntry, body, headers, started);
+        if (ctx) ctx.waitUntil(write);
+        else await write;
+      }
       const responseHeaders = new Headers({
         'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
       });
@@ -162,11 +181,19 @@ async function publicResearch(request, env, ctx, url) {
     const credential = request.headers.get(adminHeader);
     const check = request.headers.get(adminCheckHeader);
     const adminRequested = credential !== null || check !== null;
-    const config = adminRequested ? null : researchConfig(env, url, researchId);
+    let config = adminRequested ? null : researchConfig(env, url, researchId);
     if (!adminRequested && !config) {
       record('InvalidAdmissionConfiguration', 503);
       return error(503, 'Public Research is unavailable');
     }
+    begin('worker.attempt_limit');
+    const limiter = researchAttemptLimiter(env);
+    if (!limiter) return error(503, 'Public Research is unavailable');
+    const attempt = await limiter.limit({ key: `${adminRequested ? 'admin' : 'public'}:${ip}` });
+    if (attempt?.success === false) {
+      return error(429, 'Research attempt limit reached', 60, 'research_attempt_limit');
+    }
+    if (attempt?.success !== true) return error(503, 'Public Research is unavailable');
     begin('worker.request_body');
     const bytes = await boundedBody(request.body, maxResearchBody, AbortSignal.timeout(3000));
     if (!bytes) return error(413, 'Request too large');
@@ -176,14 +203,16 @@ async function publicResearch(request, env, ctx, url) {
     if (adminRequested) {
       begin('worker.admin_auth');
       const auth = await authenticateAdmin(env, ip, adminSecret, credential ?? '');
-      if (auth.code === 'locked') return error(429, 'Administrator verification temporarily limited', auth.retry);
+      if (auth.code === 'locked') {
+        return error(429, 'Administrator verification temporarily limited', auth.retry, 'admin_auth_limit');
+      }
       if (auth.code !== 'ok') return error(401, 'Administrator credentials rejected');
       record();
       if (check !== null) {
         if (check !== 'true' || new TextDecoder().decode(bytes) !== '{}') return error(422, 'Invalid request parameters');
         return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
       }
-      expires = Date.now() + 60_000;
+      config = adminQuotaConfig(env);
     }
     let body;
     try {
@@ -193,12 +222,17 @@ async function publicResearch(request, env, ctx, url) {
     }
     if (config) {
       begin('worker.admission');
-      const reservation = await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip, researchId);
+      const reservation = adminRequested ? await reserveAdminResearch(config)
+        : await reserveResearch(config, request.headers.get('X-MacroPulse-Turnstile'), ip, researchId);
       if (reservation.code !== 'ok') {
         const reason = Object.hasOwn(researchErrors, reservation.code) && researchErrors[reservation.code];
         if (reservation.code === 'busy') record('ResearchBusy', 503);
         else if (!reason) record('InvalidAdmissionResponse', 503);
-        return reason ? error(...reason, reservation.retry) : error(503, 'Public Research is unavailable');
+        if (!reason) return error(503, 'Public Research is unavailable');
+        if (adminRequested && reason[0] === 429) {
+          return error(429, 'Administrator research limit reached', reservation.retry, 'admin_research_limit');
+        }
+        return error(...reason, reservation.retry);
       }
       ({ id, expires } = reservation);
       const remaining = expires - Date.now();

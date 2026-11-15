@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { ResearchQuota } from './public-demo.mjs';
@@ -151,6 +152,7 @@ function fixtureEnv(quota) {
       return { fetch: (url, init) => quota.fetch(new Request(url, init)) };
     } },
     CATALOG_RATE_LIMIT: { limit: async () => ({ success: true }) },
+    RESEARCH_ATTEMPT_RATE_LIMIT: { limit: async () => ({ success: true }) },
   };
 }
 
@@ -387,14 +389,18 @@ function adminFixture(t) {
   t.after(() => { delete crypto.subtle.timingSafeEqual; });
   const publicQuota = sqliteFixture(t);
   const adminAuth = sqliteFixture(t);
+  const adminBudget = sqliteFixture(t);
+  const budget = adminBudget.instance();
   const admin = adminAuth.instance();
   const env = fixtureEnv(publicQuota.instance());
   env.MACROPULSE_ADMIN_SECRET = digest('synthetic administrator credential');
   const getPublic = env.RESEARCH_QUOTA.getByName;
   const publicAccess = t.mock.fn(getPublic);
   env.RESEARCH_QUOTA.getByName = (name) => name === 'macropulse-research-admin-auth-v1'
-    ? { fetch: (url, init) => admin.fetch(new Request(url, init)) } : publicAccess(name);
-  return { env, publicQuota, adminAuth, publicAccess };
+    ? { fetch: (url, init) => admin.fetch(new Request(url, init)) }
+    : name === 'macropulse-research-admin-budget-v1'
+      ? { fetch: (url, init) => budget.fetch(new Request(url, init)) } : publicAccess(name);
+  return { env, publicQuota, adminAuth, adminBudget, publicAccess };
 }
 
 function adminPost(credential, { check = false, headers = {}, ...overrides } = {}) {
@@ -510,6 +516,7 @@ test('invalid administrator credentials fail closed and lock the visitor until e
   const limited = await worker.fetch(adminPost(credential, { check: true }), env);
   assert.equal(limited.status, 429);
   assert.equal(limited.headers.get('Retry-After'), '60');
+  assert.equal((await limited.json()).code, 'admin_auth_limit');
   assert.equal((await worker.fetch(adminPost(credential, {
     check: true, headers: { 'CF-Connecting-IP': '192.0.2.2' },
   }), env)).status, 204);
@@ -520,4 +527,182 @@ test('invalid administrator credentials fail closed and lock the visitor until e
   assert.equal((await worker.fetch(adminPost(credential, { check: true }), env)).status, 204);
   assert.equal(fetch.mock.callCount(), 0);
   assert.equal(publicAccess.mock.callCount(), 0);
+});
+
+test('early limiter blocks bursts before Siteverify, isolates IPs and tolerates legitimate retries', async (t) => {
+  for (const method of ['info', 'warn']) t.mock.method(console, method, () => {});
+  const config = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  const binding = config.ratelimits.find(({ name }) => name === 'RESEARCH_ATTEMPT_RATE_LIMIT');
+  assert.deepEqual(binding.simple, { limit: 30, period: 60 });
+  const env = fixtureEnv(sqliteFixture(t).instance());
+  let now = Date.UTC(2026, 10, 14);
+  t.mock.method(Date, 'now', () => now);
+  const counts = new Map();
+  // Deterministic native-binding stub, NOT a claim of strict Cloudflare enforcement.
+  env.RESEARCH_ATTEMPT_RATE_LIMIT = { limit: async ({ key }) => {
+    const bucket = `${Math.floor(now / minute)}:${key}`;
+    const count = (counts.get(bucket) ?? 0) + 1;
+    counts.set(bucket, count);
+    return { success: count <= binding.simple.limit };
+  } };
+  let accepted = false;
+  let verifies = 0;
+  let origins = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('siteverify')) {
+      verifies++;
+      return Response.json({ success: accepted, hostname: 'demo.example', action: 'research',
+        challenge_ts: new Date(now).toISOString() });
+    }
+    origins++;
+    return Response.json({}, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
+  });
+  assert.equal((await worker.fetch(post('valid', { body: '{"question":false}' }), env)).status, 422);
+  assert.equal(verifies, 0);
+  counts.clear();
+  const burst = await Promise.all(Array.from({ length: 31 }, (_, index) => worker.fetch(post(`token-${index}`, {
+    headers: { 'X-Forwarded-For': `192.0.2.${index + 2}`, 'X-MarketPulse-Client-IP': `192.0.2.${index + 2}` },
+  }), env)));
+  assert.equal(burst.filter(({ status }) => status === 403).length, 30);
+  assert.equal(burst.filter(({ status }) => status === 429).length, 1);
+  assert.equal(burst.find(({ status }) => status === 429).headers.get('Retry-After'), '60');
+  assert.equal(verifies, 30);
+  assert.equal(origins, 0);
+  accepted = true;
+  assert.equal((await worker.fetch(post('other-ip', { headers: { 'CF-Connecting-IP': '192.0.2.2' } }), env)).status, 200);
+  now += minute;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    assert.equal((await worker.fetch(post(`legitimate-${attempt}`), env)).status, 200);
+  }
+  assert.equal(origins, 4);
+});
+
+test('missing or failed early protection and untrusted forwarding headers cannot bypass admission', async (t) => {
+  for (const method of ['info', 'warn']) t.mock.method(console, method, () => {});
+  const env = fixtureEnv(sqliteFixture(t).instance());
+  const fetch = t.mock.method(globalThis, 'fetch', () => assert.fail('No external verification or origin request'));
+  for (const binding of [undefined, {}, { limit: async () => ({}) },
+    { limit: async () => { throw new Error('Unavailable'); } }]) {
+    assert.equal((await worker.fetch(post('token'), { ...env, RESEARCH_ATTEMPT_RATE_LIMIT: binding })).status, 503);
+  }
+  assert.equal((await worker.fetch(post('token', { headers: {
+    'CF-Connecting-IP': '', 'X-Forwarded-For': '192.0.2.1', 'X-MarketPulse-Client-IP': '192.0.2.1',
+  } }), env)).status, 503);
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('catalog does not advertise public Research without required bindings', async (t) => {
+  const env = fixtureEnv(sqliteFixture(t).instance());
+  t.mock.method(globalThis, 'fetch', async () => Response.json([], {
+    headers: { 'X-MacroPulse-Public-Research': 'true' },
+  }));
+  for (const overrides of [{ RESEARCH_ATTEMPT_RATE_LIMIT: undefined }, { RESEARCH_ATTEMPT_RATE_LIMIT: {} },
+    { RESEARCH_QUOTA: undefined }]) {
+    const reply = await worker.fetch(edgeRequest(catalog), { ...env, ...overrides });
+    assert.equal(reply.status, 200);
+    assert.equal(reply.headers.get('X-MacroPulse-Turnstile-Sitekey'), null);
+  }
+});
+
+test('administrator reservations enforce atomic concurrency, rolling/day/month caps and persist across restart', async (t) => {
+  const fixture = sqliteFixture(t);
+  let quota = fixture.instance();
+  let now = Date.UTC(2026, 10, 14);
+  t.mock.method(Date, 'now', () => now);
+  let token = 0;
+  const admit = async () => (await internal(quota, '/admin-admit', {
+    visitor: '0'.repeat(64), token: digest(`admin-${token++}`), challengeTime: now,
+  })).json();
+  const burst = await Promise.all([admit(), admit(), admit()]);
+  assert.equal(burst.filter(({ code }) => code === 'ok').length, 1);
+  assert.equal(burst.filter(({ code }) => code === 'busy').length, 2);
+  quota = fixture.instance();
+  assert.equal((await admit()).code, 'busy');
+  now += minute; // uncertain completion retains a lease until expiry
+  const next = await admit();
+  assert.equal(next.code, 'ok');
+  await internal(quota, '/release', { id: next.id });
+  const reserveAndRelease = async () => {
+    const result = await admit();
+    if (result.id) await internal(quota, '/release', { id: result.id });
+    return result;
+  };
+  for (let i = 2; i < 20; i++) assert.equal((await reserveAndRelease()).code, 'ok');
+  assert.equal((await reserveAndRelease()).code, 'quota');
+  now += 10 * minute;
+  for (let i = 20; i < 50; i++) {
+    if (i === 40) now += 10 * minute;
+    assert.equal((await reserveAndRelease()).code, 'ok');
+  }
+  assert.equal((await reserveAndRelease()).code, 'quota');
+  for (let dayIndex = 1; dayIndex < 6; dayIndex++) {
+    now = Date.UTC(2026, 10, 14 + dayIndex);
+    quota = fixture.instance();
+    for (let i = 0; i < 50; i++) {
+      if (i && i % 20 === 0) now += 10 * minute;
+      assert.equal((await reserveAndRelease()).code, 'ok');
+    }
+  }
+  now += day;
+  quota = fixture.instance();
+  assert.deepEqual(await admit(), { code: 'budget', retry: (Date.UTC(2026, 11, 1) - now) / 1000 });
+  now = Date.UTC(2026, 11, 1);
+  assert.equal((await admit()).code, 'ok');
+});
+
+test('a valid leaked admin credential cannot bypass its shared budget by changing IP and cannot consume public quota', async (t) => {
+  for (const method of ['info', 'warn']) t.mock.method(console, method, () => {});
+  const { env, adminBudget, publicQuota } = adminFixture(t);
+  const now = Date.UTC(2026, 10, 14);
+  t.mock.method(Date, 'now', () => now);
+  adminBudget.db.prepare('INSERT INTO monthly_reservations VALUES (?, ?)').run(Date.UTC(2026, 10, 1), 299);
+  let origins = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('siteverify')) return Response.json({ success: true, hostname: 'demo.example',
+      action: 'research', challenge_ts: new Date(now).toISOString() });
+    origins++;
+    return Response.json({}, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
+  });
+  assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET, { body: '{}' }), env)).status, 422);
+  assert.equal(adminBudget.db.prepare('SELECT total FROM monthly_reservations').get().total, 299);
+  assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET), env)).status, 200);
+  for (const ip of ['192.0.2.1', '192.0.2.2', '2001:db8::1']) {
+    const reply = await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET, { headers: { 'CF-Connecting-IP': ip } }), env);
+    assert.equal(reply.status, 429);
+    assert.equal(reply.headers.get('Retry-After'), String((Date.UTC(2026, 11, 1) - now) / 1000));
+    assert.equal((await reply.json()).code, 'admin_research_limit');
+  }
+  assert.equal(origins, 1);
+  assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET, { check: true }), env)).status, 204);
+  assert.equal(publicQuota.db.prepare('SELECT count(*) AS count FROM attempts').get().count, 0);
+  assert.equal((await worker.fetch(post('public-still-works'), env)).status, 200);
+  assert.equal(origins, 2);
+});
+
+test('Research never uses cache and admin budget failures fail closed', async (t) => {
+  for (const method of ['info', 'warn']) t.mock.method(console, method, () => {});
+  const { env } = adminFixture(t);
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'caches');
+  const cacheAccess = t.mock.fn(() => { throw new Error('Unexpected cache access'); });
+  Object.defineProperty(globalThis, 'caches', { configurable: true, get: cacheAccess });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, 'caches', previous);
+    else delete globalThis.caches;
+  });
+  const origin = t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (String(url).includes('siteverify')) return Response.json({ success: true, hostname: 'demo.example',
+      action: 'research', challenge_ts: new Date().toISOString() });
+    assert.equal(init.cache, 'no-store');
+    return Response.json({}, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
+  });
+  const publicReply = await worker.fetch(post('public-token'), env);
+  assert.equal(publicReply.status, 200);
+  assert.equal(publicReply.headers.get('Cache-Control'), 'no-store');
+  assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET), env)).status, 200);
+  const get = env.RESEARCH_QUOTA.getByName;
+  env.RESEARCH_QUOTA.getByName = (name) => name.endsWith('budget-v1')
+    ? { fetch: async () => { throw new Error('Unavailable'); } } : get(name);
+  assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET), env)).status, 503);
+  assert.equal(origin.mock.callCount(), 3);
+  assert.equal(cacheAccess.mock.callCount(), 0);
 });

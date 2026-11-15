@@ -28,6 +28,11 @@ export const adminHeader = 'X-MacroPulse-Admin-Secret';
 export const adminCheckHeader = 'X-MacroPulse-Admin-Check';
 const adminSecretPattern = /^[a-f0-9]{64}$/;
 
+export function researchAttemptLimiter(env) {
+  const limiter = env.RESEARCH_ATTEMPT_RATE_LIMIT;
+  return typeof limiter?.limit === 'function' ? limiter : null;
+}
+
 export function configuredAdminSecret(env) {
   const secret = env.MACROPULSE_ADMIN_SECRET;
   if (typeof secret !== 'string' || !adminSecretPattern.test(secret)
@@ -68,7 +73,7 @@ export function researchConfig(env, url, researchId = null) {
     || !/^[A-Za-z0-9_-]{12,80}$/.test(sitekey) || !/^[A-Za-z0-9_-]{20,160}$/.test(secret)
     || !/^[a-f0-9]{64}$/.test(hashKey) || new Set(hashKey).size < 12
     || /^(.{1,32})\1+$/.test(hashKey) || hashKey === env.MARKETPULSE_DEMO_ORIGIN_SECRET
-    || !env.RESEARCH_QUOTA) return null;
+    || !env.RESEARCH_QUOTA || !researchAttemptLimiter(env)) return null;
   const started = performance.now();
   try {
     return {
@@ -111,6 +116,22 @@ function quotaRequest(quota, path, payload) {
     method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(2500),
   });
+}
+
+// A fixed identity makes the administrator budget independent of source IP or secret rotation.
+// Use a separate instance so public usage and authentication failures cannot exhaust this budget.
+export function adminQuotaConfig(env) {
+  return { quota: env.RESEARCH_QUOTA.getByName('macropulse-research-admin-budget-v1') };
+}
+
+export async function reserveAdminResearch(config) {
+  const token = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',
+    encoder.encode(crypto.randomUUID()))), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const response = await quotaRequest(config.quota, '/admin-admit', {
+    visitor: '0'.repeat(64), token, challengeTime: Date.now(),
+  });
+  if (!response.ok) throw new Error('Administrator budget unavailable');
+  return response.json();
 }
 
 export async function quotaReady(config) {
