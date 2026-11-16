@@ -1,0 +1,56 @@
+name: Promotion Policy
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+    branches: [dev, staging, prod]
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: Promotion Policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify source and target branches
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+
+          deny() {
+            echo "::error title=Invalid promotion path::$1"
+            exit 1
+          }
+
+          case "$BASE_REF" in
+            dev)
+              # Contributions and feature branches enter through dev only.
+              case "$HEAD_REF" in
+                dev|staging|prod)
+                  deny "PRs into dev must originate from a feature/fix branch, not a protected branch."
+                  ;;
+              esac
+              ;;
+            staging)
+              # Promotion must use the actual dev branch in this repository.
+              [[ "$HEAD_REF" == "dev" && "$HEAD_REPO" == "$BASE_REPO" ]] ||
+                deny "staging only accepts PRs from this repository's dev branch."
+              ;;
+            prod)
+              # Production receives only the already-tested staging branch.
+              [[ "$HEAD_REF" == "staging" && "$HEAD_REPO" == "$BASE_REPO" ]] ||
+                deny "prod only accepts PRs from this repository's staging branch."
+              ;;
+            *)
+              deny "Unexpected destination branch: $BASE_REF"
+              ;;
+          esac
+
+          echo "::notice title=Promotion path allowed::$HEAD_REF ($HEAD_REPO) -> $BASE_REF"
