@@ -1,7 +1,7 @@
 name: Continuous Promotion PR
 
-# A protected-branch merge opens the next promotion PR. GitHub's native
-# auto-merge is enabled separately, AFTER the trusted release gate succeeds.
+# A protected-branch merge opens the next promotion PR.
+# The bot NEVER approves or merges a PR. Human action is required at each stage.
 on:
   push:
     branches: [dev, staging]
@@ -95,12 +95,13 @@ jobs:
           protected source branch.
 
           A separate trusted Release Quality Gate executes regression and
-          security checks on the candidate merge. If it passes, GitHub
-          auto-merge waits for the remaining required branch checks.
+          security checks on the candidate merge. Even after all checks pass,
+          a human must explicitly complete this pull request.
 
           - No bypass permissions.
           - No public Render or Cloudflare deployment.
-          - Any failing check leaves this PR open.
+          - This PR remains open until a human merges it.
+          - Failing checks block a manual merge.
           EOF
           )"
 
