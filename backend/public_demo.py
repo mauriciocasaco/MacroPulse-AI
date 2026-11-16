@@ -23,9 +23,6 @@ import psycopg
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.rows import dict_row, tuple_row
 
-from .macro_ai.sensitive_input import (
-    SENSITIVE_CODE, SENSITIVE_MESSAGE, SensitiveInputError, configured_sensitive_values, contains_sensitive_input,
-)
 from .macro_data.api import MacroHistory, MacroWindow, indicator_metadata
 from .macro_data.contracts import CATALOG
 from .macro_data.public import read_history, verify_projection
@@ -225,6 +222,7 @@ def _unique_object(pairs):
 
 def parse_research(body: bytes, *, online: bool = False, secrets: tuple[str, ...] = ()) -> ResearchRequest:
     from .macro_ai.models import OnlineResearchRequest, PublicResearchRequest, ResearchRequest
+    from .macro_ai.sensitive_input import SensitiveInputError, contains_sensitive_input
 
     payload = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object)
     if not isinstance(payload, dict) or any(type(value) is not str for value in payload.values()):
@@ -355,6 +353,10 @@ def create_public_app(
             research_id.reset(token)
 
     async def serve_research(request: Request) -> Response:
+        from .macro_ai.sensitive_input import (
+            SENSITIVE_CODE, SENSITIVE_MESSAGE, SensitiveInputError, configured_sensitive_values,
+        )
+
         started = monotonic()
         try:
             params = research_parser(request.state.research_body, secrets=sensitive_values)
