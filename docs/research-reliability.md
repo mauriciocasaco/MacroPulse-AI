@@ -59,36 +59,55 @@ Do not equate a 503 with a provider outage without stage evidence.
 that every public timeout or 503 has been eliminated.** Do not declare
 reliability resolved before production logs and post-deploy measurements.
 
-## Bounded interpretation failover
+## Bounded Gemini interpretation retries — Flash-Lite primary
 
-The public Research question interpreter ordinarily uses the configured Gemini
-model (currently `gemini-3.6-flash`). When that model returns 429 or 5xx, a
-network error or an HTTP timeout, the server may make **one** additional
-interpretation attempt using the already allowlisted
-`gemini-3.5-flash-lite`. This is not a retry of the original HTTP request:
-the same Worker reservation, Turnstile validation, 65 s backend deadline,
-input checks and evidence validation remain in force.
+The public Blueprint now selects `gemini-3.5-flash-lite` as the primary
+Research model. Its task is **structured question interpretation** (not
+generation of economic facts). The model supports structured JSON output,
+and the server still validates all inferred requirements, scope, units,
+source attribution and cited statements.
 
-Safeguards:
+For the **Flash-Lite primary configuration only**, question interpretation
+is attempted **at most three times total** (one initial + two retries).
 
-- Never retry invalid input, schema validation, missing permissions, 400/401/403,
-  or any other non-transient HTTP status.
-- Only activate the alternate model when the primary model is not already Lite.
-- The alternate model is limited to 10 s and must leave **30 s** before the
-  backend deadline for evidence retrieval, composition, validation and output.
-- At most **three** provider generations per request, and only after the
-  special one-time interpretation failover. Normal limit remains two.
-- The fallback model does not generate macroeconomic facts: it may only return
-  structured scope data, which passes existing strict semantic validation.
-- A second failure remains an observable 503/504 with no invented result.
-- Logs include `gemini.interpret_failover` without request contents or
-  credential values.
+- Each attempt has an **8-second wall-clock cap**, encompassing both
+  `countTokens` and `generateContent`, with an 8-second HTTP timeout.
+- Retries occur only on network/timeout failures or provider HTTP
+  `500/502/503/504`. HTTP `400/401/403/404/429`, invalid input,
+  validation or schema errors do not retry.
+- Backoff: 0.2–0.3 s after attempt 1, 0.4–0.5 s after attempt 2,
+  including jitter. Abort rather than retry when the remaining backend
+  budget cannot cover the next attempt **plus 30 seconds of headroom**.
+- A success stops immediately; no duplicated Research request, Worker
+  admission, Turnstile validation or Durable Object reservation.
+- Retry telemetry uses `gemini.interpret_lite_attempt_1/2/3`, preserving
+  the existing shared `research_id` and never logging secrets or prompts.
+- At most **four model generations per admitted Research request**:
+  three interpretation attempts and one composition *or* general answer.
+  Normal requests use fewer. Each generation still performs preflight
+  token validation. This is a bounded cost increase.
+- The optional Lite composition is capped at **10 seconds**; failure
+  reuses the server-verified deterministic narrative (PR #31).
+  The optional conceptual fallback has a **12-second** cap and can
+  still fail with a clearly unverified or insufficient answer.
 
-This increases the worst-case number of metered provider calls in the
-transient-error path. Monitor model usage, request budgets and fallback rates.
-There is **no availability guarantee** if both Gemini models are unavailable.
+If Render's `MARKETPULSE_DEMO_GEMINI_MODEL` is explicitly configured
+to `gemini-3.6-flash`, the older one-time model-failover behavior
+remains; **the Lite retry policy is not active**. After merging to `prod`,
+verify that Render's effective model is `gemini-3.5-flash-lite`,
+including any Blueprint/config overrides. Deploy manually only after
+checks and branch promotions; no automatic deployment is implied.
 
-When a provider outage repeatedly exhausts this strategy, investigate
-Gemini API operational status and rate limits rather than extending the
-synchronous Cloudflare/Render deadlines. Google recommends bounded retries
-on transient 429 and 5xx failures.
+### Validation plan
+
+- Cover retries and no-retry paths with synthetic HTTP responses.
+- Verify the full frozen intent/grounding/abstention regression suite.
+- After production rollout, compare actual success and abstention rates,
+  provider 503/504 frequencies, retries per request, time to first
+  result, p95 end-to-end latency and estimated API spend.
+- Review semantically tricky free-form question interpretation; model
+  quality cannot be assumed from low latency alone.
+
+Do not call a provider API outage a successful AI answer. A 200 response
+with missing verified evidence is tracked separately from an evidence-backed
+Research response.
