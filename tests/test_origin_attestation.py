@@ -46,7 +46,7 @@ def origin(monkeypatch):
     monkeypatch.setattr(v2_retrieval, "lexical", lambda: None)
     monkeypatch.setattr(v2_service, "workflow", lambda: None)
     runner = Mock(return_value=SimpleNamespace(model_dump_json=lambda: '{"authorized":true}'))
-    parser = Mock(return_value=SimpleNamespace(question="synthetic valid research"))
+    parser = Mock(return_value=SimpleNamespace(question="How did GDP change?"))
 
     def app():
         return public_demo.create_public_app(
