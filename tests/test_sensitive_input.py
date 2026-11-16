@@ -29,3 +29,12 @@ def test_economic_questions_are_admitted(case):
 ])
 def test_economic_dates_and_amounts_are_not_identifiers(question):
     assert not contains_sensitive_input(question)
+
+
+@pytest.mark.parametrize("question", [
+    "Please call +1 (202) 555-0142.",
+    "Phone: +12025550142.",
+    "My password is fictional-value.",
+])
+def test_sensitive_format_before_sentence_punctuation(question):
+    assert contains_sensitive_input(question)
