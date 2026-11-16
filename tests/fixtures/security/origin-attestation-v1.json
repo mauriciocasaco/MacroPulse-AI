@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "origin_keys": [
+    [
+      "test-origin-a",
+      "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    ],
+    [
+      "test-origin-b",
+      "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+    ]
+  ],
+  "verify_keys": [
+    [
+      "test-verify-a",
+      "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f"
+    ],
+    [
+      "test-verify-b",
+      "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f"
+    ]
+  ],
+  "vectors": [
+    {
+      "name": "public",
+      "method": "POST",
+      "path": "/macro/analysis",
+      "query": "",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-MacroPulse-Origin-Key-Id": "test-origin-a",
+        "X-MacroPulse-Origin-Timestamp": "1784160000000",
+        "X-MacroPulse-Origin-Nonce": "e167fc75-dd3a-4f99-a508-89898398ba86",
+        "X-MacroPulse-Origin-Scope": "public",
+        "X-MacroPulse-Origin-Signature": "a1f7cda93eec69a736f8094c8f9b74b9257a371ca94e560cce6ffb672499dd4a",
+        "X-MacroPulse-Research-Expires": "1784160090000",
+        "X-MacroPulse-Research-Id": "1fe03440-ed06-42d8-8cfb-9bb629d7b3f9",
+        "X-MarketPulse-Client-IP": "192.0.2.10"
+      },
+      "body_base64": "eyAicXVlc3Rpb24iOiAiSG93IGRpZCBHRFAgY2hhbmdlPyIsICJyZXNlYXJjaF92ZXJzaW9uIjogInYyIiwgInN0YXJ0IjogIjIwMjMtMDEtMDEiLCAiZW5kIjogIjIwMjMtMTItMzEiIH0K",
+      "body_sha256": "d7286d8fc474ef1f528e6ecf16bd6deaffad4d6ef3248d8ecef3c6ad88d9e263",
+      "canonical_ascii": "macropulse/render-research/v1\ntest-origin-a\nPOST\n/macro/analysis\n\napplication/json\nd7286d8fc474ef1f528e6ecf16bd6deaffad4d6ef3248d8ecef3c6ad88d9e263\n1784160000000\ne167fc75-dd3a-4f99-a508-89898398ba86\npublic\n1784160090000\n1fe03440-ed06-42d8-8cfb-9bb629d7b3f9\n192.0.2.10",
+      "commitment_sha256": "26535c56c27b1ea1f49aec1346840e71b9b2d506e8f52ed3808d313e00e07bc0",
+      "callback": {
+        "method": "POST",
+        "path": "/api/internal/research/consume-v1",
+        "headers": {
+          "Content-Type": "text/plain",
+          "X-MacroPulse-Verify-Key-Id": "test-verify-a",
+          "Authorization": "Bearer 404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f"
+        },
+        "body_ascii": "public\ne167fc75-dd3a-4f99-a508-89898398ba86\n26535c56c27b1ea1f49aec1346840e71b9b2d506e8f52ed3808d313e00e07bc0\n1784160000000\n1784160090000"
+      },
+      "durable_object": {
+        "id": "e167fc75-dd3a-4f99-a508-89898398ba86",
+        "commitment": "26535c56c27b1ea1f49aec1346840e71b9b2d506e8f52ed3808d313e00e07bc0",
+        "issuedAt": 1784160000000,
+        "expires": 1784160090000
+      }
+    },
+    {
+      "name": "admin",
+      "method": "POST",
+      "path": "/macro/analysis",
+      "query": "",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-MacroPulse-Origin-Key-Id": "test-origin-b",
+        "X-MacroPulse-Origin-Timestamp": "1784160000000",
+        "X-MacroPulse-Origin-Nonce": "e8185b48-d72f-4f90-a329-a0f8095b0f2a",
+        "X-MacroPulse-Origin-Scope": "admin",
+        "X-MacroPulse-Origin-Signature": "7346f86b4695f5d3ea6168f352a08d9507e42c1f58ae2fed1744d958afef3f33",
+        "X-MacroPulse-Research-Expires": "1784160090000",
+        "X-MacroPulse-Research-Id": "1fe03441-ed06-42d8-8cfb-9bb629d7b3f9",
+        "X-MarketPulse-Client-IP": "2001:0DB8::10"
+      },
+      "body_base64": "ew0KICAiZW5kIjogIjIwMjMtMTItMzEiLCAic3RhcnQiOiAiMjAyMy0wMS0wMSIsICJyZXNlYXJjaF92ZXJzaW9uIjogInYyIiwgInF1ZXN0aW9uIjogIsK/Q8OzbW8gY2FtYmnDsyBlbCBQSUI/Ig0KfQ==",
+      "body_sha256": "793a80ee17f77780336aa3c6e5710d0b8bcd15c19a806085a86d15d85064d136",
+      "canonical_ascii": "macropulse/render-research/v1\ntest-origin-b\nPOST\n/macro/analysis\n\napplication/json\n793a80ee17f77780336aa3c6e5710d0b8bcd15c19a806085a86d15d85064d136\n1784160000000\ne8185b48-d72f-4f90-a329-a0f8095b0f2a\nadmin\n1784160090000\n1fe03441-ed06-42d8-8cfb-9bb629d7b3f9\n2001:0DB8::10",
+      "commitment_sha256": "3af606adcd020a4ed50549de7523c2a6a705010efaf07aded38473571ccecdb6",
+      "callback": {
+        "method": "POST",
+        "path": "/api/internal/research/consume-v1",
+        "headers": {
+          "Content-Type": "text/plain",
+          "X-MacroPulse-Verify-Key-Id": "test-verify-b",
+          "Authorization": "Bearer 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f"
+        },
+        "body_ascii": "admin\ne8185b48-d72f-4f90-a329-a0f8095b0f2a\n3af606adcd020a4ed50549de7523c2a6a705010efaf07aded38473571ccecdb6\n1784160000000\n1784160090000"
+      },
+      "durable_object": {
+        "id": "e8185b48-d72f-4f90-a329-a0f8095b0f2a",
+        "commitment": "3af606adcd020a4ed50549de7523c2a6a705010efaf07aded38473571ccecdb6",
+        "issuedAt": 1784160000000,
+        "expires": 1784160090000
+      }
+    }
+  ],
+  "freshness_vectors": [
+    {
+      "name": "now",
+      "now_ms": 1784160000000,
+      "fresh": true
+    },
+    {
+      "name": "old_boundary",
+      "now_ms": 1784160010000,
+      "fresh": true
+    },
+    {
+      "name": "expired",
+      "now_ms": 1784160010001,
+      "fresh": false
+    },
+    {
+      "name": "future_boundary",
+      "now_ms": 1784159998000,
+      "fresh": true
+    },
+    {
+      "name": "future",
+      "now_ms": 1784159997999,
+      "fresh": false
+    }
+  ]
+}

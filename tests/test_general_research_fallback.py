@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 import json
 import logging
-from time import monotonic, time
+from time import monotonic
 
 from fastapi.testclient import TestClient
 import httpx
@@ -182,7 +182,7 @@ def test_demo_fallback_failure_returns_the_original_rag_diagnosis(hybrid, monkey
     assert len(calls) == 4
 
 
-def test_online_fallback_distinguishes_transaction_failure_from_gemini(hybrid, monkeypatch, caplog):
+def test_online_fallback_distinguishes_transaction_failure_from_gemini(hybrid, monkeypatch, caplog, research_attestation):
     monkeypatch.setenv(public_demo.GENERAL_FALLBACK_FLAG, "true")
     monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
     monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "f" * 35)
@@ -201,16 +201,9 @@ def test_online_fallback_distinguishes_transaction_failure_from_gemini(hybrid, m
     settings = public_demo.DemoSettings("password=synthetic-db-secret", "synthetic-origin-secret")
     app = public_demo.create_public_app(settings=settings, connect=lambda _: nullcontext(),
                                         research_runner=public_online.run_online_research)
-    headers = {
-        public_demo.ORIGIN_HEADER: settings.origin_secret,
-        public_demo.CLIENT_IP_HEADER: "192.0.2.10",
-        public_demo.RESEARCH_ID_HEADER: trace_id,
-        "X-MacroPulse-Research-Expires": str(int(time() * 1000) + 90_000),
-    }
+    payload = {**hybrid.model_dump(mode="json"), "research_version": "v2"}
     with TestClient(app) as client:
-        reply = client.post("/macro/analysis", headers=headers, json={
-            **hybrid.model_dump(mode="json"), "research_version": "v2",
-        })
+        reply = research_attestation.post(client, payload)
     assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
 
     events = [json.loads(entry.getMessage()) for entry in caplog.records

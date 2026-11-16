@@ -1,7 +1,6 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
-from time import time
 
 from fastapi.testclient import TestClient
 import psycopg
@@ -239,7 +238,7 @@ def test_news_review_requires_current_rights_and_publication_cutoff(online_db):
         assert not online_evidence.retrieve_online(online, *args, window.end, dynamic=True)
 
 
-def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch):
+def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch, research_attestation):
     monkeypatch.setattr(public_online, "resolve_online_settings", lambda _: public_demo.DemoSettings(make_conninfo(online_db, password="synthetic"), SECRET))
     monkeypatch.setattr(public_online, "connect_online", lambda _: read_online(online_db))
     monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
@@ -260,9 +259,7 @@ def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch
         assert client.get("/macro/indicators", headers=HEADERS).headers[public_demo.RESEARCH_HEADER] == "true"
         path = "/macro/indicators/eur-usd/history?start=2019-01-01&end=2026-11-11"
         assert client.get(path, headers=HEADERS).status_code == 200
-        reply = client.post("/macro/analysis", headers={
-            **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 90) * 1000)),
-        }, json={"question": question, "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2"})
+        reply = research_attestation.post(client, {"question": question, "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2"})
         assert reply.status_code == 200
         result = reply.json()
         assert result["status"] == "answered" and result["event_id"] == "covid"
@@ -270,7 +267,7 @@ def test_online_routes_and_research_with_unselected_event(online_db, monkeypatch
         assert result["calculations"] and "latest available Supabase" in " ".join(result["limitations"])
 
 
-def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeypatch):
+def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeypatch, research_attestation):
     from backend.macro_ai.v2_retrieval import APPROVED_SNAPSHOT
 
     monkeypatch.setattr(public_online, "resolve_online_settings", lambda _: public_demo.DemoSettings(
@@ -284,9 +281,7 @@ def test_online_hicp_covid_preset_reads_official_view_and_m7b(online_db, monkeyp
         "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in evidence],
     }))
     with TestClient(public_online.create_online_app()) as client:
-        response = client.post("/macro/analysis", headers={
-            **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 90) * 1000)),
-        }, json={
+        response = research_attestation.post(client, {
             "question": "How did the COVID-19 pandemic affect Eurozone Inflation?",
             "indicator_id": "hicp-yoy", "event_id": "covid", "start": "2020-02-01",
             "end": "2020-12-31", "research_version": "v2",
@@ -310,7 +305,7 @@ def test_spot_retrieval_excludes_untyped_news(online_db):
         assert online_evidence.retrieve_online(online, "EUR/USD", "ukraine", "eur-usd", window, window.end) == []
 
 
-def test_versioned_facts_require_exact_current_rights_and_human_review(online_db, monkeypatch):
+def test_versioned_facts_require_exact_current_rights_and_human_review(online_db, monkeypatch, research_attestation):
     url = "https://institution.example/spot"
     with psycopg.connect(online_db) as admin:
         admin.execute("INSERT INTO news.sources (id, name) VALUES ('spot_fixture', 'Fixture ECB')")
@@ -391,9 +386,7 @@ def test_versioned_facts_require_exact_current_rights_and_human_review(online_db
             "paragraphs": [{"statement_id": item["statement_id"], "style": "direct"} for item in statements],
         }))
         with TestClient(public_online.create_online_app()) as client:
-            response = client.post("/macro/analysis", headers={
-                **HEADERS, "X-MacroPulse-Research-Expires": str(int((time() + 90) * 1000)),
-            }, json={
+            response = research_attestation.post(client, {
                 "question": "How did the war in Ukraine affect EUR/USD rate?",
                 "research_version": "v2", "event_id": "ukraine", "indicator_id": "eur-usd",
                 "start": "2022-02-01", "end": "2024-02-29",

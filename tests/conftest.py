@@ -1,6 +1,10 @@
+from hashlib import sha256
+import hmac
+import json
 from contextlib import contextmanager
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import psycopg
@@ -73,3 +77,55 @@ def install_demo():
         db.execute(source.read_text(encoding="utf-8"))
 
     return install
+
+
+@pytest.fixture
+def research_attestation(monkeypatch):
+    """Synthetic Worker signer for tests of downstream Research behavior."""
+    import httpx
+    from backend import public_demo
+
+    kid = "synthetic-origin"
+    secret = sha256(b"synthetic origin signature fixture").hexdigest()
+    verify_kid = "synthetic-verify"
+    verify_secret = sha256(b"synthetic callback fixture").hexdigest()
+    environment = {
+        "MACROPULSE_RESEARCH_ORIGIN_KEYS": json.dumps([[kid, secret]]),
+        "MACROPULSE_RESEARCH_VERIFY_KEYS": json.dumps([[verify_kid, verify_secret]]),
+        "MACROPULSE_RESEARCH_VERIFY_ACTIVE_KID": verify_kid,
+        "MACROPULSE_RESEARCH_HOSTNAME": "demo.example",
+    }
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+
+    async def permit(*_):
+        return True
+
+    monkeypatch.setattr(public_demo, "consume_grant", permit)
+
+    def headers(payload=None, *, content=None, expires_in=90_000, issued_offset=0, nonce=None,
+                research_id="cb31e1d0-41f6-4a82-8436-30f47564c5cb", client_ip="192.0.2.3"):
+        body = content if content is not None else httpx.Request("POST", "https://example.test", json=payload).content
+        now = int(public_demo.time() * 1000)
+        timestamp, expiration = str(now + issued_offset), str(now + expires_in)
+        nonce = nonce or str(uuid4())
+        canonical = "\n".join((
+            "macropulse/render-research/v1", kid, "POST", "/macro/analysis", "", "application/json",
+            sha256(body).hexdigest(), timestamp, nonce, "public", expiration, research_id, client_ip,
+        )).encode("ascii")
+        return {
+            "Content-Type": "application/json",
+            "X-MacroPulse-Origin-Key-Id": kid,
+            "X-MacroPulse-Origin-Timestamp": timestamp,
+            "X-MacroPulse-Origin-Nonce": nonce,
+            "X-MacroPulse-Origin-Scope": "public",
+            "X-MacroPulse-Origin-Signature": hmac.digest(bytes.fromhex(secret), canonical, "sha256").hex(),
+            "X-MacroPulse-Research-Expires": expiration,
+            public_demo.RESEARCH_ID_HEADER: research_id,
+            public_demo.CLIENT_IP_HEADER: client_ip,
+        }
+
+    def post(client, payload):
+        return client.post("/macro/analysis", headers=headers(payload), json=payload)
+
+    return SimpleNamespace(headers=headers, post=post, environment=environment)
