@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from functools import lru_cache, wraps
-from typing import TypedDict, get_args
+from typing import TypedDict
 
 import httpx
 from langgraph.graph import END, START, StateGraph
@@ -19,9 +19,10 @@ from ..research_logging import research_stage
 from . import v2_gemini, v2_retrieval
 from .editorial_presentation import ENGLISH_SUMMARIES
 from .models import EVENT_WINDOWS, Claim, EventId, IndicatorId, ObservedChange, ResearchRequest
+from .question_admission import classify_question
 from .statistics import read_statistics
 from .v2_models import (
-    Category, CuratedEvidence, Draft, FallbackReason, GeneralDraft, GeneralFallbackAnswer, GeneralFallbackFailure,
+    Category, CuratedEvidence, Draft, GeneralDraft, GeneralFallbackAnswer, GeneralFallbackFailure,
     Intent, NarrativeClaim, NarrativeStyle, Requirement, ResearchDiagnostic, ResearchV2Response, SeriesEvidence,
 )
 from .v2_statistics import DEFINITIONS, SeriesResult, exact_period, matches_definition, summarize_requirement
@@ -88,7 +89,8 @@ class ResearchRuntime:
     capture_vintage: str = "DEMO"
     dynamic_editorial: bool = False
     knowledge_cutoff: date | None = None
-    generate_general: Callable[..., GeneralDraft] | None = None
+    generate_general: Callable[[tuple[str, ...]], GeneralDraft] | None = None
+    general_budget: Callable[[], bool] | None = None
 
 
 def configured_model() -> str:
@@ -119,6 +121,8 @@ class State(TypedDict, total=False):
     model_id: str | None
     response: ResearchV2Response
     diagnostics: list[ResearchDiagnostic]
+    conceptual_inventory: tuple[str, ...]
+    conceptual_coverage_gap: bool
 
 
 # A technical failure takes precedence over gaps in any of the other requirements.
@@ -127,7 +131,6 @@ _DIAGNOSTIC_PRIORITY: tuple[ResearchDiagnostic, ...] = (
     "ambiguous_interpretation", "unsupported_operation_or_series", "missing_official_observations",
     "insufficient_documentary_evidence", "unsupported_causal_inference",
 )
-_FALLBACK_REASONS = frozenset(get_args(FallbackReason))
 
 
 def _note(state: State, text: str) -> list[str]:
@@ -516,11 +519,23 @@ def finish(state: State) -> dict:
     )}
 
 
+def assess_conceptual_support(state: State) -> dict:
+    # This RAG profile has time series and reviewed historical claims. Exact
+    # concept requests need a definitions/mechanisms corpus, which it lacks.
+    return {
+        "conceptual_coverage_gap": True,
+        "diagnostics": ["unsupported_operation_or_series"],
+        "limitations": _note(state, "The evidence sources do not cover general definitions or mechanisms."),
+    }
+
+
 def _after_finish(state: State) -> str:
     runtime = state.get("runtime")
     response = state["response"]
-    if (runtime and runtime.generate_general is not None and response.status == "insufficient_evidence"
-            and response.insufficiency_reason in _FALLBACK_REASONS):
+    if (state.get("conceptual_inventory") and state.get("conceptual_coverage_gap")
+            and response.status == "insufficient_evidence"
+            and state["diagnostics"] == ["unsupported_operation_or_series"]
+            and runtime and runtime.generate_general and runtime.general_budget and runtime.general_budget()):
         return "generate_general_fallback"
     return END
 
@@ -528,14 +543,14 @@ def _after_finish(state: State) -> str:
 def generate_general_fallback(state: State) -> dict:
     runtime = state["runtime"]
     response = state["response"]
+    allowed = state["conceptual_inventory"]
     metadata = {"reason": response.insufficiency_reason, "model_id": runtime.model_id}
     try:
         with research_stage("langgraph.general_fallback_attempt"):
-            draft = GeneralDraft.model_validate(runtime.generate_general(
-                state["request"], response.insufficiency_reason, event=state.get("event"),
-                knowledge_cutoff=runtime.knowledge_cutoff,
-            ))
-            fallback = GeneralFallbackAnswer(**metadata, answer=draft.answer)
+            draft = GeneralDraft.model_validate(runtime.generate_general(allowed))
+            if tuple(draft.fragment_ids) != allowed[:len(draft.fragment_ids)]:
+                raise ValueError("Selection differs from the authorized conceptual inventory")
+            fallback = GeneralFallbackAnswer(**metadata, fragment_ids=draft.fragment_ids)
     except TimeoutError:
         fallback = GeneralFallbackFailure(**metadata, error="timeout")
     except httpx.HTTPError:
@@ -555,14 +570,23 @@ def _traced(node: Callable[[State], dict]) -> Callable[[State], dict]:
     return record
 
 
+def _first_step(state: State) -> str:
+    if state.get("conceptual_inventory"):
+        return "assess_conceptual_support"
+    return "validate_scope" if state.get("intent") else "interpret_with_llm"
+
+
 @lru_cache(maxsize=1)
 def workflow():
     graph = StateGraph(State)
     for node in (interpret_with_llm, validate_scope, read_official_statistics, retrieve_curated_evidence,
-                 evaluate_support, compose_answer, validate_answer, finish, generate_general_fallback):
+                 evaluate_support, compose_answer, validate_answer, assess_conceptual_support,
+                 finish, generate_general_fallback):
         graph.add_node(node.__name__, _traced(node))
-    graph.add_conditional_edges(START, lambda state: "validate_scope" if state.get("intent") else "interpret_with_llm",
-                                ["validate_scope", "interpret_with_llm"])
+    graph.add_conditional_edges(START, _first_step, [
+        "assess_conceptual_support", "validate_scope", "interpret_with_llm",
+    ])
+    graph.add_edge("assess_conceptual_support", "finish")
     graph.add_conditional_edges("interpret_with_llm", lambda state: "validate_scope" if state.get("intent") else "finish",
                                 ["validate_scope", "finish"])
     graph.add_conditional_edges("validate_scope", lambda state: "read_official_statistics" if state.get("plans") else "finish",
@@ -589,5 +613,8 @@ def run(request: ResearchRequest, *, runtime: ResearchRuntime | None = None) -> 
         state.update(intent=intent, steps=["interpret_preset"])
     if runtime is not None:
         state["runtime"] = runtime
+        admission = classify_question(request.question)
+        if admission.kind == "conceptual":
+            state["conceptual_inventory"] = admission.fragment_ids
     with tracing_context(enabled=False), research_stage("langgraph.invoke"):
         return workflow().invoke(state, config={"recursion_limit": 10})["response"]

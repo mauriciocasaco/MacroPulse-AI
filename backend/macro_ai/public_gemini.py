@@ -58,6 +58,13 @@ def _provider_status(error: BaseException) -> int | None:
 _gemini_stage = partial(research_stage, provider_status=_provider_status)
 
 
+def _unique_object(pairs):
+    result = dict(pairs)
+    if len(result) != len(pairs):
+        raise ValueError("Duplicate provider JSON field")
+    return result
+
+
 class PublicGemini:
     def __init__(self, *, api_key: str, model: str, deadline: float):
         if model not in MODELS:
@@ -127,23 +134,30 @@ class PublicGemini:
                 if self._model == INTERPRET_FAILOVER_MODEL else GEMINI_STAGE_SECONDS,
             )
 
-    def general(self, request, reason, *, event, knowledge_cutoff) -> GeneralDraft:
+    def can_generate_general(self) -> bool:
+        return (self._calls < MAX_GENERATIONS + self._interpret_failover_allowance
+                and self._deadline - monotonic() > GENERAL_DEADLINE_HEADROOM + 1)
+
+    def general(self, fragment_ids: tuple[str, ...]) -> GeneralDraft:
         with _gemini_stage("gemini.general"):
-            inputs = general_inputs(request, self._key, reason, event=event, knowledge_cutoff=knowledge_cutoff)
+            inputs = general_inputs(fragment_ids)
             return self._generate(
                 _GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
+                fragment_ids=fragment_ids,
                 deadline_headroom=GENERAL_DEADLINE_HEADROOM,
                 stage_seconds=LITE_GENERAL_SECONDS
                 if self._model == INTERPRET_FAILOVER_MODEL else GEMINI_STAGE_SECONDS,
             )
 
     def _generate(self, template, inputs, schema, *, output_tokens=OUTPUT_TOKENS, deadline_headroom=0,
-                  model_override=None, stage_seconds=GEMINI_STAGE_SECONDS):
+                  model_override=None, stage_seconds=GEMINI_STAGE_SECONDS, fragment_ids=()):
         if self._calls >= MAX_GENERATIONS + self._interpret_failover_allowance:
             raise ValueError("Research generation limit reached")
         self._calls += 1
         system, user = template.format_messages(**inputs)
         response_schema = schema.model_json_schema()
+        if fragment_ids:
+            response_schema["properties"]["fragment_ids"]["items"]["enum"] = list(fragment_ids)
         if len(json.dumps(response_schema, separators=(",", ":")).encode("utf-8")) > SCHEMA_BYTES:
             raise ValueError("Research schema exceeds its size limit")
         payload = {
@@ -161,6 +175,8 @@ class PublicGemini:
         except httpx.TimeoutException:
             raise TimeoutError("Gemini timed out") from None
         with _gemini_stage("gemini.validate_schema"):
+            if fragment_ids:
+                return schema.model_validate(json.loads(raw, object_pairs_hook=_unique_object))
             return schema.model_validate_json(raw)
 
     async def _invoke(self, payload: dict, *, deadline_headroom: float,
