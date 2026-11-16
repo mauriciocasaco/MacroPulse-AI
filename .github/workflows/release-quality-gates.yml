@@ -1,0 +1,212 @@
+name: Release Quality Gates
+
+# This workflow is evaluated from the repository's DEFAULT (dev) branch, not
+# from the proposed staging/prod commit. The test job has NO production secrets.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+    branches: [dev, staging, prod]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: release-gate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Release Quality Gate
+    if: github.repository == 'mauriciocasaco/MacroPulse-AI'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Validate proposed promotion path
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          case "$BASE" in
+            dev)
+              [[ "$HEAD" != dev && "$HEAD" != staging && "$HEAD" != prod ]] || exit 1
+              ;;
+            staging)
+              [[ "$HEAD" == dev && "$HEAD_REPO" == "$BASE_REPO" ]] || exit 1
+              ;;
+            prod)
+              [[ "$HEAD" == staging && "$HEAD_REPO" == "$BASE_REPO" ]] || exit 1
+              ;;
+            *) exit 1 ;;
+          esac
+
+      - name: Check out proposed merge for testing only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements*.txt
+            requirements-m7*.txt
+
+      - name: Install pinned test requirements (unprivileged job)
+        run: python -m pip install -r backend/requirements-ai.txt -r requirements-m7b.txt
+
+      - name: Research matrix and defensive fallback checks
+        env:
+          MARKET_DATA_TEST_DSN: ''
+          MACRO_DATA_TEST_DSN: ''
+          NEWS_TEST_DSN: ''
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+          LANGSMITH_TRACING: 'false'
+        run: |
+          python -m pytest -q tests/test_dynamic_rag_matrix.py tests/test_dynamic_rag_security.py
+
+      - name: Extended staging and production security regression
+        if: github.event.pull_request.base.ref == 'staging' || github.event.pull_request.base.ref == 'prod'
+        env:
+          MARKET_DATA_TEST_DSN: ''
+          MACRO_DATA_TEST_DSN: ''
+          NEWS_TEST_DSN: ''
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+          LANGSMITH_TRACING: 'false'
+        run: |
+          python -m pytest -q \
+            tests/test_m7c.py tests/test_m7d.py \
+            tests/test_public_online.py tests/test_public_demo.py \
+            tests/test_shared_demo_permissions.py tests/test_general_research_fallback.py \
+            tests/test_research_v2.py
+
+      - name: Evaluate frozen lexical RAG benchmark
+        if: github.event.pull_request.base.ref == 'staging' || github.event.pull_request.base.ref == 'prod'
+        run: |
+          python -m backend.m7d evaluate --kind regression \
+            --dataset tests/fixtures/retrieval/evaluation.jsonl \
+            --out "$RUNNER_TEMP/m7d-regression.json" --repeats 1
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "m7d-regression.json").read_text())
+          metrics = report["metrics"]["gate_lexical"]
+          assert metrics["cases"] == 28, metrics
+          assert metrics["claim_hit_at_3"] >= 16 / 18, metrics
+          assert metrics["false_answers"] == 0, metrics
+          assert metrics["cases_without_relevant_claims_with_hits"] == 0, metrics
+          assert metrics["multi_claim_cases_with_all_groups"] == 1, metrics
+          print("Frozen RAG benchmark: PASS", {k: metrics[k] for k in
+                ("cases", "claim_hit_at_3", "false_answers")})
+          PY
+
+      - name: Production holdout and evidence-gate regressions
+        if: github.event.pull_request.base.ref == 'prod'
+        run: |
+          python -m backend.m7d evaluate --kind holdout \
+            --dataset tests/fixtures/retrieval/holdout.jsonl \
+            --out "$RUNNER_TEMP/m7d-holdout.json" --repeats 1
+          python -m backend.m7d evaluate --kind holdout \
+            --dataset tests/fixtures/retrieval/evidence-gate-fix-holdout.jsonl \
+            --out "$RUNNER_TEMP/m7d-evidence-holdout.json" --repeats 1
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          for filename, expected_cases in (
+              ("m7d-holdout.json", 32),
+              ("m7d-evidence-holdout.json", 17),
+          ):
+              report = json.loads((root / filename).read_text())
+              summary = report["metrics"]["gate_lexical"]
+              assert summary["cases"] == expected_cases, (filename, summary)
+              assert summary["false_answers"] == 0, (filename, summary)
+              print(filename, "PASS", {"cases": summary["cases"],
+                                       "false_answers": summary["false_answers"]})
+          PY
+
+      - name: Production deployment configuration guard
+        if: github.event.pull_request.base.ref == 'prod'
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "autoDeployTrigger: 'off'" render.yaml
+          grep -Fq '"name": "macropulse-public-demo"' frontend/wrangler.jsonc
+          # Checks that promotion cannot silently enable a public auto-deployment.
+          echo "Production deployment remains explicitly manual."
+
+  auto-merge:
+    name: Enable Verified Promotion Auto-merge
+    if: >-
+      github.repository == 'mauriciocasaco/MacroPulse-AI' &&
+      needs.quality.result == 'success' &&
+      (github.event.pull_request.base.ref == 'staging' ||
+       github.event.pull_request.base.ref == 'prod')
+    needs: [quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Never checkout or execute the PR's source in this privileged job.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Recheck PR origin and exact head/base revisions
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          state="$(jq -r '.state' <<<"$pr")"
+          head="$(jq -r '.head.ref' <<<"$pr")"
+          base="$(jq -r '.base.ref' <<<"$pr")"
+          head_repo="$(jq -r '.head.repo.full_name' <<<"$pr")"
+          head_sha="$(jq -r '.head.sha' <<<"$pr")"
+          base_sha="$(jq -r '.base.sha' <<<"$pr")"
+          [[ "$state" == open && "$head_repo" == "$GITHUB_REPOSITORY" ]] || exit 1
+          if [[ "$base" == staging ]]; then
+            [[ "$head" == dev ]] || exit 1
+          elif [[ "$base" == prod ]]; then
+            [[ "$head" == staging ]] || exit 1
+          else
+            exit 1
+          fi
+          if [[ "$head_sha" != "$EVENT_HEAD_SHA" || "$base_sha" != "$EVENT_BASE_SHA" ]]; then
+            echo "::error::PR has changed since quality tests. A fresh run is required."
+            exit 1
+          fi
+          [[ "$(jq -r '.draft' <<<"$pr")" == false ]] || exit 1
+
+      - name: Create restricted promotion bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.MACROPULSE_PROMOTION_CLIENT_ID }}
+          private-key: ${{ secrets.MACROPULSE_PROMOTION_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Ask GitHub to auto-merge only after required checks pass
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --merge --auto
