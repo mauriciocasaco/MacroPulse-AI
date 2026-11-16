@@ -252,7 +252,8 @@ def run_online_research(settings, request, key, model, deadline):
                                   capture_vintage=(f"Supabase as of {known_at.date()}" if known_at
                                                    else "latest available Supabase"),
                                   dynamic_editorial=dynamic, knowledge_cutoff=cutoff,
-                                  generate_general=general if environ.get(GENERAL_FALLBACK_FLAG) == "true" else None)
+                                  generate_general=general if environ.get(GENERAL_FALLBACK_FLAG) == "true" else None,
+                                  general_budget=lambda: provider.can_generate_general())
         return run(request, runtime=runtime)
 
 

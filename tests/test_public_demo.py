@@ -43,7 +43,7 @@ CATALOG = "/macro/indicators"
 HISTORY = CATALOG + "/eur-usd/history"
 RESEARCH = "/macro/analysis"
 RESEARCH_ID = "cb31e1d0-41f6-4a82-8436-30f47564c5cb"
-ANALYSIS = {"question": "What happened?", "event_id": "covid", "indicator_id": "eur-usd",
+ANALYSIS = {"question": "How did exchange rates move in the selected period?", "event_id": "covid", "indicator_id": "eur-usd",
             "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2"}
 
 
@@ -297,8 +297,7 @@ def test_research_rejects_invalid_body_and_leases(research_client, monkeypatch, 
 
 def test_general_fallback_fits_render_response_and_marks_the_request_complete(research_client, monkeypatch, research_attestation):
     monkeypatch.setenv(demo.GENERAL_FALLBACK_FLAG, "true")
-    question = "How would one calculate an off-catalog index during a pandemic?"
-    answer = ("Compare equivalent observations using the same definition and geographic scope. " * 32)[:2400].strip()
+    question = "What is inflation?"
     paths = []
     clock = [0]
     monkeypatch.setattr(demo, "monotonic", lambda: clock[0])
@@ -310,8 +309,7 @@ def test_general_fallback_fits_render_response_and_marks_the_request_complete(re
         clock[0] += 12
         if request.url.path.endswith(":countTokens"):
             return httpx.Response(200, json={"totalTokens": 500})
-        output = ({"purpose": "descriptive", "requirements": [{"excerpt": question, "operation": "other"}]}
-                  if len(paths) == 2 else {"answer": answer})
+        output = {"fragment_ids": ["inflation", "inflation-channels"]}
         return httpx.Response(200, json={
             "usageMetadata": {"promptTokenCount": 500, "candidatesTokenCount": 600},
             "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(output)}]}}],
@@ -326,9 +324,11 @@ def test_general_fallback_fits_render_response_and_marks_the_request_complete(re
     assert len(reply.content) < demo.MAX_RESEARCH_RESPONSE == 65_536
     body = reply.json()
     assert body["status"] == "insufficient_evidence" and body["evidence"] == body["narrative"] == []
-    assert body["general_fallback"]["answer"] == answer and body["general_fallback"]["verified"] is False
-    assert len(paths) == 4
-    assert clock[0] == 48
+    assert body["general_fallback"]["fragment_ids"] == ["inflation", "inflation-channels"]
+    assert body["general_fallback"]["catalog_version"] == "v1"
+    assert body["general_fallback"]["verified"] is False
+    assert len(paths) == 2
+    assert clock[0] == 24
 
 
 @pytest.mark.parametrize("slow_call", ["countTokens", "generateContent"])
@@ -386,8 +386,7 @@ def test_fallback_provider_cancels_a_stalled_call_within_render_budget(monkeypat
     monkeypatch.setattr(public_gemini, "timeout", short_timeout)
     gemini = public_gemini.PublicGemini(api_key="synthetic", model="gemini-3.6-flash", deadline=65)
     with pytest.raises(TimeoutError):
-        gemini.general(demo.parse_research(json.dumps(ANALYSIS).encode()), "unsupported_requirement",
-                       event=None, knowledge_cutoff=None)
+        gemini.general(("inflation",))
     assert paths == ["countTokens"]
 
 
@@ -851,3 +850,58 @@ def test_interpretation_503_uses_bounded_lite_failover_and_keeps_verified_result
         "gemini-3.5-flash-lite", "gemini-3.5-flash-lite",
     ]
     assert [budget for _, budget in calls] == [20, 20, 10, 10]
+
+
+def test_policy_rejection_follows_consume_and_precedes_any_provider_or_reader(
+    research_client, research_attestation, monkeypatch,
+):
+    from pathlib import Path
+
+    from backend.macro_ai.question_admission import classify_question
+
+    contract = json.loads((Path(__file__).parent / "fixtures/security/fase-12-s2.json").read_text(encoding="utf-8"))
+    consumed = set()
+
+    async def consume(_config, attestation, _commitment):
+        if attestation.nonce in consumed:
+            return False
+        consumed.add(attestation.nonce)
+        return True
+
+    def unexpected(*_args, **_kwargs):
+        pytest.fail("A rejected request reached Gemini or the database")
+
+    monkeypatch.setattr(demo, "consume_grant", consume)
+    monkeypatch.setattr(demo, "connect_demo", unexpected)
+    monkeypatch.setattr(public_gemini.PublicGemini, "_post", unexpected)
+
+    expected = contract["http"]["policy"]["body"]
+    rejected = 0
+    for question, kind, *concept in contract["questions"]:
+        decision = classify_question(question)
+        assert decision.kind == kind, question
+        if decision.admitted:
+            if concept:
+                assert decision.fragment_ids[0] == concept[0]
+            continue
+        rejected += 1
+        params = {**ANALYSIS, "question": question}
+        headers = research_attestation.headers(params)
+        result = research_client.post(RESEARCH, headers=headers, json=params)
+        assert result.status_code == 422
+        assert result.headers["Cache-Control"] == "no-store"
+        assert result.headers["X-MacroPulse-Research-Complete"] == "true"
+        if "\n" not in question:
+            assert result.json() == expected
+        else:
+            assert result.json() == {"detail": "Invalid request parameters"}
+        replay = research_client.post(RESEARCH, headers=headers, json=params)
+        assert replay.status_code == 403
+    assert len(consumed) == rejected
+
+
+def test_policy_rejection_covers_configured_credentials(research_client, research_attestation):
+    for value in (SECRET, "AIza" + "f" * 35):
+        reply = research_attestation.post(research_client, {**ANALYSIS, "question": f"Compare ECB rates with {value}?"})
+        assert reply.status_code == 422
+        assert reply.json() == {"code": "research_question_not_admitted"}

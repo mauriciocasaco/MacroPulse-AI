@@ -285,6 +285,7 @@ def run_public_research(settings: DemoSettings, request: ResearchRequest, key: s
         result = run(request, runtime=ResearchRuntime(
             read, provider.interpret, compose, model,
             generate_general=general if os.environ.get(GENERAL_FALLBACK_FLAG) == "true" else None,
+            general_budget=lambda: provider.can_generate_general(),
         ))
     if monotonic() >= deadline:
         raise TimeoutError
@@ -347,17 +348,22 @@ def create_public_app(
 
     async def serve_research(request: Request) -> Response:
         started = monotonic()
+        from .macro_ai.question_admission import POLICY_REJECTION, classify_question
+
         try:
             params = research_parser(request.state.research_body)
-            if ((db_password and db_password in params.question)
-                    or any(secret in params.question for secret in (
-                        settings.origin_secret, *attestation_config.sensitive_values,
-                    ))):
-                raise ValueError("Sensitive input")
         except ValueError:
             response = _error(422, "Invalid request parameters")
             response.headers["X-MacroPulse-Research-Complete"] = "true"
             return response
+        sensitive = any(secret and secret in params.question for secret in (
+            db_password, research[0], settings.origin_secret, *attestation_config.sensitive_values,
+        ))
+        if sensitive or not classify_question(params.question).admitted:
+            research_event("fastapi.admission", started, "ResearchQuestionNotAdmitted", http_status=422)
+            return JSONResponse(status_code=422, content={"code": POLICY_REJECTION}, headers={
+                "Cache-Control": "no-store", "X-MacroPulse-Research-Complete": "true",
+            })
         if len(research_tasks) >= 2:
             research_event("fastapi.admission", started, "ResearchBusy", http_status=503)
             return _error(503, "Public Research is busy", 1)
