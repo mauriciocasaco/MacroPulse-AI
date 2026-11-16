@@ -105,3 +105,18 @@ In particular, `Release Quality Gates` uses the unprivileged `pull_request`
 event, not `pull_request_target`, and no promotion job auto-merges.
 All subsequent promotions still require PRs, required checks and a deliberate
 human merge; do not directly push either protected branch.
+
+## Historical production reconciliation (Fase 12)
+
+PR #27 revealed another add/add conflict: the first production promotion
+(#23) had merged the older release workflows independently of the later
+`dev` and `staging` corrections. The history-reconciliation commit for
+this issue records the existing `prod` tip as a second Git parent while
+keeping the newer `dev` tree. The correction must travel through the
+normal, reviewed `feature -> dev -> staging -> prod` pipeline. In particular,
+keep the standard `pull_request` release checks and manual PR merges.
+
+The final history alignment additionally records the latest `staging` merge
+(#25) as a parent of `dev` (after recording the earlier `prod` merge).
+This avoids a second divergent-merge conflict in intermediate promotion
+PR #29 without changing any release workflow or RAG implementation.
