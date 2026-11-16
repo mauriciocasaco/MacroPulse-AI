@@ -115,3 +115,8 @@ this issue records the existing `prod` tip as a second Git parent while
 keeping the newer `dev` tree. The correction must travel through the
 normal, reviewed `feature -> dev -> staging -> prod` pipeline. In particular,
 keep the standard `pull_request` release checks and manual PR merges.
+
+The final history alignment additionally records the latest `staging` merge
+(#25) as a parent of `dev` (after recording the earlier `prod` merge).
+This avoids a second divergent-merge conflict in intermediate promotion
+PR #29 without changing any release workflow or RAG implementation.
