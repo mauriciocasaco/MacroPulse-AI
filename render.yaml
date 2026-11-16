@@ -18,7 +18,7 @@ services:
       - key: MACROPULSE_RESEARCH_GENERAL_FALLBACK_ENABLED
         value: 'false'
       - key: MARKETPULSE_DEMO_GEMINI_MODEL
-        value: gemini-3.6-flash
+        value: gemini-3.5-flash-lite
       - key: MACROPULSE_ONLINE_DSN
         sync: false
       - key: MACROPULSE_ONLINE_SSL_ROOT_CERT
