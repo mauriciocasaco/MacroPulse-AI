@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 
 from datetime import date
 from typing import get_args
@@ -146,6 +147,9 @@ def interpret(request: ResearchRequest) -> Intent:
     return invoke_structured(_INTERPRET, interpretation_inputs(request), Intent)
 
 
+_STATEMENT_URL = re.compile(r"https?://[^\s<>\"'()\[\]]+", re.I)
+
+
 def composition_inputs(evidence: list[dict]) -> dict[str, str]:
     statements = []
     categories = get_args(Category)
@@ -153,7 +157,10 @@ def composition_inputs(evidence: list[dict]) -> dict[str, str]:
         statement_id, category, statement = item["statement_id"], item["category"], item["statement"]
         if type(statement_id) is not int or category not in categories or not isinstance(statement, str):
             raise ValueError("Invalid Research statement")
-        statements.append({"statement_id": statement_id, "category": category, "statement": statement})
+        statements.append({
+            "statement_id": statement_id, "category": category,
+            "statement": _STATEMENT_URL.sub("[link omitted]", statement),
+        })
     return {"evidence": json.dumps(statements, ensure_ascii=False)}
 
 

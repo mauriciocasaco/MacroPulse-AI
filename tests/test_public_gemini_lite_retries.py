@@ -31,7 +31,7 @@ def request():
 
 def model():
     return public_gemini.PublicGemini(
-        api_key="synthetic", model="gemini-3.5-flash-lite", deadline=monotonic() + 65,
+        api_key="AIza" + "l" * 35, model="gemini-3.5-flash-lite", deadline=monotonic() + 65,
     )
 
 
@@ -142,7 +142,7 @@ def test_lite_does_not_retry_when_insufficient_research_budget(monkeypatch):
     )
     seen = stub_http(monkeypatch, lambda _: httpx.Response(503, text="synthetic"))
     gemini = public_gemini.PublicGemini(
-        api_key="synthetic", model="gemini-3.5-flash-lite", deadline=137,
+        api_key="AIza" + "l" * 35, model="gemini-3.5-flash-lite", deadline=137,
     )
     with pytest.raises(httpx.HTTPStatusError):
         gemini.interpret(request())
