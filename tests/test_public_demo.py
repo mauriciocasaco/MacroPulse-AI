@@ -47,12 +47,8 @@ ANALYSIS = {"question": "What happened?", "event_id": "covid", "indicator_id": "
             "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2"}
 
 
-def research_headers():
-    return {**HEADERS, "X-MacroPulse-Research-Expires": str(int(demo.time() * 1000) + 90_000)}
-
-
 @pytest.fixture
-def demo_env(monkeypatch, tmp_path):
+def demo_env(monkeypatch, tmp_path, research_attestation):
     for key in os.environ:
         if key.startswith(("PG", "MARKETPULSE_", "MARKET_ANALYSIS_")) or key in {
             "DEBUG", "MARKET_API_DSN", "GEMINI_API_KEY", "GOOGLE_API_KEY"
@@ -180,7 +176,7 @@ def test_entrypoint_mode_isolation(demo_env, monkeypatch, mode, expected):
         assert result.returncode == 0
 
 
-def test_only_authenticated_allowlisted_routes(client):
+def test_only_authenticated_allowlisted_routes(client, research_attestation):
     assert client.get(CATALOG).status_code == 403
     assert client.get(CATALOG, headers={**HEADERS, demo.ORIGIN_HEADER: "incorrect"}).status_code == 403
     assert client.get(CATALOG, headers={demo.ORIGIN_HEADER: SECRET, "X-Forwarded-For": "192.0.2.3"}).status_code == 403
@@ -190,12 +186,12 @@ def test_only_authenticated_allowlisted_routes(client):
         assert client.get(path, headers=HEADERS).status_code == 404
     assert client.post(CATALOG, headers=HEADERS).status_code == 405
     assert client.post(RESEARCH, json=ANALYSIS).status_code == 403
-    assert client.post(RESEARCH, headers={**research_headers(), demo.ORIGIN_HEADER: "bad"}, json=ANALYSIS).status_code == 403
+    assert client.post(RESEARCH, headers={**research_attestation.headers(ANALYSIS), demo.ORIGIN_HEADER: "bad"}, json=ANALYSIS).status_code == 403
 
 
-def test_disabled_research_preserves_catalog(client, monkeypatch):
+def test_disabled_research_preserves_catalog(client, monkeypatch, research_attestation):
     monkeypatch.setattr(demo, "run_public_research", lambda *args: pytest.fail("Disabled research started work"))
-    assert client.post(RESEARCH, headers=research_headers(), json=ANALYSIS).status_code == 503
+    assert client.post(RESEARCH, headers=research_attestation.headers(ANALYSIS), json=ANALYSIS).status_code == 503
     assert client.get(CATALOG, headers=HEADERS).status_code == 200
     assert demo.RESEARCH_HEADER not in client.get(CATALOG, headers=HEADERS).headers
 
@@ -212,13 +208,13 @@ def test_catalog_head_uses_current_capability_without_database_access(research_c
     assert research_client.head(HISTORY, headers=HEADERS).status_code == 405
 
 
-def test_cache_opt_in_is_only_on_successful_public_reads(client):
+def test_cache_opt_in_is_only_on_successful_public_reads(client, research_attestation):
     reply = client.get(CATALOG, headers=HEADERS)
     assert reply.headers["X-MacroPulse-Public-Cache"] == "official-v1"
     assert reply.headers["Cache-Control"] == "no-store"
     assert demo.RESEARCH_HEADER not in client.head(CATALOG, headers=HEADERS).headers
     for response in [client.get(CATALOG), client.get(HISTORY, headers=HEADERS),
-                     client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)]:
+                     client.post(RESEARCH, headers=research_attestation.headers(ANALYSIS), json=ANALYSIS)]:
         assert response.status_code >= 400
         assert "X-MacroPulse-Public-Cache" not in response.headers
 
@@ -263,39 +259,43 @@ def research_client(demo_env, monkeypatch):
         yield client
 
 
-def test_research_rejects_invalid_body_and_leases(research_client, monkeypatch):
+def test_research_rejects_invalid_body_and_leases(research_client, monkeypatch, research_attestation):
     now = 1_800_000_000
     monkeypatch.setattr(demo, "time", lambda: now)
     monkeypatch.setattr(demo, "run_public_research", lambda *args: pytest.fail("Invalid research started work"))
     assert research_client.get(CATALOG, headers=HEADERS).headers[demo.RESEARCH_HEADER] == "true"
     assert research_client.post(RESEARCH, headers=HEADERS, json=ANALYSIS).status_code == 403
     expiration = "X-MacroPulse-Research-Expires"
-    for invalid in ("invalid", *(str(now * 1000 + offset) for offset in (-1, 0, 60_000, 67_000, 95_001))):
-        assert research_client.post(RESEARCH, headers={**HEADERS, expiration: invalid},
+    expired = {**research_attestation.headers(ANALYSIS), expiration: "invalid"}
+    assert research_client.post(RESEARCH, headers=expired, json=ANALYSIS).status_code == 403
+    for offset in (-1, 0, 60_000, 67_000, 95_001):
+        assert research_client.post(RESEARCH, headers=research_attestation.headers(ANALYSIS, expires_in=offset),
                                     json=ANALYSIS).status_code == 403
-    headers = research_headers()
+    headers = research_attestation.headers(ANALYSIS)
     assert research_client.post(RESEARCH, headers=[*headers.items(), (expiration, headers[expiration])],
                                 json=ANALYSIS).status_code == 403
     assert research_client.post(RESEARCH, headers={**headers, demo.ORIGIN_HEADER: "invalid"},
                                 json=ANALYSIS).status_code == 403
     for offset in (67_001, 90_000, 95_000):
         # Admission reaches the parser, which rejects the synthetic body.
-        assert research_client.post(RESEARCH, headers={**HEADERS, expiration: str(now * 1000 + offset)},
+        assert research_client.post(RESEARCH, headers=research_attestation.headers({}, expires_in=offset),
                                     json={}).status_code == 422
     for invalid in ({**ANALYSIS, "question": "x" * 501}, {**ANALYSIS, "research_version": "v1"},
                     {**ANALYSIS, "event_id": None}, {**ANALYSIS, "start": 1580515200},
                     {**ANALYSIS, "end": "2021-01-01"}, {**ANALYSIS, "extra": True},
                     {**ANALYSIS, "question": f"Explain {SECRET}"}):
-        assert research_client.post(RESEARCH, headers=research_headers(), json=invalid).status_code == 422
-    assert research_client.post(RESEARCH, headers=research_headers(), content=b"no").status_code == 415
-    assert research_client.post(RESEARCH, headers=research_headers(), content=b"x" * 4097).status_code == 413
-    assert research_client.post(RESEARCH, headers={**research_headers(), "Content-Type": "application/json"},
+        assert research_client.post(RESEARCH, headers=research_attestation.headers(invalid), json=invalid).status_code == 422
+    assert research_client.post(RESEARCH, headers={name: value for name, value in research_attestation.headers(content=b"no").items()
+                                                    if name != "Content-Type"}, content=b"no").status_code == 415
+    assert research_client.post(RESEARCH, headers=research_attestation.headers(content=b"x" * 4097), content=b"x" * 4097).status_code == 413
+    assert research_client.post(RESEARCH, headers=research_attestation.headers(content=b"x" * 4097),
                                 content=iter((b"x" * 3000, b"x" * 1097))).status_code == 413
-    assert research_client.post(RESEARCH, headers={**research_headers(), "Content-Type": "application/json"},
-                                content=b'{"question":"duplicate","question":"again"}').status_code == 422
+    duplicate = b'{"question":"duplicate","question":"again"}'
+    assert research_client.post(RESEARCH, headers=research_attestation.headers(content=duplicate),
+                                content=duplicate).status_code == 422
 
 
-def test_general_fallback_fits_render_response_and_marks_the_request_complete(research_client, monkeypatch):
+def test_general_fallback_fits_render_response_and_marks_the_request_complete(research_client, monkeypatch, research_attestation):
     monkeypatch.setenv(demo.GENERAL_FALLBACK_FLAG, "true")
     question = "How would one calculate an off-catalog index during a pandemic?"
     answer = ("Compare equivalent observations using the same definition and geographic scope. " * 32)[:2400].strip()
@@ -321,7 +321,7 @@ def test_general_fallback_fits_render_response_and_marks_the_request_complete(re
     monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
         transport=httpx.MockTransport(provider), **options,
     ))
-    reply = research_client.post(RESEARCH, headers=research_headers(), json={**ANALYSIS, "question": question})
+    reply = research_attestation.post(research_client, {**ANALYSIS, "question": question})
     assert reply.status_code == 200 and reply.headers["X-MacroPulse-Research-Complete"] == "true"
     assert len(reply.content) < demo.MAX_RESEARCH_RESPONSE == 65_536
     body = reply.json()
@@ -334,6 +334,7 @@ def test_general_fallback_fits_render_response_and_marks_the_request_complete(re
 @pytest.mark.parametrize("slow_call", ["countTokens", "generateContent"])
 def test_gemini_stage_has_one_25_second_budget_for_both_http_calls(
     research_client, monkeypatch, caplog, slow_call,
+    research_attestation,
 ):
     clock = [0]
     paths = []
@@ -354,7 +355,7 @@ def test_gemini_stage_has_one_25_second_budget_for_both_http_calls(
         transport=httpx.MockTransport(provider), **options,
     ))
     with caplog.at_level(logging.INFO, logger="uvicorn.error.macropulse.research"):
-        reply = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
+        reply = research_client.post(RESEARCH, headers=research_attestation.headers(ANALYSIS), json=ANALYSIS)
     assert reply.status_code == 504
     assert "X-MacroPulse-Research-Complete" not in reply.headers
     assert paths == (["countTokens", "countTokens"] if slow_call == "countTokens"
@@ -404,7 +405,7 @@ def test_read_quota_is_per_operation_and_ip(client, monkeypatch):
     assert client.get(CATALOG, headers=HEADERS).status_code == 200
 
 
-def test_research_concurrency_and_timeouts_keep_reads_available(research_client, monkeypatch):
+def test_research_concurrency_and_timeouts_keep_reads_available(research_client, monkeypatch, research_attestation):
     started = [Event(), Event()]
     release = Event()
     pending = iter(started)
@@ -425,7 +426,7 @@ def test_research_concurrency_and_timeouts_keep_reads_available(research_client,
     monkeypatch.setattr(demo, "run_public_research", wait)
     monkeypatch.setattr(demo, "timeout", short_timeout)
     with ThreadPoolExecutor(2) as pool:
-        calls = [pool.submit(research_client.post, RESEARCH, headers=research_headers(), json=ANALYSIS)
+        calls = [pool.submit(research_client.post, RESEARCH, headers=research_attestation.headers(ANALYSIS), json=ANALYSIS)
                  for _ in started]
         try:
             assert all(event.wait(2) for event in started)
@@ -434,13 +435,13 @@ def test_research_concurrency_and_timeouts_keep_reads_available(research_client,
                 reply = call.result(timeout=2)
                 assert reply.status_code == 504
                 assert "X-MacroPulse-Research-Complete" not in reply.headers
-            blocked = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
+            blocked = research_client.post(RESEARCH, headers=research_attestation.headers(ANALYSIS), json=ANALYSIS)
             assert blocked.status_code == 503 and blocked.headers["Retry-After"] == "1"
         finally:
             release.set()
 
 
-def test_render_discards_serialization_that_reaches_the_deadline(research_client, monkeypatch, caplog):
+def test_render_discards_serialization_that_reaches_the_deadline(research_client, monkeypatch, caplog, research_attestation):
     clock = [0]
     monkeypatch.setattr(demo, "monotonic", lambda: clock[0])
 
@@ -455,7 +456,7 @@ def test_render_discards_serialization_that_reaches_the_deadline(research_client
         return SimpleNamespace(model_dump_json=serialize)
 
     monkeypatch.setattr(demo, "run_public_research", run)
-    headers = {**research_headers(), demo.RESEARCH_ID_HEADER: RESEARCH_ID}
+    headers = research_attestation.headers(ANALYSIS, research_id=RESEARCH_ID)
     reply = research_client.post(RESEARCH, headers=headers, json=ANALYSIS)
     assert reply.status_code == 504
     assert reply.json() == {"detail": "Public Research timed out"}
@@ -531,7 +532,7 @@ def test_connection_requires_tls_and_read_only_privileges(monkeypatch, tls, role
 
 
 @pytest.mark.parametrize("shared", [False, True])
-def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, monkeypatch, shared):
+def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, monkeypatch, shared, research_attestation):
     question = "How did the war in Ukraine relate to euro-area inflation?"
     connections = []
     transaction_open = False
@@ -619,11 +620,11 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
     with TestClient(demo.create_public_app()) as research_client:
         assert len(connections) == 1  # Startup verifies the same dedicated target.
         connections.clear()
-        reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
+        reply = research_client.post(RESEARCH, headers=research_attestation.headers(params), json=params)
         assert len(connections) == 1 and len(requests) == 4
         invalid_plan = True
         requests.clear()
-        fallback = research_client.post(RESEARCH, headers=research_headers(), json=params)
+        fallback = research_client.post(RESEARCH, headers=research_attestation.headers(params), json=params)
         assert fallback.status_code == 200 and len(requests) == 4
         assert fallback.json()["narrative_kind"] == "deterministic"
         assert "99% inflation" not in fallback.text
@@ -631,7 +632,7 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
             psycopg.OperationalError("Synthetic DEMO failure"),
         ))
         requests.clear()
-        failure = research_client.post(RESEARCH, headers=research_headers(), json=params)
+        failure = research_client.post(RESEARCH, headers=research_attestation.headers(params), json=params)
     assert reply.status_code == 200, reply.text
     assert reply.headers["X-MacroPulse-Research-Complete"] == "true"
     result = reply.json()
@@ -647,7 +648,7 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
 
 
 @pytest.mark.parametrize("failure,code", [("input limit", 503), ("provider failure", 503), ("timeout", 504)])
-def test_public_gemini_fails_closed_after_bounded_interpret_failover(research_client, monkeypatch, caplog, failure, code):
+def test_public_gemini_fails_closed_after_bounded_interpret_failover(research_client, monkeypatch, caplog, failure, code, research_attestation):
     paths = []
     error_types = {"input limit": "ValueError", "provider failure": "HTTPStatusError", "timeout": "ReadTimeout"}
     caplog.set_level(logging.INFO, logger="uvicorn.error.macropulse.research")
@@ -664,7 +665,7 @@ def test_public_gemini_fails_closed_after_bounded_interpret_failover(research_cl
     monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
         transport=httpx.MockTransport(simulate), **options,
     ))
-    headers = {**research_headers(), demo.RESEARCH_ID_HEADER: RESEARCH_ID}
+    headers = research_attestation.headers(ANALYSIS, research_id=RESEARCH_ID)
     reply = research_client.post(RESEARCH, headers=headers, json=ANALYSIS)
     assert reply.status_code == code and "synthetic" not in reply.text
     assert demo.RESEARCH_ID_HEADER not in reply.headers
@@ -692,6 +693,7 @@ def test_public_gemini_fails_closed_after_bounded_interpret_failover(research_cl
 @pytest.mark.parametrize("phase", ["interpret", "compose"])
 def test_gemini_generation_logs_provider_status_and_safe_transient_fallback(
     research_client, monkeypatch, caplog, phase, provider_status,
+    research_attestation,
 ):
     caplog.set_level(logging.INFO, logger="uvicorn.error.macropulse.research")
     params = {**ANALYSIS, "question": "How did exchange rates move in the selected period?"}
@@ -732,7 +734,7 @@ def test_gemini_generation_logs_provider_status_and_safe_transient_fallback(
     monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
         transport=httpx.MockTransport(simulate), **options,
     ))
-    headers = {**research_headers(), demo.RESEARCH_ID_HEADER: RESEARCH_ID}
+    headers = research_attestation.headers(params, research_id=RESEARCH_ID)
     reply = research_client.post(RESEARCH, headers=headers, json=params)
     recovered = phase == "compose" and provider_status in (429, 503)
     if recovered:
@@ -771,7 +773,7 @@ def test_gemini_generation_logs_provider_status_and_safe_transient_fallback(
         assert protected not in caplog.text
 
 
-def test_research_preload_failure_is_sanitized_and_preserves_disabled_endpoint(demo_env, monkeypatch, caplog):
+def test_research_preload_failure_is_sanitized_and_preserves_disabled_endpoint(demo_env, monkeypatch, caplog, research_attestation):
     monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
     monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "f" * 35)
 
@@ -781,8 +783,7 @@ def test_research_preload_failure_is_sanitized_and_preserves_disabled_endpoint(d
     monkeypatch.setattr(v2_retrieval, "lexical", fail_preload)
     app = demo.create_public_app(connect=lambda _settings: MagicMock())
     with TestClient(app) as client:
-        reply = client.post(RESEARCH, headers={**research_headers(),
-                            demo.RESEARCH_ID_HEADER: "synthetic private header"}, json=ANALYSIS)
+        reply = client.post(RESEARCH, headers=research_attestation.headers(ANALYSIS), json=ANALYSIS)
     assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
     events = [json.loads(entry.getMessage()) for entry in caplog.records
               if entry.name == "uvicorn.error.macropulse.research" and entry.levelno == logging.WARNING]
@@ -794,7 +795,7 @@ def test_research_preload_failure_is_sanitized_and_preserves_disabled_endpoint(d
 
 
 def test_interpretation_503_uses_bounded_lite_failover_and_keeps_verified_result(
-    research_client, monkeypatch,
+    research_client, monkeypatch, research_attestation,
 ):
     """One rejected primary generation can recover within the same admitted request."""
     question = "How did exchange rates move in the selected period?"
@@ -840,7 +841,7 @@ def test_interpretation_503_uses_bounded_lite_failover_and_keeps_verified_result
     monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
         transport=httpx.MockTransport(provider), **options,
     ))
-    reply = research_client.post(RESEARCH, headers=research_headers(), json=params)
+    reply = research_client.post(RESEARCH, headers=research_attestation.headers(params), json=params)
     assert reply.status_code == 200
     body = reply.json()
     assert body["status"] == "answered"

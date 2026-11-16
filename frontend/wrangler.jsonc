@@ -36,6 +36,11 @@
   ],
   "ratelimits": [
     {
+      "name": "RESEARCH_VERIFY_RATE_LIMIT",
+      "namespace_id": "4404",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
       "name": "RESEARCH_ATTEMPT_RATE_LIMIT",
       "namespace_id": "4403",
       "simple": { "limit": 30, "period": 60 }
