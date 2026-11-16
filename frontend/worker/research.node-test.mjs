@@ -147,6 +147,10 @@ function fixtureEnv(quota) {
     MARKETPULSE_DEMO_MACRO_ENABLED: 'true',
     MACROPULSE_RESEARCH_ENABLED: 'true',
     MACROPULSE_RESEARCH_HOSTNAME: 'demo.example',
+    MACROPULSE_RESEARCH_ORIGIN_KEYS: JSON.stringify([['fixture-signing', digest('synthetic signing key')]]),
+    MACROPULSE_RESEARCH_ORIGIN_ACTIVE_KID: 'fixture-signing',
+    MACROPULSE_RESEARCH_VERIFY_KEYS: JSON.stringify([['fixture-verify', digest('synthetic callback key')]]),
+    RESEARCH_VERIFY_RATE_LIMIT: { limit: async () => ({ success: true }) },
     MACROPULSE_RESEARCH_HASH_KEY: digest('synthetic hash key'),
     MACROPULSE_TURNSTILE_SITE_KEY: 'synthetic-site-key',
     MACROPULSE_TURNSTILE_SECRET: 'synthetic-secret-for-tests',
@@ -190,12 +194,13 @@ test('edge verifies same-origin Turnstile before origin, strips secrets, and kee
     }
     assert.equal(String(url), render + '/macro/analysis');
     generated++;
-    assert.equal(init.headers['X-MarketPulse-Origin'], secret);
+    assert.equal(init.headers['X-MarketPulse-Origin'], undefined);
+    assert.match(init.headers['X-MacroPulse-Origin-Signature'], /^[a-f0-9]{64}$/);
     assert.equal(init.headers['X-MarketPulse-Client-IP'], '192.0.2.1');
     assert.equal(init.headers['X-MacroPulse-Turnstile'], undefined);
     assert.equal(init.headers.Authorization, undefined);
     assert.ok(Number(init.headers['X-MacroPulse-Research-Expires']) > Date.now());
-    assert.deepEqual(JSON.parse(init.body), payload);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(init.body)), payload);
     return Response.json({ research_v2: true }, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
   });
   const result = await worker.fetch(edgeRequest(catalog), env);
@@ -496,7 +501,8 @@ test('public and administrator Research share Render validation and separate adm
     }
     assert.equal(String(url), render + '/macro/analysis');
     assert.equal(init.redirect, 'manual');
-    assert.equal(init.headers['X-MarketPulse-Origin'], secret);
+    assert.equal(init.headers['X-MarketPulse-Origin'], undefined);
+    assert.match(init.headers['X-MacroPulse-Origin-Signature'], /^[a-f0-9]{64}$/);
     assert.equal(init.headers['X-MarketPulse-Client-IP'], '192.0.2.1');
     assert.equal(init.headers[adminHeader], undefined);
     assert.equal(init.headers[adminCheckHeader], undefined);
@@ -504,7 +510,7 @@ test('public and administrator Research share Render validation and separate adm
     assert.equal(init.headers['X-MacroPulse-Turnstile'], undefined);
     assert.equal(JSON.stringify(init.headers).includes(credential), false);
     assert.ok(Number(init.headers['X-MacroPulse-Research-Expires']) - Date.now() >= 72_000);
-    assert.deepEqual(JSON.parse(init.body), payload);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(init.body)), payload);
     generated++;
     return Response.json(hybridResult, { headers: { 'X-MacroPulse-Research-Complete': 'true' } });
   });
@@ -553,7 +559,7 @@ test('public and administrator Research share Render validation and separate adm
     [adminPost(credential, { check: true, body: JSON.stringify(payload) }), 422],
   ]) assert.equal((await worker.fetch(request, env)).status, status);
   assert.equal((await worker.fetch(adminPost(credential), { ...env, MACROPULSE_RESEARCH_ENABLED: 'false' })).status, 503);
-  assert.equal((await worker.fetch(adminPost(credential), { ...env, MARKETPULSE_DEMO_ORIGIN_SECRET: '' })).status, 503);
+  assert.equal((await worker.fetch(adminPost(credential), { ...env, MACROPULSE_RESEARCH_ORIGIN_KEYS: '' })).status, 503);
   assert.equal(generated, 8);
 });
 
@@ -658,7 +664,8 @@ test('catalog does not advertise public Research without required bindings', asy
     headers: { 'X-MacroPulse-Public-Research': 'true' },
   }));
   for (const overrides of [{ RESEARCH_ATTEMPT_RATE_LIMIT: undefined }, { RESEARCH_ATTEMPT_RATE_LIMIT: {} },
-    { RESEARCH_QUOTA: undefined }]) {
+    { RESEARCH_QUOTA: undefined }, { RESEARCH_VERIFY_RATE_LIMIT: undefined },
+    { MACROPULSE_RESEARCH_ORIGIN_KEYS: '' }]) {
     const reply = await worker.fetch(edgeRequest(catalog), { ...env, ...overrides });
     assert.equal(reply.status, 200);
     assert.equal(reply.headers.get('X-MacroPulse-Turnstile-Sitekey'), null);

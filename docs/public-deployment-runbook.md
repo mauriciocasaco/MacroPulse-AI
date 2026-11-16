@@ -39,10 +39,38 @@ los logs de acceso, la depuración y las trazas de LangSmith. [Planes gratuitos]
   correspondiente al hostname como archivo secreto `macropulse-online-ca.pem`.
 - Configurar `MARKETPULSE_DEMO_ORIGIN_SECRET` con 32 bytes aleatorios
   representados por 64 caracteres hexadecimales minúsculos. Usar el mismo
-  secreto en Cloudflare. Los nombres internos conservan compatibilidad con M8.2.
+  secreto en Cloudflare. Este secreto autentica únicamente catálogo e históricos.
 - Comprobar que la consulta directa al origen sin secreto devuelve 403. Con la
   credencial y una IP de prueba, comprobar los cinco indicadores, sus fechas de
   cobertura, la lectura de históricos y el rechazo de las rutas de activos.
+
+### Corte coordinado de Research 12.S1
+
+1. Preparar `MACROPULSE_RESEARCH_ORIGIN_KEYS` y
+   `MACROPULSE_RESEARCH_VERIFY_KEYS` como secretos en ambos servicios.
+   Cloudflare usa `MACROPULSE_RESEARCH_ORIGIN_ACTIVE_KID` para firmar.
+   Render usa `MACROPULSE_RESEARCH_VERIFY_ACTIVE_KID` para autenticar el
+   callback. Configurar `MACROPULSE_RESEARCH_HOSTNAME` en ambos con el
+   hostname HTTPS exacto del Worker. Verificar el binding
+   `RESEARCH_VERIFY_RATE_LIMIT` y preservar el Durable Object y sus
+   dos instancias de presupuesto. Separar claves y bindings por entorno.
+2. Bloquear el ingreso público a Render mediante Maintenance Mode antes de
+   cambiar revisiones. Confirmar que una sonda externa recibe 503 y que
+   los accesos alternativos están restringidos. Apagar Research en ambos
+   servicios y esperar al menos 90 s desde la última admisión posible.
+   Prever una interrupción de lecturas que necesiten origen. Si el bloqueo
+   no está disponible, detener el corte. [Render Maintenance Mode](https://render.com/docs/maintenance-mode)
+3. Desplegar manualmente los SHA aprobados con Research apagado. Confirmar
+   que todas las instancias anteriores de Render hayan salido de servicio
+   antes de levantar el bloqueo. Verificar catálogo, históricos y rechazo
+   directo al origen con el secreto estático. Activar primero Research en
+   Render estricto y comprobar de nuevo el rechazo directo. Activar después
+   Research en el Worker y validar una investigación de cada vía autorizada.
+4. Para revertir, apagar Research y drenar los leases. Si una revisión de
+   rollback es anterior a la atestación, bloquear Render antes de
+   instalarla y verificar que todas sus instancias tengan Research apagado
+   antes de volver a abrirlo. Conservar cuotas y revocar claves comprometidas.
+   Reactivar Research con ambas revisiones compatibles y estrictas.
 
 ## Cloudflare y Gemini
 
@@ -56,7 +84,7 @@ Consultar también el [manual de operación del Worker](worker-operations.md) pa
    URLs de vista previa. [Dominio personalizado de Workers](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
 2. Para activar Research, crear una clave Gemini dedicada al servicio y guardarla
    como `MARKETPULSE_DEMO_GEMINI_API_KEY` solo en Render. Configurar
-   `MARKETPULSE_DEMO_RESEARCH_ENABLED=true`. El perfil usa `gemini-3.6-flash`
+   `MARKETPULSE_DEMO_RESEARCH_ENABLED` según el corte coordinado. El perfil usa `gemini-3.6-flash`
    y conserva hasta dos generaciones por investigación y el preflight de tokens.
    Research público admite 20 solicitudes por IP en 10 minutos móviles, 50 por IP
    al día UTC, 300 globales al día UTC y 1.000 globales al mes UTC, con hasta dos
@@ -66,16 +94,16 @@ Consultar también el [manual de operación del Worker](worker-operations.md) pa
    `MACROPULSE_RESEARCH_HOSTNAME`, `MACROPULSE_TURNSTILE_SITE_KEY`,
    `MACROPULSE_TURNSTILE_SECRET` y `MACROPULSE_RESEARCH_HASH_KEY` en Cloudflare.
    El hash usa otros 32 bytes aleatorios en hexadecimal. Fijar
-   `MACROPULSE_RESEARCH_ENABLED=true` en la configuración de Wrangler usada
-   para publicar. Conservar los secretos en Render o Cloudflare.
+   `MACROPULSE_RESEARCH_ENABLED` según el corte coordinado. Conservar los
+   secretos en los gestores de Render y Cloudflare.
 4. Verificar la instalación PWA, el período `All`, un histórico anterior a
    siete años, una pregunta con fechas libres y una con cita documental.
    Para apagar Research, desactivarlo primero en el Worker y luego en Render.
    El catálogo y los gráficos siguen disponibles. Para retirar la publicación,
    quitar el dominio del Worker y suspender Render. Revocar el login del lector
    con `ALTER ROLE macropulse_online_ro NOLOGIN PASSWORD NULL` y cerrar sus
-   sesiones activas. Para revertir una versión, desplegar un SHA compatible con
-   las vistas y repetir las comprobaciones del catálogo y de Research.
+   sesiones activas. Para revertir una versión del origen, seguir el rollback
+   del corte coordinado y verificar compatibilidad con las vistas.
 
 ## Acceso administrador de Research
 
