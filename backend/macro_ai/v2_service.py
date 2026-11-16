@@ -405,8 +405,21 @@ def compose_answer(state: State) -> dict:
         return {"draft": v2_gemini.compose(payload), "model_id": configured_model()}
     except ValidationError:
         return {"limitations": _note(state, _DRAFT_LIMITATION)}
+    except httpx.HTTPStatusError as error:
+        # Client-side 4xx (invalid credentials, request or permissions) is
+        # a service configuration fault, not a transient provider outage.
+        # Preserve the existing non-success response for these failures.
+        if error.response.status_code < 500 and error.response.status_code != 429:
+            raise
+        return {"limitations": _note(state, "Gemini drafting was unavailable. This summary uses verified evidence.")}
+    except (TimeoutError, httpx.RequestError, ValueError, LookupError, TypeError):
+        # The server already owns the checked facts and citations. A transient
+        # provider failure or malformed provider output must not turn those
+        # facts into a 503/504; validate_answer safely renders them itself.
+        # Research stage logging records the actual provider failure upstream.
+        return {"limitations": _note(state, "Gemini drafting was unavailable. This summary uses verified evidence.")}
     except Exception:
-        # Public runtimes retain their provider failure and deadline handling.
+        # Unknown public runtime defects must still surface; do not mask them.
         if runtime:
             raise
         return {"limitations": _note(state, "Gemini drafting was unavailable. This summary uses verified evidence.")}

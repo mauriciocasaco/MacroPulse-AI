@@ -688,7 +688,7 @@ def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch
 
 @pytest.mark.parametrize("provider_status", [400, 403, 429, 503])
 @pytest.mark.parametrize("phase", ["interpret", "compose"])
-def test_gemini_generation_logs_provider_status_and_keeps_generic_503(
+def test_gemini_generation_logs_provider_status_and_safe_transient_fallback(
     research_client, monkeypatch, caplog, phase, provider_status,
 ):
     caplog.set_level(logging.INFO, logger="uvicorn.error.macropulse.research")
@@ -732,7 +732,17 @@ def test_gemini_generation_logs_provider_status_and_keeps_generic_503(
     ))
     headers = {**research_headers(), demo.RESEARCH_ID_HEADER: RESEARCH_ID}
     reply = research_client.post(RESEARCH, headers=headers, json=params)
-    assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
+    recovered = phase == "compose" and provider_status in (429, 503)
+    if recovered:
+        assert reply.status_code == 200
+        assert reply.headers["X-MacroPulse-Research-Complete"] == "true"
+        payload = reply.json()
+        assert payload["status"] == "answered"
+        assert payload["narrative_kind"] == "deterministic" and payload["model_id"] is None
+        assert payload["narrative"] and all(item["citations"] for item in payload["narrative"])
+        assert any("Gemini drafting was unavailable" in item for item in payload["limitations"])
+    else:
+        assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
     assert demo.RESEARCH_ID_HEADER not in reply.headers
     assert calls == ["countTokens", "generateContent"] * (2 if phase == "compose" else 1)
 
@@ -746,7 +756,7 @@ def test_gemini_generation_logs_provider_status_and_keeps_generic_503(
         assert event["outcome"] == "error" and event["error_type"] == "HTTPStatusError"
         assert event["provider_http_status"] == provider_status
         assert event["research_id"] == RESEARCH_ID and event["duration_ms"] >= 0
-    assert next(event for event in events if event["stage"] == "fastapi.response")["http_status"] == 503
+    assert next(event for event in events if event["stage"] == "fastapi.response")["http_status"] == (200 if recovered else 503)
     for protected in (params["question"], "synthetic-url-credential", "synthetic private provider body",
                       "generativelanguage.googleapis.com", "AIza" + "f" * 35):
         assert protected not in caplog.text
