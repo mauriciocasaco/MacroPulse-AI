@@ -82,32 +82,25 @@ las alertas de la rama por defecto depende de que GitHub reevalúe sus manifiest
 
 ## Despliegue manual y rollback
 
-1. Registrar los SHA/versiones previos de Render y Cloudflare. Tras aprobación
-   de publicación y checks, desplegar primero el SHA revisado en Render por
-   **Manual Deploy**. Mantener la etiqueta de migración de Worker existente.
-   Esta fase no requiere cambios de esquema ni de credenciales.
-2. Mantener el Worker y bindings existentes `ASSETS`, `RESEARCH_QUOTA`,
-   `CATALOG_RATE_LIMIT` y `HISTORY_RATE_LIMIT`. Comprobar el nuevo
-   `RESEARCH_ATTEMPT_RATE_LIMIT` en [wrangler.jsonc](../frontend/wrangler.jsonc).
-   Conservar `MARKETPULSE_DEMO_MACRO_ENABLED`, `MARKETPULSE_DEMO_ORIGIN_URL`,
-   `MACROPULSE_RESEARCH_ENABLED`, `MACROPULSE_RESEARCH_HOSTNAME` y
-   `MACROPULSE_TURNSTILE_SITE_KEY`. Mantener `MARKETPULSE_DEMO_ORIGIN_SECRET`,
-   `MACROPULSE_RESEARCH_HASH_KEY`, `MACROPULSE_TURNSTILE_SECRET` y el opcional
-   `MACROPULSE_ADMIN_SECRET` en su gestor. Render conserva su configuración de
-   conexión de solo lectura y, si Research está habilitado, sus variables
-   del proveedor. Consultar [el runbook de publicación](public-deployment-runbook.md).
-   Tras autorización, desde `frontend` usar
-   `npx --yes wrangler@4.162.0 deploy --config wrangler.jsonc`.
-3. Con una prueba normal autorizada, verificar catálogo y gráficos en móvil
-   y escritorio, un Research con Turnstile y una comprobación de credencial
-   administrativa. Validar rechazos ante acceso directo a Render y confirmar
-   que los headers internos no se exponen. Observar errores 429/503,
-   consultas de históricos y uso del proveedor. Repetir una lectura de un
-   histórico con la misma URL sin generar una ráfaga.
-4. Si el problema es el caché, publicar la configuración
-   `MACROPULSE_PUBLIC_CACHE_ENABLED=false` manteniendo los límites. Si se
-   debe revertir el Worker completo, deshabilitar antes la credencial
-   administrativa mediante el procedimiento vigente si la versión de
-   destino no tiene presupuesto. Restaurar primero el Worker y, si hace
-   falta, el SHA anterior de Render. Conservar el almacenamiento de cuotas
-   y comprobar de nuevo catálogo, históricos y Research después del rollback.
+1. Registrar las versiones de Render y Cloudflare. Preparar la configuración
+   de ambos canales con claves por ambiente. Usar el mismo
+   `MACROPULSE_RESEARCH_HOSTNAME` en ambos componentes y preservar
+   `RESEARCH_QUOTA` y su migración SQLite existente. El binding
+   `RESEARCH_VERIFY_RATE_LIMIT` usa el namespace `4404` en el repositorio.
+   Confirmar que ese ID esté disponible en la cuenta antes de publicar.
+2. Usar el [corte coordinado de 12.S1](public-deployment-runbook.md#corte-coordinado-de-research-12s1).
+   Durante el corte, el callback permanece operativo con
+   `MACROPULSE_RESEARCH_ENABLED=false`, ya que solo consume solicitudes
+   previamente vinculadas. El frontend anuncia Research cuando Render lo
+   habilita y el Worker dispone de configuración y acceso al Durable Object.
+3. Tras la activación autorizada, verificar los flujos público con Turnstile
+   y administrativo, el rechazo del acceso directo a Render y la operación
+   de catálogo e históricos. Observar `worker.origin_attestation` y
+   `fastapi.origin_consume` por ID de correlación. Si falla el callback o la
+   configuración durante el corte, mantener Research apagado y seguir el
+   rollback del runbook.
+4. Para rotar claves, agregar cada clave nueva a su verificador antes de
+   cambiar el ID activo del emisor. Retirar el ID anterior transcurridos
+   90 s desde su última emisión posible. Ante compromiso, revocarlo de
+   inmediato y suspender Research si hace falta para completar la rotación.
+   [Contrato de atestación](security/fase-12-s1-contract.md#configuración-y-rotación)

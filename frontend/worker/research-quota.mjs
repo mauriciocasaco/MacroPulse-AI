@@ -11,7 +11,15 @@ const MAX_MONTHLY_RESERVATIONS = 1_000;
 const PUBLIC_LIMITS = { active: MAX_ACTIVE, daily: MAX_GLOBAL_DAILY, monthly: MAX_MONTHLY_RESERVATIONS };
 const ADMIN_LIMITS = { active: 1, daily: 50, monthly: 300 };
 const HASH = /^[a-f0-9]{64}$/;
-const ID = /^[a-f0-9-]{36}$/;
+const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+
+function originGrant(payload) {
+  if (!payload || typeof payload !== 'object' || Object.keys(payload).length !== 4) return false;
+  const { id, commitment, issuedAt, expires } = payload;
+  return typeof id === 'string' && ID.test(id) && typeof commitment === 'string' && HASH.test(commitment)
+    && Number.isSafeInteger(issuedAt) && Number.isSafeInteger(expires)
+    && issuedAt >= 1_000_000_000_000 && expires <= 9_999_999_999_999 && issuedAt < expires;
+}
 
 function seconds(ms) {
   return Math.max(1, Math.ceil(ms / 1000));
@@ -38,6 +46,10 @@ export class ResearchQuota {
       CREATE TABLE IF NOT EXISTS leases (
         id TEXT PRIMARY KEY, expires INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS origin_grants (
+        id TEXT PRIMARY KEY, commitment TEXT NOT NULL, issued_at INTEGER NOT NULL,
+        consumed INTEGER NOT NULL DEFAULT 0 CHECK (consumed IN (0, 1))
+      );
       CREATE TABLE IF NOT EXISTS admin_failures (
         visitor TEXT PRIMARY KEY, total INTEGER NOT NULL, expires INTEGER NOT NULL
       );
@@ -52,7 +64,18 @@ export class ResearchQuota {
       this.sql.exec('SELECT total FROM monthly_reservations LIMIT 1').toArray();
       return new Response(null, { status: 204 });
     }
-    const payload = await request.json();
+    let payload;
+    try {
+      payload = await request.json();
+    } catch {
+      return new Response(null, { status: 400 });
+    }
+    if (!payload || typeof payload !== 'object') return new Response(null, { status: 400 });
+    if (path === '/bind-origin' || path === '/consume-origin') {
+      if (!originGrant(payload)) return new Response(null, { status: 400 });
+      const changed = this.storage.transactionSync(() => this.transitionOrigin(path, payload, Date.now()));
+      return new Response(null, { status: changed ? 204 : 403 });
+    }
     if (path === '/admin-auth' && HASH.test(payload.visitor ?? '') && typeof payload.valid === 'boolean') {
       const result = this.storage.transactionSync(() => this.checkAdmin(payload, Date.now()));
       if (result.code === 'invalid' && await this.storage.getAlarm() === null) {
@@ -61,7 +84,10 @@ export class ResearchQuota {
       return Response.json(result);
     }
     if (path === '/release' && ID.test(payload.id ?? '')) {
-      this.sql.exec('DELETE FROM leases WHERE id = ?', payload.id);
+      this.storage.transactionSync(() => {
+        this.sql.exec('DELETE FROM origin_grants WHERE id = ?', payload.id);
+        this.sql.exec('DELETE FROM leases WHERE id = ?', payload.id);
+      });
       return new Response(null, { status: 204 });
     }
     if (!['/admit', '/admin-admit'].includes(path) || !HASH.test(payload.visitor ?? '') || !HASH.test(payload.token ?? '')
@@ -72,6 +98,22 @@ export class ResearchQuota {
       path === '/admin-admit' ? ADMIN_LIMITS : PUBLIC_LIMITS));
     if (await this.storage.getAlarm() === null) await this.storage.setAlarm(Date.now() + TOKEN_LIFETIME);
     return Response.json(result);
+  }
+
+  transitionOrigin(path, { id, commitment, issuedAt, expires }, now) {
+    if (issuedAt < now - 10_000 || issuedAt > now + 2_000 || expires <= now) return false;
+    const lease = this.sql.exec('SELECT expires FROM leases WHERE id = ?', id).toArray()[0];
+    if (lease?.expires !== expires) return false;
+    if (path === '/bind-origin') {
+      return this.sql.exec(`
+        INSERT INTO origin_grants (id, commitment, issued_at) VALUES (?, ?, ?)
+        ON CONFLICT(id) DO NOTHING RETURNING id
+      `, id, commitment, issuedAt).toArray().length === 1;
+    }
+    return this.sql.exec(`
+      UPDATE origin_grants SET consumed = 1
+      WHERE id = ? AND commitment = ? AND issued_at = ? AND consumed = 0 RETURNING id
+    `, id, commitment, issuedAt).toArray().length === 1;
   }
 
   async alarm() {
@@ -90,6 +132,7 @@ export class ResearchQuota {
   clean(now) {
     const day = Math.floor(now / DAY) * DAY;
     this.sql.exec('DELETE FROM leases WHERE expires <= ?', now);
+    this.sql.exec('DELETE FROM origin_grants WHERE id NOT IN (SELECT id FROM leases)');
     this.sql.exec('DELETE FROM tokens WHERE expires <= ?', now);
     this.sql.exec('DELETE FROM admin_failures WHERE expires <= ?', now);
     this.sql.exec('DELETE FROM attempts WHERE admitted < ? AND admitted <= ?', day, now - TEN_MINUTES);

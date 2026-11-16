@@ -1,6 +1,7 @@
 import { boundedBody } from './bounded-body.mjs';
+import { attestResearch, consumeOrigin, consumeOriginPath, originAttestationConfig } from './origin-attestation.mjs';
 import { publicCache, publicCacheHeader, publicCacheVersion, readPublicCache, writePublicCache } from './public-cache.mjs';
-import { researchErrorType, researchEvent, researchIdHeader } from './research-logging.mjs';
+import { researchErrorType, researchEvent } from './research-logging.mjs';
 import { researchLeaseMs } from './research-quota.mjs';
 import {
   adminCheckHeader, adminHeader, adminQuotaConfig, authenticateAdmin, configuredAdminSecret, maxResearchBody,
@@ -24,12 +25,15 @@ function error(status, detail, retry, code) {
   });
 }
 
-function origin(env) {
+function originUrl(env) {
   const raw = env.MARKETPULSE_DEMO_ORIGIN_URL ?? '';
+  return /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.onrender\.com\/?$/.test(raw) ? new URL(raw) : null;
+}
+
+function readOrigin(env) {
   const secret = env.MARKETPULSE_DEMO_ORIGIN_SECRET ?? '';
-  if (!/^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.onrender\.com\/?$/.test(raw)
-    || !/^[a-f0-9]{64}$/.test(secret) || new Set(secret).size < 12 || /^(.{1,32})\1+$/.test(secret)) return null;
-  return new URL(raw);
+  if (!/^[a-f0-9]{64}$/.test(secret) || new Set(secret).size < 12 || /^(.{1,32})\1+$/.test(secret)) return null;
+  return originUrl(env);
 }
 
 function macroWindow(query) {
@@ -46,6 +50,7 @@ function macroWindow(query) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === consumeOriginPath) return consumeOrigin(request, env, url);
     if (url.pathname !== '/api' && !url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     if (url.protocol !== 'https:') return error(403, 'Forbidden');
     const macroEnabled = env.MARKETPULSE_DEMO_MACRO_ENABLED === 'true';
@@ -72,7 +77,7 @@ export default {
     if (macro && !macroWindow(url.searchParams)) return error(422, 'Invalid request parameters');
     if (request.body) return error(413, 'Request too large');
 
-    const base = origin(env);
+    const base = readOrigin(env);
     const ip = request.headers.get('CF-Connecting-IP');
     const limiter = catalog ? env.CATALOG_RATE_LIMIT : env.HISTORY_RATE_LIMIT;
     if (!base || !ip || !/^[0-9a-fA-F:.]{1,45}$/.test(ip) || !limiter) {
@@ -133,7 +138,7 @@ export default {
       });
       if (catalog && headers.get(publicResearchHeader) === 'true') {
         const config = researchConfig(env, url);
-        if (config && await quotaReady(config)) responseHeaders.set(siteKeyHeader, config.sitekey);
+        if (config && originAttestationConfig(env) && await quotaReady(config)) responseHeaders.set(siteKeyHeader, config.sitekey);
       }
       return new Response(body, { status, headers: responseHeaders });
     } catch (cause) {
@@ -180,9 +185,17 @@ async function serveResearch(request, env, ctx, url, researchId) {
   function record(errorType, status) {
     researchEvent(researchId, stage, started, errorType, status);
   }
-  const base = origin(env);
+  const base = originUrl(env);
   const ip = request.headers.get('CF-Connecting-IP');
   let timeout;
+  let config;
+  let id;
+  let dispatched = false;
+  function releaseLease() {
+    const release = releaseResearch(config, id, researchId).catch(() => {});
+    if (ctx) ctx.waitUntil(release);
+    return ctx ? undefined : release;
+  }
   try {
     if (!researchEnabled(env, url) || !base || !ip || !/^[0-9a-fA-F:.]{1,45}$/.test(ip)) {
       record('InvalidResearchConfiguration', 503);
@@ -191,7 +204,7 @@ async function serveResearch(request, env, ctx, url, researchId) {
     const credential = request.headers.get(adminHeader);
     const check = request.headers.get(adminCheckHeader);
     const adminRequested = credential !== null || check !== null;
-    let config = adminRequested ? null : researchConfig(env, url, researchId);
+    config = adminRequested ? null : researchConfig(env, url, researchId);
     if (!adminRequested && !config) {
       record('InvalidAdmissionConfiguration', 503);
       return error(503, 'Public Research is unavailable');
@@ -208,7 +221,6 @@ async function serveResearch(request, env, ctx, url, researchId) {
     const bytes = await boundedBody(request.body, maxResearchBody, AbortSignal.timeout(3000));
     if (!bytes) return error(413, 'Request too large');
     const adminSecret = configuredAdminSecret(env);
-    let id;
     let expires;
     if (adminRequested) {
       begin('worker.admin_auth');
@@ -224,9 +236,11 @@ async function serveResearch(request, env, ctx, url, researchId) {
       }
       config = adminQuotaConfig(env);
     }
+    const attestation = originAttestationConfig(env);
+    if (!attestation) return error(503, 'Public Research is unavailable');
     let body;
     try {
-      body = readResearchPayload(bytes, adminSecret);
+      body = new TextEncoder().encode(readResearchPayload(bytes, adminSecret));
     } catch {
       return error(422, 'Invalid request parameters');
     }
@@ -253,17 +267,27 @@ async function serveResearch(request, env, ctx, url, researchId) {
       }
       record();
     }
+    begin('worker.origin_attestation');
+    let headers;
+    try {
+      headers = await attestResearch(attestation, config.quota, {
+        id, expires, scope: adminRequested ? 'admin' : 'public', researchId, ip, body,
+      });
+    } catch (cause) {
+      record(researchErrorType(cause), 503);
+      return error(503, 'Public Research is unavailable');
+    }
+    if (expires - Date.now() < researchTimeoutMs + leaseHeadroomMs) {
+      record('InvalidResearchLease', 503);
+      return error(503, 'Public Research is unavailable');
+    }
+    record();
     timeout = AbortSignal.timeout(researchTimeoutMs);
     begin('worker.render_fetch');
+    dispatched = true;
     const upstream = await fetch(new URL('/macro/analysis', base), {
       method: 'POST', body, redirect: 'manual', cache: 'no-store', signal: timeout,
-      headers: {
-        Accept: 'application/json', 'Content-Type': 'application/json',
-        'X-MarketPulse-Origin': env.MARKETPULSE_DEMO_ORIGIN_SECRET,
-        'X-MarketPulse-Client-IP': ip,
-        'X-MacroPulse-Research-Expires': String(expires),
-        [researchIdHeader]: researchId,
-      },
+      headers: { Accept: 'application/json', ...headers },
     });
     if (timeout.aborted) {
       void upstream.body?.cancel().catch(() => {});
@@ -272,11 +296,7 @@ async function serveResearch(request, env, ctx, url, researchId) {
     record(upstream.status === 200 ? undefined : 'UnexpectedUpstreamStatus', upstream.status);
     const knownCompleted = [200, 400, 403, 405, 408, 413, 415, 422].includes(upstream.status)
       && upstream.headers.get('X-MacroPulse-Research-Complete') === 'true';
-    if (knownCompleted && config) {
-      const release = releaseResearch(config, id, researchId).catch(() => {});
-      if (ctx) ctx.waitUntil(release);
-      else await release;
-    }
+    if (knownCompleted) await releaseLease();
     if (upstream.status !== 200) {
       void upstream.body?.cancel().catch(() => {});
       if (upstream.status === 504) return error(504, 'Public Research timed out');
@@ -308,5 +328,7 @@ async function serveResearch(request, env, ctx, url, researchId) {
     record(timedOut ? 'TimeoutError' : researchErrorType(cause), timedOut ? 504 : 503);
     if (timedOut) return error(504, 'Public Research timed out');
     return error(503, 'Public Research is unavailable');
+  } finally {
+    if (id && config && !dispatched) await releaseLease();
   }
 }

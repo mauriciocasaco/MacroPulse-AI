@@ -25,3 +25,11 @@ services:
         value: /etc/secrets/macropulse-online-ca.pem
       - key: MARKETPULSE_DEMO_ORIGIN_SECRET
         sync: false
+      - key: MACROPULSE_RESEARCH_ORIGIN_KEYS
+        sync: false
+      - key: MACROPULSE_RESEARCH_VERIFY_KEYS
+        sync: false
+      - key: MACROPULSE_RESEARCH_VERIFY_ACTIVE_KID
+        sync: false
+      - key: MACROPULSE_RESEARCH_HOSTNAME
+        sync: false

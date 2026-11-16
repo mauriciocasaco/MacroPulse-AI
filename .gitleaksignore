@@ -1,0 +1,2 @@
+# The historical test-only visitor hash key is a synthetic, deterministic fixture.
+6238e609bb895f713115bc983439de01639c0a8d:frontend/worker/origin-attestation.node-test.mjs:generic-api-key:22

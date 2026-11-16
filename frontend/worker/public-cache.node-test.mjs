@@ -109,6 +109,10 @@ test('catalog caches only its body and refreshes upstream and Worker Research se
   let upstreamEnabled = true;
   let ready = true;
   const config = { ...env, MACROPULSE_RESEARCH_ENABLED: 'true', MACROPULSE_RESEARCH_HOSTNAME: 'demo.example',
+    MACROPULSE_RESEARCH_ORIGIN_KEYS: JSON.stringify([['fixture-signing', digest('fixture signature')]]),
+    MACROPULSE_RESEARCH_ORIGIN_ACTIVE_KID: 'fixture-signing',
+    MACROPULSE_RESEARCH_VERIFY_KEYS: JSON.stringify([['fixture-verification', digest('fixture verification')]]),
+    RESEARCH_VERIFY_RATE_LIMIT: allowed,
     RESEARCH_ATTEMPT_RATE_LIMIT: allowed,
     MACROPULSE_TURNSTILE_SITE_KEY: 'synthetic-site-key', MACROPULSE_TURNSTILE_SECRET: 'synthetic-turnstile-secret',
     MACROPULSE_RESEARCH_HASH_KEY: digest('synthetic hash'),

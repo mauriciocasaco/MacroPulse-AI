@@ -6,7 +6,6 @@ from datetime import date, datetime, timedelta
 from hashlib import sha256
 from io import StringIO
 import json
-from time import time
 
 from fastapi.testclient import TestClient
 import psycopg
@@ -194,7 +193,7 @@ def test_projection_refuses_a_capture_missing_later_event_windows(tmp_path):
 
 
 def test_snapshot_import_idempotence_stale_guard_and_rollback(
-    captured, shared_demo_database, install_demo, monkeypatch,
+    captured, shared_demo_database, install_demo, monkeypatch, research_attestation,
 ):
     manifest_path = captured / "manifest.json"
     raw_manifest = manifest_path.read_bytes()
@@ -278,10 +277,10 @@ def test_snapshot_import_idempotence_stale_guard_and_rollback(
             result = read_history(reader, CATALOG["deposit-rate"], MacroWindow(start=START, end=END), max_points=2600)
             assert result.coverage_start == date(2019, 12, 2) and result.coverage_end == END
             assert [row.period_raw for row in result.observations] == ["2019-12-02", "2020-02-10", "2024-06-12"]
-        _check_imported_public_app(dsn, manifest, rows, monkeypatch)
+        _check_imported_public_app(dsn, manifest, rows, monkeypatch, research_attestation)
 
 
-def _check_imported_public_app(dsn, manifest, publications, monkeypatch):
+def _check_imported_public_app(dsn, manifest, publications, monkeypatch, research_attestation):
     from backend.macro_ai import v2_retrieval, v2_service
     from backend.macro_ai.public_gemini import PublicGemini
 
@@ -290,6 +289,7 @@ def _check_imported_public_app(dsn, manifest, publications, monkeypatch):
     role_dsn = make_conninfo(dsn, user=demo.RO_ROLE, password=password)
     host = f"db.{demo.SHARED_PROJECT_REF}.supabase.co"
     monkeypatch.setattr(demo.os, "environ", {
+        **research_attestation.environment,
         "MARKETPULSE_MODE": "public_demo",
         "MARKETPULSE_DEMO_ALLOW_SHARED_PROJECT": "true",
         "MARKETPULSE_DEMO_PROJECT_REF": demo.SHARED_PROJECT_REF,
@@ -361,8 +361,7 @@ def _check_imported_public_app(dsn, manifest, publications, monkeypatch):
         assert client.post(research, json=params).status_code == 403
         assert client.post(research, headers=headers, json=params).status_code == 403
         assert gemini_calls == []
-        headers["X-MacroPulse-Research-Expires"] = str(int(time() * 1000) + 90_000)
-        result = client.post(research, headers=headers, json=params)
+        result = research_attestation.post(client, params)
         assert result.status_code == 200 and result.headers["X-MacroPulse-Research-Complete"] == "true"
         payload = result.json()
         assert payload["research_v2"] is True and payload["support"] == "partial"

@@ -15,7 +15,6 @@ from pathlib import Path
 import re
 from time import monotonic, time
 from typing import Annotated, TYPE_CHECKING
-from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -28,6 +27,7 @@ from .macro_data.api import MacroHistory, MacroWindow, indicator_metadata
 from .macro_data.contracts import CATALOG
 from .macro_data.public import read_history, verify_projection
 from .market_data.api_config import _ROLE_CHECK, _WRITE_PRIVILEGES, is_dev_target
+from .origin_attestation import Attestation, RESEARCH_PATH, consume_grant, origin_config
 from .research_logging import research_event, research_id, research_stage
 
 if TYPE_CHECKING:
@@ -37,7 +37,6 @@ ORIGIN_HEADER = "x-marketpulse-origin"
 CLIENT_IP_HEADER = "x-marketpulse-client-ip"
 RESEARCH_HEADER = "X-MacroPulse-Public-Research"
 RESEARCH_ID_HEADER = "X-MacroPulse-Research-Id"
-_RESEARCH_ID = re.compile(r"[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}")
 MAX_WINDOW_DAYS = 2600
 MAX_BODY = 4096
 MAX_RESEARCH_RESPONSE = 64 * 1024
@@ -50,7 +49,6 @@ RO_ROLE = "marketpulse_demo_ro"
 SHARED_PROJECT_REF = "swpithkjviavycrxpwed"
 _MACRO_CATALOG_PATH = "/macro/indicators"
 _MACRO_HISTORY_PATHS = frozenset(f"{_MACRO_CATALOG_PATH}/{key}/history" for key in CATALOG)
-_RESEARCH_PATH = "/macro/analysis"
 _NON_DEMO_SETTINGS = frozenset({
     "MARKET_API_DSN", "MACRO_API_DSN", "MACRO_API_MODE", "DATABASE_URL", "MARKETPULSE_DEV_PROJECT_REF",
     "USER_RO", "PASS_USER_RO", "HOST_RO", "PORT_RO", "DB_RO", "SSL_MODE_RO", "SSL_ROOT_CERT_RO",
@@ -308,7 +306,8 @@ def create_public_app(
         lambda connection, item, window: read_history(connection, item, window, max_points=MAX_WINDOW_DAYS)
     )
     research_parser = research_parser or parse_research
-    research = _research_config(os.environ)
+    attestation_config = origin_config(os.environ, settings.origin_secret)
+    research = _research_config(os.environ) if attestation_config else None
     if research:
         try:
             with research_stage("fastapi.research_preload", startup=True):
@@ -338,12 +337,9 @@ def create_public_app(
     read_in_flight = 0
     research_tasks = set()
 
-    @app.post(_RESEARCH_PATH)
+    @app.post(RESEARCH_PATH)
     async def respond_to_research(request: Request) -> Response:
-        # The origin middleware has already authenticated the Worker. Older
-        # Workers can omit the ID, and duplicate or malformed IDs are discarded.
-        ids = request.headers.getlist(RESEARCH_ID_HEADER)
-        token = research_id.set(ids[0] if len(ids) == 1 and _RESEARCH_ID.fullmatch(ids[0]) else str(uuid4()))
+        token = research_id.set(request.state.attested_research_id)
         try:
             return await serve_research(request)
         finally:
@@ -351,21 +347,12 @@ def create_public_app(
 
     async def serve_research(request: Request) -> Response:
         started = monotonic()
-        if research is None:
-            research_event("fastapi.admission", started, "ResearchUnavailable", http_status=503)
-            return _error(503, "Public Research is unavailable")
-        expires = request.headers.getlist("x-macropulse-research-expires")
-        if len(expires) != 1 or not re.fullmatch(r"[0-9]{13}", expires[0]):
-            return _error(403, "Forbidden")
-        remaining = int(expires[0]) / 1000 - time()
-        if not RESEARCH_SECONDS + LEASE_HEADROOM_SECONDS < remaining <= (
-            RESEARCH_LEASE_SECONDS + LEASE_CLOCK_SKEW_SECONDS
-        ):
-            research_event("fastapi.admission", started, "InvalidResearchDeadline", http_status=403)
-            return _error(403, "Forbidden")
         try:
             params = research_parser(request.state.research_body)
-            if settings.origin_secret in params.question or (db_password and db_password in params.question):
+            if ((db_password and db_password in params.question)
+                    or any(secret in params.question for secret in (
+                        settings.origin_secret, *attestation_config.sensitive_values,
+                    ))):
                 raise ValueError("Sensitive input")
         except ValueError:
             response = _error(422, "Invalid request parameters")
@@ -424,27 +411,35 @@ def create_public_app(
     @app.middleware("http")
     async def restrict(request: Request, call_next):
         nonlocal read_in_flight
-        credentials = request.headers.getlist(ORIGIN_HEADER)
-        if len(credentials) != 1 or not hmac.compare_digest(
-            credentials[0].encode("latin-1"), settings.origin_secret.encode("ascii")
-        ):
-            return _error(403, "Forbidden")
-        ips = request.headers.getlist(CLIENT_IP_HEADER)
-        try:
-            if len(ips) != 1 or len(ips[0]) > 45 or "%" in ips[0]:
-                raise ValueError
-            address = ip_address(ips[0])
-            if address.version == 6 and address.ipv4_mapped:
-                address = address.ipv4_mapped
-        except ValueError:
-            return _error(403, "Forbidden")
-
         path = request.scope["path"]
+        analysis = path == RESEARCH_PATH
+        if analysis:
+            if request.headers.getlist(ORIGIN_HEADER):
+                return _error(403, "Forbidden")
+            try:
+                attestation = Attestation.from_request(request)
+            except ValueError:
+                return _error(403, "Forbidden")
+        else:
+            credentials = request.headers.getlist(ORIGIN_HEADER)
+            if len(credentials) != 1 or not hmac.compare_digest(
+                credentials[0].encode("latin-1"), settings.origin_secret.encode("ascii")
+            ):
+                return _error(403, "Forbidden")
+            ips = request.headers.getlist(CLIENT_IP_HEADER)
+            try:
+                if len(ips) != 1 or len(ips[0]) > 45 or "%" in ips[0]:
+                    raise ValueError
+                address = ip_address(ips[0])
+                if address.version == 6 and address.ipv4_mapped:
+                    address = address.ipv4_mapped
+            except ValueError:
+                return _error(403, "Forbidden")
+
         raw_path = request.scope.get("raw_path", b"")
         if raw_path != path.encode("utf-8") or len(request.scope["query_string"]) > 256:
             return _error(400, "Invalid request")
         operation = "catalog" if path == _MACRO_CATALOG_PATH else "history" if path in _MACRO_HISTORY_PATHS else None
-        analysis = path == _RESEARCH_PATH
         if not (operation or analysis):
             return _error(404, "Not found")
         if request.method != ("POST" if analysis else "GET") and not (
@@ -462,8 +457,7 @@ def create_public_app(
         if lengths and int(lengths[0]) > max_body:
             return _error(413, "Request too large")
         types = request.headers.getlist("content-type")
-        if analysis and (len(types) != 1 or types[0].split(";")[0].strip().lower() != "application/json"
-                         or request.headers.get("content-encoding")):
+        if analysis and (types != ["application/json"] or request.headers.getlist("content-encoding")):
             return _error(415, "Expected JSON")
         try:
             body = bytearray()
@@ -477,6 +471,37 @@ def create_public_app(
         except Exception:
             return _error(400, "Invalid request")
         if analysis:
+            if attestation_config is None:
+                return _error(503, "Public Research is unavailable")
+            commitment = attestation.authenticate(attestation_config, body, int(time() * 1000))
+            if commitment is None:
+                return _error(403, "Forbidden")
+            if research is None:
+                token = research_id.set(attestation.research_id)
+                try:
+                    research_event("fastapi.admission", monotonic(), "ResearchUnavailable", http_status=503)
+                finally:
+                    research_id.reset(token)
+                return _error(503, "Public Research is unavailable")
+            remaining = attestation.expires / 1000 - time()
+            if not RESEARCH_SECONDS + LEASE_HEADROOM_SECONDS < remaining <= (
+                RESEARCH_LEASE_SECONDS + LEASE_CLOCK_SKEW_SECONDS
+            ):
+                return _error(403, "Forbidden")
+            started = monotonic()
+            token = research_id.set(attestation.research_id)
+            try:
+                consumed = await consume_grant(attestation_config, attestation, commitment)
+                if consumed is None:
+                    research_event("fastapi.origin_consume", started, "OriginConsumeUnavailable", http_status=503)
+                    return _error(503, "Public Research is unavailable")
+                if not consumed or attestation.expires / 1000 - time() <= RESEARCH_SECONDS + LEASE_HEADROOM_SECONDS:
+                    research_event("fastapi.origin_consume", started, "OriginConsumeRejected", http_status=403)
+                    return _error(403, "Forbidden")
+                research_event("fastapi.origin_consume", started, http_status=204)
+            finally:
+                research_id.reset(token)
+            request.state.attested_research_id = attestation.research_id
             request.state.research_body = body
             return await call_next(request)
         if read_in_flight >= settings.concurrency:
