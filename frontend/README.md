@@ -59,7 +59,7 @@ Vite usa el puerto fijo `5173` en loopback. Si el puerto `8000` ya está ocupado
 
 ## iPhone testing on a private LAN
 
-For normal Windows use, start both listeners with the [one-click launcher](../docs/development/windows.md#windows-launchers-and-private-lan).
+For normal Windows use, start both listeners with the [PowerShell launcher](../docs/development/windows.md#powershell-launcher-and-private-lan).
 The steps below describe manual Vite development with a single approved device.
 
 Use PowerShell 7.4 or later. Connect the iPhone to the same trusted private
@@ -81,7 +81,7 @@ Run the following from the same repository root. It opens separate PowerShell
 windows for FastAPI and Vite. Enter the authorized read-only loopback PostgreSQL
 DSN and Gemini key at the masked prompts in the FastAPI window. If you already
 use an authorized read-only DEV configuration, follow its
-[backend setup](../docs/macro/m6-3-local-ai-validation.md#powershell-7)
+[backend setup](../docs/research-v2.md#activaci%C3%B3n-local)
 for the database settings and keep the exact Uvicorn host and port shown below.
 
 ```powershell
@@ -276,8 +276,8 @@ npm.cmd run test:browser
 Remove-Item Env:MACRO_BROWSER
 ```
 
-For a manual check with the authorized development backend, launch
-**MacroPulse AI.bat**, open `http://127.0.0.1:5173/`, and select **Explore Macro Data**.
+For a manual check with the authorized development backend, use the
+[PowerShell launcher](../docs/development/windows.md#powershell-launcher-and-private-lan), open `http://127.0.0.1:5173/`, and select **Explore Macro Data**.
 Switch indicators and periods, check the source and exact tooltip values, then
 open **Ask LLM Model** and submit an edited question for a historical event.
 Enable **Use experimental Research v2** in a local workspace that advertises

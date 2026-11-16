@@ -2,13 +2,18 @@
 
 Use this guide from a local MacroPulse AI checkout. See the [main development guide](../../README.md#local-development) for the manual loopback workflow.
 
-## Windows launchers and private LAN
+## PowerShell launcher and private LAN
 
-On Windows 11, double-click [MacroPulse AI.bat](../../MacroPulse%20AI.bat). It opens MacroPulse AI in the default browser at `http://127.0.0.1:5173/` and shows the iPhone Safari URL on the page. Connect the iPhone and PC to the same trusted network and use the **Private** network profile on the PC. The launcher detects the PC's address each time the services start.
+Run the PowerShell launcher from the repository root on Windows 11. It opens the browser at `http://127.0.0.1:5173/` and displays the iPhone Safari URL. Connect both devices to the same trusted network and select the **Private** profile on the PC.
 
-1. Run [Install MacroPulse AI.bat](../../Install%20MacroPulse%20AI.bat) once to add **MacroPulse AI** to Start. Find it in Start search and choose **Pin to taskbar** if that option is available. The shortcut uses the Windows command processor and the MacroPulse icon. [Windows taskbar instructions](https://support.microsoft.com/en-us/windows/experience/personalization/customize-the-taskbar-in-windows)
-2. If Windows Firewall blocks Safari on the private network, run [Enable MacroPulse AI LAN.bat](../../Enable%20MacroPulse%20AI%20LAN.bat) once and approve the Windows elevation prompt. It adds an inbound rule for Node on TCP 5173, the selected interface, the Private profile and local subnet. Run setup again if you switch adapters or change the Node installation path. Daily launches run with ordinary user permissions.
-3. Click **MacroPulse AI** again to reopen the page using the running services. Use [Stop MacroPulse AI.bat](../../Stop%20MacroPulse%20AI.bat) to stop them. Restart the launcher after changing the network or editing frontend source so it can rebuild the local frontend.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\dev-all.ps1 -Action Start
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\dev-all.ps1 -Action Stop
+```
+
+Run the same command with `-Action Install` to create or update the **MacroPulse AI** Start menu shortcut. It runs the PowerShell launcher directly. Run it again with `-Action Start` to open the running app. Stop and restart after editing frontend source or changing networks.
+
+If Windows Firewall blocks Safari, run the command with `-Action Firewall` and approve the Windows elevation prompt. It allows Node on TCP 5173 for the selected interface, Private profile, and local subnet. Run it again after changing adapters or the Node installation path.
 
 The launcher uses the existing DEV read-only settings and Gemini key from the backend environment or ignored root `.env`. FastAPI listens on `127.0.0.1:8000`, and both frontend listeners serve the same compiled app. The LAN proxy accepts only peers on the selected private subnet and allows up to 60 history requests and three research submissions per rolling minute across the LAN listener. LAN access uses HTTP, so use it only on a trusted private network.
 

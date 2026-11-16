@@ -1,4 +1,4 @@
-# Fase 8.2A · Contrato de PostgreSQL compartido
+# Contrato de la proyección PostgreSQL compartida
 
 El proyecto aprobado para la Fase 8.2 es `swpithkjviavycrxpwed`, base `postgres`. El esquema `marketpulse_demo` contiene dos tablas ordinarias con una copia sanitizada de cinco series oficiales. La conexión pública usa `marketpulse_demo_ro` por TLS `verify-full`. Research v2 conserva las series, las ventanas, la procedencia y los contratos de Fase 8.1.
 
@@ -52,7 +52,7 @@ Un bundle reproduce lo observado en sus instantes de captura. Las series con rev
 
 Las huellas de proyección siguen la serialización de la Fase 8.1. Se calculan offline desde los valores validados y PostgreSQL vuelve a calcularlas desde los valores almacenados antes de confirmar la transacción. El importador verifica la identidad administrativa y el modo normal de ejecución de triggers, bloquea ambas tablas y vuelve a validar el aislamiento antes de escribir. Comprueba si hay observaciones huérfanas por separado de las huellas, tanto antes de omitir una carga idéntica como después de copiar. Exige un hash de manifiesto aprobado para `--apply` y puede reparar el mismo bundle si se detectan huérfanas o datos alterados, incluso cuando se reescribieron los hashes en la base. Una carga ordinaria rechaza capturas anteriores o en conflicto.
 
-## Procedimiento previsto para la Fase 8.2
+## Aprovisionamiento de la proyección
 
 1. Verificar de forma independiente que el host, el proyecto, la base, la identidad administrativa y el certificado CA correspondan a `swpithkjviavycrxpwed`. Usar PostgreSQL 17 o posterior. Coordinar una ventana sin DDL ni cambios de grants concurrentes, confirmar que el lector esté deshabilitado y sin sesiones previas, y revisar los event triggers que puedan responder al DDL.
 2. Confirmar por el plano administrativo que la autenticación solo permita al lector el destino acordado. La identidad PostgreSQL tiene alcance de clúster. El verificador inspecciona privilegios dentro de la base objetivo y dependencias de ACL y propiedad del rol, mientras que las rutas de autenticación, `CONNECT` heredado por `PUBLIC` en otras bases y las ACL de objetos de esas bases requieren comprobación operativa. Revisar también las ACL iniciales y los grants de `PUBLIC` del proyecto. Un canal compartido como `LISTEN/NOTIFY`, nombres de objetos, definiciones SQL y metadatos visibles de PostgreSQL debe mantenerse libre de datos privados o secretos. Si el proyecto no permite garantizar ese límite, **NO-GO**. [Semántica de NOTIFY](https://www.postgresql.org/docs/17/sql-notify.html).

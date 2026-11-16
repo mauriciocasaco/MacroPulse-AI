@@ -19,7 +19,23 @@ data/
 *.jsonl
 *.csv
 *.db
+*.sqlite
 *.sqlite3
+*.sqlite3-*
+*.log
+
+# Versioned evidence snapshots and retrieval fixtures
+!/resources/evidence/m7a/candidates.jsonl
+!/resources/evidence/m7a/gdelt-metadata.jsonl
+!/resources/evidence/m7a/rejected.jsonl
+!/resources/evidence/m7b/curated-documents.jsonl
+!/resources/evidence/m7b/evidence-claims.jsonl
+!/resources/evidence/m7b/expansion-candidates.jsonl
+!/resources/evidence/m7b/review-decisions.jsonl
+!/tests/fixtures/retrieval/evaluation.jsonl
+!/tests/fixtures/retrieval/evidence-gate-fix-holdout.jsonl
+!/tests/fixtures/retrieval/holdout.jsonl
+!/tests/fixtures/retrieval/ranker-selection.jsonl
 
 # Frontend
 node_modules/

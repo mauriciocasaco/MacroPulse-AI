@@ -71,7 +71,7 @@ both series can represent different observation times. `retrieved_at`
 records when the provider value was retrieved. It gives no historical
 availability guarantee for point-in-time backtests.
 
-## Phase 2.6 DEV audit
+## Verifying a development import
 
 The following command uses the existing DEV connection guard and verifies
 the initial archives locally before opening a repeatable-read, read-only
@@ -83,30 +83,6 @@ the negative WTI observation. The historical window is
 ```powershell
 python -m backend.market_data.dev_audit --input-dir ./data/backfills/normalized/2019-11-08_2026-11-08 --archive-dir ./data/backfills
 ```
-
-The DEV snapshot at 2026-11-08 23:07:14 UTC contained 11,352 bars and 12
-completed runs (six succeeded and six partial). All six series start
-2019-11-08. BTC-USD has 2,557 bars through 2026-11-07. GC=F has 1,761,
-CL=F has 1,760, and ^GSPC, VT and VWO each have 1,758 through 2026-11-06.
-Each pass received 11,358 observations and recorded the same six source
-rejections. The first pass inserted 11,352 bars and the replay recorded
-11,352 unchanged, with zero corrections or stale observations in either
-pass. All bars matched their verified archives and linked the original
-run to the matching replay. All reported integrity counters were zero.
-Adjusted close was present on all bars and differed from close on 1,722
-observations each for VT and VWO. WTI retained a close of about
-−37.63 USD/bbl on 2020-04-20.
-
-The B-tree primary key on `price_bars` starts with
-`(asset_source_id, interval, bar_date)`. On DEV, `EXPLAIN` without
-`ANALYZE` used that key for the bar-access portion of the BTC full
-history and date-range queries, and scanned it backward under `LIMIT`
-for the 20 latest WTI observations. The BTC/WTI range probe used the same
-key and sorted an estimated 55 rows by date and mapping. These are
-planner estimates for the bar filters and ordering, without join or
-end-to-end latency measurements. The run and last-seen indexes support
-provenance lookups. The observed plans support keeping the existing
-indexes at the current dataset size.
 
 ## Historical import
 

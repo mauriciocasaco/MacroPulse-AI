@@ -4,7 +4,7 @@ M8.3 sirve la PWA en Cloudflare y tres rutas macroeconómicas en FastAPI.
 El catálogo y las observaciones se leen en tiempo real desde vistas sobre
 `macro_data` en el Supabase `swpithkjviavycrxpwed`. Las vistas filtran
 campos internos y valores confidenciales. No se necesita cargar un bundle.
-Los procedimientos históricos de M8.2 están documentados en [el contrato de la proyección](m8-shared-db-contract.md).
+El perfil alternativo usa [el contrato de la proyección](demo-projection.md).
 
 ## Supabase
 
@@ -45,6 +45,8 @@ los logs de acceso, la depuración y las trazas de LangSmith. [Planes gratuitos]
   cobertura, la lectura de históricos y el rechazo de las rutas de activos.
 
 ## Cloudflare y Gemini
+
+Consultar también el [manual de operación del Worker](worker-operations.md) para límites, caché y rollback.
 
 1. En `frontend`, ejecutar `npm ci` y `npm run build:public`. Desplegar con
    [wrangler.jsonc](../frontend/wrangler.jsonc) en el Worker existente para
@@ -242,14 +244,13 @@ invocación. [Logs en tiempo real de Cloudflare](https://developers.cloudflare.c
 
 ## Evidencia documental
 
-Render carga los 24 documentos y 47 afirmaciones de M7.B desde el repositorio.
+El [corpus M7.B versionado](../resources/evidence/m7b/README.md) contiene 30 documentos y 53 afirmaciones aprobadas.
 El grafo usa TF-IDF, el recuperador predeterminado local, con los mismos filtros
 de pertinencia, geografía, período y publicación. La fecha de publicación limita
 la evidencia documental. Las observaciones usan la última captura disponible
 y pueden contener revisiones posteriores al período investigado.
 
-La inspección de `news` encontró 57 registros de EIA, 242 de la Reserva Federal
-y 20 de GDELT. El perfil integra el artículo de EIA sobre la exposición
+El recuperador complementario puede usar el artículo de EIA sobre la exposición
 energética de Europa como contexto para HICP. Verifica los permisos vigentes
 de su registro de origen y utiliza una paráfrasis revisada. El piloto histórico
 autoriza el corpus original para inferencia local. Los textos y embeddings

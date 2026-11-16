@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def main() -> None:
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument("--corpus", type=Path, default=ROOT / "docs/m7b")
+    parser.add_argument("--corpus", type=Path, default=ROOT / "resources/evidence/m7b")
     parser.add_argument("--model-cache", type=Path)
     commands = parser.add_subparsers(dest="command", required=True)
     query = commands.add_parser("query")

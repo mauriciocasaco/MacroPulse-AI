@@ -1,0 +1,4 @@
+# Keep versioned evidence and benchmark hashes stable on Windows checkouts.
+/resources/evidence/*/*.json text eol=lf
+/resources/evidence/*/*.jsonl text eol=lf
+/tests/fixtures/retrieval/*.jsonl text eol=lf

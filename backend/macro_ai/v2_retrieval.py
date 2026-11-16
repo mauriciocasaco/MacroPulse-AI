@@ -19,7 +19,7 @@ APPROVED_SNAPSHOT = "ff38a3e14748fbcc3453a46f06de3968429fa9329a619fef3b99d01be60
 
 @lru_cache(maxsize=1)
 def approved_corpus() -> Corpus:
-    corpus = Corpus.load(ROOT / "docs/m7b")
+    corpus = Corpus.load(ROOT / "resources/evidence/m7b")
     if (len(corpus.documents), len(corpus.claims)) != (30, 53) or corpus.fingerprint != APPROVED_SNAPSHOT:
         raise ValueError("Unexpected M7.B snapshot")
     return corpus

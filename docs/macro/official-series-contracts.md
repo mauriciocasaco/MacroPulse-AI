@@ -121,7 +121,7 @@ ausencias y códigos de confidencialidad. La revisión de una observación se
 gestiona también por versión, aunque siga marcada `A`. Un anuncio de
 política se registra como evidencia de vigencia o disponibilidad para su
 propio contenido. No convierte la observación del proveedor en otra fecha.
-[Contrato temporal](migration-plan.md#contrato-temporal) ·
+[Contrato temporal](#contrato-temporal) ·
 [Derechos y atribución por clave](data-reuse-policy.md).
 
 ### Consultas HTTP reproducibles
@@ -159,3 +159,31 @@ curl.exe -fsiS --max-time 45 "$ecbApi/MNA/Q.Y.I10.W2.S1.S1.B.B1GQ._Z._Z._Z.EUR.L
 
 Verificación de respuesta y semántica por clave a partir de la
 [API de datos del BCE](https://data.ecb.europa.eu/help/api/data).
+
+## Contrato temporal
+
+Las observaciones conservan el período original y sus límites inclusivos.
+Un saldo mensual corresponde al cierre. En una decisión de tasa, el
+período sigue la fecha efectiva. Se mantienen por separado el valor
+decimal de origen, su multiplicador y el estado original, incluida la
+confidencialidad. La proyección pública exige estados elegibles.
+
+La captura local en UTC registra cuándo el sistema observó una versión.
+La publicación y la vigencia del proveedor requieren su propia evidencia.
+Un corte histórico usa la captura registrada para disponibilidad local.
+La fecha del período económico por sí sola permite consultar una ventana
+histórica y puede incluir revisiones posteriores.
+
+## Ingesta local
+
+Usar PostgreSQL desechable en loopback con la
+[migración de series](../../supabase/migrations/202611090001_macro_data.sql)
+y definir `MACRO_DATA_TEST_DSN` para una base con nombre `macropulse_m2_*`
+o `phase3_test_*`. La ingesta consulta las fuentes oficiales.
+
+```powershell
+python -m backend.macro_data.ingest --start 2019-01-01 --end 2026-11-09
+python -m backend.macro_data.ingest --indicator m3-stock --start 2026-06-01 --end 2026-06-30 --ecb-history
+```
+
+Usar `MACRO_API_DSN` con el rol local de lectura para servir las series.

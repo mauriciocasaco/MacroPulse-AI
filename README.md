@@ -4,7 +4,7 @@ MacroPulse AI is an AI-powered research workspace for the euro area. The install
 
 **[Open the live demo](https://macropulse-public-demo.mauricio-casaco.workers.dev/)**
 
-![Public MacroPulse AI home screen with links to historical charts and macroeconomic research](docs/assets/macropulse-overview.png)
+![Public MacroPulse AI home screen with links to historical charts and macroeconomic research](assets/macropulse-overview.png)
 
 ## Key capabilities
 
@@ -69,15 +69,15 @@ The Worker serves the PWA and proxies same-origin API requests to an authenticat
 
 On Render, the research graph validates a question against the supported catalog and time window, reads observations, computes statistics, and retrieves evidence. Gemini can interpret custom questions and propose the order and style of approved statements. The server validates the plan and builds the cited answer from those statements. It can render a deterministic summary when drafting fails and verified evidence is available. The optional general explanation is a separate branch after an eligible abstention.
 
-Public Research availability is controlled at the Worker and origin. Dynamic editorial retrieval and supported as-of queries are also flag-controlled on the backend. The standard local RAG flow uses Gemini for citation selection. The experimental local Research v2 profile requires explicit activation on loopback, and E5 retrieval is an optional local experiment. [Deployment runbook](docs/public-deployment-runbook.md) · [Local Research v2 guide](docs/m7d/research-v2.md)
+Public Research availability is controlled at the Worker and origin. Dynamic editorial retrieval and supported as-of queries are also flag-controlled on the backend. The standard local RAG flow uses Gemini for citation selection. The experimental local Research v2 profile requires explicit activation on loopback, and E5 retrieval is an optional local experiment. [Deployment runbook](docs/public-deployment-runbook.md) · [Local Research v2 guide](docs/research-v2.md)
 
 ## Engineering Highlights
 
 - **Bounded orchestration and output validation.** LangGraph gates a fixed set of read operations behind scope checks. The model supplies structured intent and presentation choices. The server checks the plan, statement IDs, and citations before rendering, which limits the effects of malformed model output.
 - **Deterministic statistics and provenance.** Python computes comparisons from dated observations using series-specific definitions and units. Responses retain source links, dates, capture information, and calculation inputs where available. That makes a result traceable to the data and revision used. [Series contracts](docs/macro/official-series-contracts.md) · [Data reuse policy](docs/macro/data-reuse-policy.md)
-- **Reviewed retrieval.** The current versioned corpus contains 30 institutional documents and 53 approved claims. Claim metadata preserves scope, publication dates, attribution, and source locators. Ranking and support checks keep contextual evidence within its stated scope. [Corpus expansion and coverage](docs/m8/corpus-expansion.md)
+- **Reviewed retrieval.** The current versioned corpus contains 30 institutional documents and 53 approved claims. Claim metadata preserves scope, publication dates, attribution, and source locators. Ranking and support checks keep contextual evidence within its stated scope. [Corpus and editorial review](resources/evidence/m7b/README.md)
 - **Admission and timeout budgets.** A SQLite-backed Durable Object checks per-visitor and global quotas and reserves concurrent capacity in one transaction. The configured Worker fetch window is 70 seconds, the origin research deadline is 65 seconds, and the quota lease expires after 90 seconds. Confirmed completion frees capacity early. Uncertain completion holds the lease until expiry, which bounds concurrency at the cost of temporary capacity. [Timeout configuration](docs/public-deployment-runbook.md#presupuesto-temporal-de-research)
-- **Scoped database access.** FastAPI uses a dedicated reader, restricted views, read-only transactions, and PostgreSQL TLS with hostname and CA verification. Startup and connection checks test the reader's effective role and grants. [Security audit](docs/security/fase-10-audit.md)
+- **Scoped database access.** FastAPI uses a dedicated reader, restricted views, read-only transactions, and PostgreSQL TLS with hostname and CA verification. Startup and connection checks test the reader's effective role and grants. [Security policy](SECURITY.md)
 
 ## Local development
 
@@ -90,7 +90,7 @@ python -m pip install -r backend/requirements-ai.txt -r requirements-m7b.txt
 npm --prefix frontend ci
 ```
 
-For historical data, set `MACRO_API_DSN` in the backend terminal to an authorized read-only connection to a populated loopback PostgreSQL database. The default `MACRO_API_MODE` is `loopback`. Enable local research by setting `MARKETPULSE_MACRO_AI_ENABLED=true` in both terminals and providing `GEMINI_API_KEY` to the backend only. See the [macro setup and ingestion notes](docs/macro/migration-progress.md) for data preparation and the [Windows guide](docs/development/windows.md) for launchers, shortcuts, firewall setup, and private LAN testing.
+For historical data, set `MACRO_API_DSN` in the backend terminal to an authorized read-only connection to a populated loopback PostgreSQL database. The default `MACRO_API_MODE` is `loopback`. Enable local research by setting `MARKETPULSE_MACRO_AI_ENABLED=true` in both terminals and providing `GEMINI_API_KEY` to the backend only. See the [series contracts and local ingestion commands](docs/macro/official-series-contracts.md#ingesta-local) and the [Windows guide](docs/development/windows.md) for PowerShell startup, shortcuts, and private LAN testing.
 
 Start the backend and frontend in separate terminals from the repository root, then open [the local app](http://127.0.0.1:5173/).
 
@@ -101,6 +101,18 @@ python -m uvicorn backend.api:app --host 127.0.0.1 --port 8000
 ```sh
 npm --prefix frontend run dev
 ```
+
+### Repository layout
+
+| Path | Contents |
+| --- | --- |
+| [backend/](backend/) and [frontend/](frontend/) | FastAPI, research and retrieval, PWA, and Cloudflare Worker |
+| [resources/evidence/](resources/evidence/) | Versioned discovery inputs and editorial corpus |
+| [tests/fixtures/retrieval/](tests/fixtures/retrieval/) | Frozen retrieval, regression, and holdout benchmarks |
+| [scripts/](scripts/), [supabase/](supabase/), [.github/](.github/), and [render.yaml](render.yaml) | Development tools, SQL, CI, and origin configuration |
+| [docs/](docs/) and [assets/](assets/) | Operating guides, data contracts, and screenshots |
+
+Git ignores local `data/` outputs, including financial backfills, model artifacts, SQLite indexes, and benchmark results. [Evidence rebuild instructions](resources/evidence/m7b/README.md#reproducir-y-verificar) and the [retrieval evaluation guide](docs/retrieval-evaluation.md) cover regeneration.
 
 ### Run the tests locally
 
@@ -115,15 +127,13 @@ npm --prefix frontend run lint
 
 ## Testing, security, and deployment
 
-GitHub Actions defines Python and frontend checks for pull requests and pushes to `main`. CI runs pytest with fixtures, Vitest, Worker tests, lint, and local and public PWA builds. CodeQL analyzes Python and JavaScript/TypeScript, Gitleaks scans for exposed secrets, and pip-audit and npm audit check dependencies, including on a weekly schedule. Cloudflare and Render releases are manual. [CI and security checks](docs/phase-10-1-devsecops.md) · [Deployment and rollback](docs/public-deployment-runbook.md)
+GitHub Actions defines Python and frontend checks for pull requests and pushes to `main`. CI runs pytest with fixtures, Vitest, Worker tests, lint, and local and public PWA builds. CodeQL analyzes Python and JavaScript/TypeScript, Gitleaks scans for exposed secrets, and pip-audit and npm audit check dependencies, including on a weekly schedule. Cloudflare and Render releases are manual. [CI and security checks](docs/devsecops.md) · [Deployment and rollback](docs/public-deployment-runbook.md)
 
-The PWA caches its shell, and research responses use `no-store`. The versioned controls still depend on effective hosted permissions and origin configuration. The security audit identifies unresolved risks involving shared origin credentials, sensitive text sent to Gemini, and the limits of filtering unverified fallback output. [Security policy](SECURITY.md) · [Audit findings](docs/security/fase-10-audit.md#4-matriz-de-amenazas-priorizada)
+The PWA caches its shell, and research responses use `no-store`. The versioned controls still depend on effective hosted permissions and origin configuration. The security audit identifies unresolved risks involving shared origin credentials, sensitive text sent to Gemini, and the limits of filtering unverified fallback output. [Security policy](SECURITY.md) · [Known risks](SECURITY.md#known-risks)
 
 ## Research limitations
 
 - Corpus coverage is limited by indicator, event, geography, and publication date. Some questions have enough data for a statistical summary and limited documentary support.
 - The workspace studies historical data. Descriptive changes and correlations cannot establish causal effects or support forecasts.
-- Model interpretation can miss a qualifier even when a plan passes validation. Institutional interpretations stay attributed to their sources, and general Gemini explanations remain unverified. [Research v2 review](docs/m7d/research-v2.md#limitaciones-conocidas)
+- Model interpretation can miss a qualifier even when a plan passes validation. Institutional interpretations stay attributed to their sources, and general Gemini explanations remain unverified. [Research v2 review](docs/research-v2.md#limitaciones-conocidas)
 - Observation periods, publication dates, and capture timestamps represent different events. A document cutoff can restrict eligible sources while the selected series still includes later revisions. Historical windows alone cannot reconstruct the information available on a given date.
-
-[Architecture and migration history](docs/macro/migration-progress.md) · [Local research verification record](docs/macro/m6-progress.md)

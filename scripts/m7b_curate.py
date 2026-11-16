@@ -19,8 +19,8 @@ from scripts import m7a_discovery as m7a
 from scripts.m7b_schema import Claim, Decision, Document, Review, Snapshot
 
 ROOT = Path(__file__).resolve().parents[1]
-M7A = ROOT / "docs/m7a"
-M7B = ROOT / "docs/m7b"
+M7A = ROOT / "resources/evidence/m7a"
+M7B = ROOT / "resources/evidence/m7b"
 INDICATORS = {
     "EUR/USD": "eur-usd", "M3": "m3-stock", "HICP": "hicp-yoy",
     "PIB real trimestral": "real-gdp-qoq", "Tasa de depósito BCE": "deposit-rate",

@@ -18,7 +18,7 @@ import requests
 from backend.news import gdelt
 from backend.news.historical_corpus import SOURCES, clean, markup, stable_id
 
-ROOT = Path(__file__).resolve().parents[1] / "docs" / "m7a"
+ROOT = Path(__file__).resolve().parents[1] / "resources" / "evidence" / "m7a"
 ECB = "https://www.ecb.europa.eu"
 EU = "https://ec.europa.eu/eurostat"
 BIS = "https://www.bis.org"

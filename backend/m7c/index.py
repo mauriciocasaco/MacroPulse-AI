@@ -53,7 +53,7 @@ class LocalE5:
         try:
             packages = {name: version(name) for name in ("torch", "transformers", "sentence-transformers", "tokenizers", "numpy")}
         except PackageNotFoundError as exc:
-            raise ModelUnavailable(f"Missing local inference dependency: {exc.name}. See docs/m7c/README.md.") from None
+            raise ModelUnavailable(f"Missing local inference dependency: {exc.name}. See docs/retrieval-evaluation.md.") from None
         try:
             self.model = E5Small(cache)
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
