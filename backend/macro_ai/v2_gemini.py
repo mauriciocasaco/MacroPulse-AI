@@ -147,7 +147,7 @@ def interpret(request: ResearchRequest) -> Intent:
     return invoke_structured(_INTERPRET, interpretation_inputs(request), Intent)
 
 
-_STATEMENT_URL = re.compile(r"https?://[^\s<>\"'()\[\]]+", re.I)
+_STATEMENT_URL = re.compile(r'https?://[^\s<>"]+', re.I)
 
 
 def composition_inputs(evidence: list[dict]) -> dict[str, str]:

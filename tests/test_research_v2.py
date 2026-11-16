@@ -695,7 +695,7 @@ def test_public_compose_unknown_programming_defect_is_not_hidden():
 def test_composition_minimizes_embedded_links_without_changing_the_claim():
     evidence = [{
         "statement_id": 1, "category": "documentary context",
-        "statement": "Evidence at https://source.invalid/private/internal-id describes import prices.",
+        "statement": "Evidence at https://source.invalid/private/(internal-id) describes import prices.",
     }]
     projection = json.loads(v2_gemini.composition_inputs(evidence)["evidence"])
     assert projection[0]["statement"] == "Evidence at [link omitted] describes import prices."
