@@ -1,10 +1,10 @@
 name: Release Quality Gates
 
-# This workflow is evaluated from the repository's DEFAULT (dev) branch, not
-# from the proposed staging/prod commit. Tests have NO production secrets.
-# This workflow NEVER merges or enables auto-merge; only humans promote PRs.
+# Runs on the PR merge ref with a read-only token and NO application secrets.
+# This is an unprivileged test workflow, not a privileged PR automation.
+# It NEVER merges or enables auto-merge; only humans promote PRs.
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, reopened, synchronize, edited, ready_for_review]
     branches: [dev, staging, prod]
 
@@ -45,10 +45,9 @@ jobs:
             *) exit 1 ;;
           esac
 
-      - name: Check out proposed merge for testing only
+      - name: Check out proposed PR merge for testing only
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
           persist-credentials: false
 
       - name: Set up Python

@@ -29,9 +29,10 @@ creates the next PR; it never approves or merges one.
 | staging | dev + curated RAG gate, public API/security tests, frozen 28-case RAG benchmark |
 | prod | staging + 32-case holdout, 17-case evidence holdout, manual deployment config guard |
 
-The `Release Quality Gate` workflow tests proposed merges from a trusted
-control-plane workflow; the test runner is read-only and has no application
-secrets. It is not evidence of live Gemini requests, PostgreSQL integration,
+The `Release Quality Gate` workflow runs on the standard `pull_request`
+event and tests the proposed PR merge with a read-only token and no application
+secrets. This avoids the default `pull_request_target` restriction for public
+repositories. It is not evidence of live Gemini requests, PostgreSQL integration,
 model download, load testing, or an actual staging deployment.
 
 Add `Release Quality Gate` to required branch checks once a successful run
@@ -58,8 +59,8 @@ additional release tests are pending.
 
 ## Security and review
 
-- `pull_request_target` has read-only permissions. It executes untrusted
-  candidate merge tests only in a job without production secrets.
+- `pull_request` has read-only permissions. It executes candidate merge tests
+  only in a job without production secrets. No privileged event is needed.
 - Unlike the prior prototype, it contains **no privileged App-token merge
   job**. The only use of the private key is creating a follow-up PR from
   an already-protected branch push.
@@ -91,3 +92,31 @@ binding and deployment settings independently before future publication.
 
 For immutable per-release snapshots and stronger isolation, a future version
 can replace live branch heads with release SHA branches and a promotion queue.
+
+## Historical branch reconciliation (Fase 12)
+
+The first `staging` promotion (#21) was merged while later release-control
+changes (#22 and #24) were being integrated independently into `dev`.
+This caused four add/add conflicts on the next `dev -> staging` PR (#25).
+We reconciled the histories in a dedicated reviewed feature PR into `dev`,
+with a merge commit that preserves `staging` ancestry but **selects the
+current `dev` versions** of all conflicting release workflows and docs.
+In particular, `Release Quality Gates` uses the unprivileged `pull_request`
+event, not `pull_request_target`, and no promotion job auto-merges.
+All subsequent promotions still require PRs, required checks and a deliberate
+human merge; do not directly push either protected branch.
+
+## Historical production reconciliation (Fase 12)
+
+PR #27 revealed another add/add conflict: the first production promotion
+(#23) had merged the older release workflows independently of the later
+`dev` and `staging` corrections. The history-reconciliation commit for
+this issue records the existing `prod` tip as a second Git parent while
+keeping the newer `dev` tree. The correction must travel through the
+normal, reviewed `feature -> dev -> staging -> prod` pipeline. In particular,
+keep the standard `pull_request` release checks and manual PR merges.
+
+The final history alignment additionally records the latest `staging` merge
+(#25) as a parent of `dev` (after recording the earlier `prod` merge).
+This avoids a second divergent-merge conflict in intermediate promotion
+PR #29 without changing any release workflow or RAG implementation.
