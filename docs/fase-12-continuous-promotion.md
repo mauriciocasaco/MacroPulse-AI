@@ -92,3 +92,16 @@ binding and deployment settings independently before future publication.
 
 For immutable per-release snapshots and stronger isolation, a future version
 can replace live branch heads with release SHA branches and a promotion queue.
+
+## Historical branch reconciliation (Fase 12)
+
+The first `staging` promotion (#21) was merged while later release-control
+changes (#22 and #24) were being integrated independently into `dev`.
+This caused four add/add conflicts on the next `dev -> staging` PR (#25).
+We reconciled the histories in a dedicated reviewed feature PR into `dev`,
+with a merge commit that preserves `staging` ancestry but **selects the
+current `dev` versions** of all conflicting release workflows and docs.
+In particular, `Release Quality Gates` uses the unprivileged `pull_request`
+event, not `pull_request_target`, and no promotion job auto-merges.
+All subsequent promotions still require PRs, required checks and a deliberate
+human merge; do not directly push either protected branch.
