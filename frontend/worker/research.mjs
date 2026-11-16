@@ -86,6 +86,8 @@ export function researchConfig(env, url, researchId = null) {
   }
 }
 
+export class SensitiveResearchQuestion extends Error {}
+
 export function readResearchPayload(bytes, adminSecret) {
   const raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   const value = JSON.parse(raw);
@@ -106,8 +108,9 @@ export function readResearchPayload(bytes, adminSecret) {
     || (value.event_id !== undefined && (!window || value.start !== window[0] || value.end !== window[1]))
     || (value.indicator_id !== undefined && !indicators.has(value.indicator_id)) || value.research_version !== 'v2'
     || questionLength < 5 || Array.from(value.question).length > 500
-    || /[\u0000-\u001f]/.test(value.question)
-    || (adminSecret && value.question.includes(adminSecret))) throw new Error('Invalid request');
+    || /[\u0000-\u0009\u000b\u000c\u000e-\u001f]/.test(value.question)) throw new Error('Invalid request');
+  // The origin classifies CR/LF in a question before applying its existing text validation.
+  if (adminSecret && value.question.includes(adminSecret)) throw new SensitiveResearchQuestion();
   return raw;
 }
 

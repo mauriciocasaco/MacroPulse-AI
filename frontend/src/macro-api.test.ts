@@ -137,3 +137,14 @@ it('accepts a reviewed claim available after the economic window and checks its 
   await expect(invoke({ ...payload, evidence: [{ ...source, claim_version: 'c'.repeat(64) }] }))
     .rejects.toThrow('provenance');
 });
+
+
+it.each([{}, { token: 'synthetic-turnstile' }, { admin: 'synthetic-admin' }])(
+  'shows the fixed sensitive-input message for each Research path (%j)', async (auth) => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      code: 'research_sensitive_information', detail: 'Untrusted upstream detail.',
+    }, { status: 422 })));
+    const result = askMacroAnalysis(question, start, end, new AbortController().signal, context, auth.token, auth.admin);
+    await expect(result).rejects.toHaveProperty('message', "Can't process a question containing sensitive information.");
+  },
+);
