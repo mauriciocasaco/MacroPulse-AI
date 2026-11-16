@@ -507,7 +507,16 @@ def test_failures_and_sensitive_input(research, monkeypatch):
     failed = post(research, FX, "eur-usd", "covid").json()
     assert failed["graph_steps"] == ["interpret_with_llm", "finish"]
     assert failed["status"] == "insufficient_evidence"
-    assert post(research, "My api key is sensitive. password=example", "eur-usd", "covid").json()["evidence"] == []
+    rejected = post(research, "My api key is sensitive. password=example", "eur-usd", "covid")
+    assert rejected.status_code == 422
+    assert rejected.headers["Cache-Control"] == "no-store"
+    assert rejected.json() == {
+        "code": "research_sensitive_information",
+        "detail": "Can't process a question containing sensitive information.",
+    }
+    multiline = post(research, "-----BEGIN PRIVATE KEY-----\nSYNTHETIC", "eur-usd", "covid")
+    assert multiline.json() == rejected.json()
+    assert multiline.status_code == 422
     assert len(research.calls) == 1 and not research.reads
 
     research.intent = {"purpose": "causal", "requirements": [requirement(UKRAINE, "hicp-yoy", "trend")]}
