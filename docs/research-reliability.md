@@ -58,3 +58,37 @@ Do not equate a 503 with a provider outage without stage evidence.
 **This PR improves graceful degradation but is not, by itself, evidence
 that every public timeout or 503 has been eliminated.** Do not declare
 reliability resolved before production logs and post-deploy measurements.
+
+## Bounded interpretation failover
+
+The public Research question interpreter ordinarily uses the configured Gemini
+model (currently `gemini-3.6-flash`). When that model returns 429 or 5xx, a
+network error or an HTTP timeout, the server may make **one** additional
+interpretation attempt using the already allowlisted
+`gemini-3.5-flash-lite`. This is not a retry of the original HTTP request:
+the same Worker reservation, Turnstile validation, 65 s backend deadline,
+input checks and evidence validation remain in force.
+
+Safeguards:
+
+- Never retry invalid input, schema validation, missing permissions, 400/401/403,
+  or any other non-transient HTTP status.
+- Only activate the alternate model when the primary model is not already Lite.
+- The alternate model is limited to 10 s and must leave **30 s** before the
+  backend deadline for evidence retrieval, composition, validation and output.
+- At most **three** provider generations per request, and only after the
+  special one-time interpretation failover. Normal limit remains two.
+- The fallback model does not generate macroeconomic facts: it may only return
+  structured scope data, which passes existing strict semantic validation.
+- A second failure remains an observable 503/504 with no invented result.
+- Logs include `gemini.interpret_failover` without request contents or
+  credential values.
+
+This increases the worst-case number of metered provider calls in the
+transient-error path. Monitor model usage, request budgets and fallback rates.
+There is **no availability guarantee** if both Gemini models are unavailable.
+
+When a provider outage repeatedly exhausts this strategy, investigate
+Gemini API operational status and rate limits rather than extending the
+synchronous Cloudflare/Render deadlines. Google recommends bounded retries
+on transient 429 and 5xx failures.
