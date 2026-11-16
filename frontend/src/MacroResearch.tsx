@@ -33,9 +33,9 @@ const ragDiagnosis: Record<ResearchDiagnostic, string> = {
   no_verified_statements: 'Research v2 could not produce a verified statement for this question.',
 };
 const fallbackErrors = {
-  timeout: 'The general Gemini explanation timed out.',
-  provider_unavailable: 'Gemini is currently unavailable for the general explanation.',
-  invalid_response: 'Gemini did not return a usable general explanation.',
+  timeout: 'Selection of a conceptual explanation timed out.',
+  provider_unavailable: 'Gemini is currently unavailable to select a conceptual explanation.',
+  invalid_response: 'Gemini did not return a valid conceptual selection.',
 };
 
 function ChangeHeadline({ change, citation }: { change: ObservedChange; citation: ReactNode }) {
@@ -245,14 +245,14 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
           RAG-Based LLM Answer
         </RippleButton>
         <RippleButton aria-pressed={showingGeneral} disabled={fallback?.status !== 'answered'}
-          onClick={() => selectResultView('general')}>Pure LLM Answer</RippleButton>
+          onClick={() => selectResultView('general')}>Conceptual Explanation</RippleButton>
       </fieldset>}
       {showingGeneral ? <section className="result-section research-analysis" aria-labelledby="macro-analysis-title">
-        <h3 id="macro-analysis-title">General AI explanation — Not RAG-verified</h3>
-        <p className="notice">{ragDiagnosis[fallback.reason]} The following is a general explanation from Gemini
-          and has not been verified against MacroPulse&apos;s institutional sources.</p>
+        <h3 id="macro-analysis-title">Conceptual explanation</h3>
+        <p className="notice">Gemini selected passages from MacroPulse&apos;s reviewed concept catalogue.
+          This explanation is unverified against the evidence for this research question.</p>
         <p className="research-narrative research-general-answer">{fallback.answer}</p>
-        <p className="muted">Model: {fallback.model_id}</p>
+        <p className="muted">Selection model {fallback.model_id}</p>
       </section> : <>
       {changes.map((change) => <ChangeHeadline key={change.citation} change={change} citation={citationLink(change.citation)} />)}
       <section className="result-section research-analysis" aria-labelledby="macro-analysis-title">

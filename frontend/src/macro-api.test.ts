@@ -1,3 +1,5 @@
+import catalog from '../../backend/macro_ai/conceptual_catalog.json';
+import contract from '../../tests/fixtures/security/fase-12-s2.json';
 import { afterEach, expect, it, vi } from 'vitest';
 import { askMacroAnalysis } from './macro-api';
 
@@ -82,37 +84,54 @@ it('accepts safe empty-evidence abstention without a fabricated model or score',
   expect(result.model_id).toBeNull();
 });
 
-it('validates the fallback as isolated unverified text with the same RAG diagnosis', async () => {
+it.each([false, true])('distinguishes policy and technical 422 for administrator=%s', async (admin) => {
+  const fetch = vi.fn();
+  vi.stubGlobal('fetch', fetch);
+  const ask = () => askMacroAnalysis(question, start, end, new AbortController().signal, context,
+    admin ? undefined : 'turnstile-fixture', admin ? '0'.repeat(64) : undefined);
+  fetch.mockResolvedValueOnce(Response.json(contract.http.policy.body, { status: 422 }));
+  await expect(ask()).rejects.toThrow('What is inflation?');
+  fetch.mockResolvedValueOnce(Response.json({ detail: 'synthetic private content' }, { status: 422 }));
+  await expect(ask()).rejects.toThrow('Review the selected dates and question');
+});
+
+it('renders only exact catalogue text and preserves RAG when fallback is invalid', async () => {
   const fallback = {
-    status: 'answered', triggered: true, verified: false, reason: 'ambiguous_interpretation',
-    model_id: 'gemini-3.6-flash',
-    answer: 'M3 includes liquid deposits. During COVID-19, ECB policy could affect saving. Eurostat can provide economic context.',
+    status: 'answered', triggered: true, verified: false, reason: 'unsupported_operation_or_series',
+    model_id: 'gemini-3.6-flash', catalog_version: 'v1',
+    fragment_ids: ['inflation', 'inflation-channels'],
+    answer: [catalog.v1.inflation, catalog.v1['inflation-channels']].join('\n\n'),
   };
   const payload = {
     ...response(), status: 'insufficient_evidence', research_v2: true, support: 'insufficient',
     publication_cutoff: end, narrative: [], evidence: [],
-    insufficiency_reason: fallback.reason, general_fallback: fallback,
+    insufficiency_reason: fallback.reason,
   };
   const invoke = (body: unknown) => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json(body)));
     return askMacroAnalysis(question, start, end, new AbortController().signal,
       { ...context, research_version: 'v2' });
   };
-  await expect(invoke(payload)).resolves.toMatchObject({ general_fallback: fallback });
+  const rag = await invoke(payload);
+  await expect(invoke({ ...payload, general_fallback: fallback })).resolves.toMatchObject({ general_fallback: fallback });
   for (const change of [
     { verified: true }, { triggered: false }, { model_id: 'gemini-other-model' }, { citations: [] },
-    { reason: 'missing_official_observations' }, { answer: 'An invented result of 25 percent.' },
-    { answer: 'COVID-19 reduced the money stock by five percent.' },
-    { answer: 'M3 fell to €５ billion while households shifted their savings.' },
-    { answer: 'The ECB reports that AI boosted broad money growth.' },
-    { answer: 'Eurostat’s latest figures show that broad money rose during the boom.' },
-    { answer: 'For more information see invented-source.test/macro.' },
-    { answer: 'A plausible reason. Reference: https://example.test.' },
-    { status: 'failed', error: 'timeout' }, // an error cannot also include an answer
-  ]) await expect(invoke({ ...payload, general_fallback: { ...fallback, ...change } })).rejects.toThrow('fallback');
-  await expect(invoke({ ...payload, status: 'answered', support: 'supported',
-    narrative: [{ text: 'Valid cited claim.', category: 'official observation', citations: [series.id] }],
-  })).rejects.toThrow('fallback');
+    { reason: 'missing_official_observations' }, { catalog_version: 'v2' },
+    { answer: '<img src=x onerror=alert(1)>' }, { answer: 'A plausible reason. Reference: https://example.test.' },
+    { fragment_ids: ['inflation', 'inflation'] }, { fragment_ids: ['__proto__'] },
+    { fragment_ids: ['inflation-channels', 'inflation'] },
+    { status: 'failed', error: 'timeout' },
+    ...contract.provider.map((entry) => entry[1]),
+  ]) await expect(invoke({ ...payload, general_fallback: { ...fallback, ...change as object } })).resolves.toEqual(rag);
+
+  const official = { ...series, series_key: 'fixture', unit: 'USD/EUR', geography: 'bilateral',
+    adjustment: 'none', multiplier: 0 };
+  const valid = { ...payload, status: 'answered', support: 'supported', insufficiency_reason: undefined,
+    evidence: [official], narrative: [{ text: 'Valid cited claim.', category: 'official observation', citations: [series.id] }] };
+  const result = await invoke({ ...valid, general_fallback: fallback });
+  expect(result.general_fallback).toBeUndefined();
+  expect(result.evidence).toEqual([official]);
+  expect(result.narrative).toEqual(valid.narrative);
 });
 
 it('accepts a reviewed claim available after the economic window and checks its version and cutoff', async () => {

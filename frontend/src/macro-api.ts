@@ -1,3 +1,4 @@
+import conceptualCatalog from "../../backend/macro_ai/conceptual_catalog.json";
 import { launcherReadHeader } from '../pwa/local-read';
 
 export type MacroFrequency = 'daily' | 'monthly' | 'quarterly' | 'effective_date';
@@ -101,14 +102,13 @@ const researchDiagnostics = [
   'citation_validation_failed', 'no_verified_statements',
 ] as const;
 export type ResearchDiagnostic = typeof researchDiagnostics[number];
-type FallbackReason = typeof fallbackReasons[number];
 type FallbackError = 'timeout' | 'provider_unavailable' | 'invalid_response';
 type GeneralFallback = {
   triggered: true;
-  reason: FallbackReason;
+  reason: 'unsupported_operation_or_series';
   model_id: 'gemini-3.6-flash' | 'gemini-3.5-flash-lite';
   verified: false;
-} & ({ status: 'answered'; answer: string } | { status: 'failed'; error: FallbackError });
+} & ({ status: 'answered'; answer: string; catalog_version: 'v1'; fragment_ids: string[] } | { status: 'failed'; error: FallbackError });
 
 export interface MacroAnalysis {
   status: 'answered' | 'insufficient_evidence';
@@ -148,41 +148,20 @@ function oneOf<const T extends string>(options: readonly T[], value: unknown): v
   return typeof value === 'string' && (options as readonly string[]).includes(value);
 }
 
-// Keep the text checks in sync with GeneralDraft in v2_models.py.
-const numberedNames = /\b(?:M[0-4]|COVID[\s\-\u2010-\u2013\u2212]?19|G7|G20|EA(?:19|20|21)|EU-?27)\b/giu;
-const institution = '(?:ECB|Eurostat|European Central Bank)';
-const sourceWord = '(?:data|figures|statistics|report|study|release|bulletin|analysis|estimates)';
-const reportingVerb = '(?:says?|said|shows?|showed|shown|finds?|found|reports?|reported|confirms?|confirmed|'
-  + 'publishes?|published|documents?|documented|estimates?|estimated|concludes?|concluded|'
-  + 'indicates?|indicated|states?|stated|suggests?|suggested|reveals?|revealed|claims?|claimed)';
-const institutionalAttribution = new RegExp(
-  String.raw`\b${institution}(?:['’]s)?\s+(?:(?:\w+\s+){0,3}${sourceWord}\s+)?`
-    + String.raw`(?:(?:has|have|had|also|previously|officially|recently)\s+)*${reportingVerb}\b|`
-    + String.raw`\b${reportingVerb}\s+by\s+(?:the\s+)?${institution}\b|`
-    + String.raw`\b${sourceWord}\s+(?:from|by)\s+(?:the\s+)?${institution}\s+${reportingVerb}\b|`
-    + String.raw`\b(?:per|as cited by)\s+(?:the\s+)?${institution}\b|`
-    + String.raw`\(\s*(?:the\s+)?${institution}\s*\)`, 'iu',
-);
-const references = /[%<>[\]]|https?\s*:|ftp\s*:|www\.|\b[\w-]+\.(?:com|org|net|gov|edu|eu|int|test|example)\b|\b[\w-]+\.[a-z]{2,63}\/|\b(?:sources?|references?|citations?|bibliography)\s*:|\b(?:according to|DOI)\b/iu;
-const spelledQuantity = /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|\w+ty|hundred|thousand|million|billion|trillion|half|quarter)[\s-]+(?:per\s+cent|percent(?:age\s+points?)?|basis\s+points?|hundred|thousand|million|billion|trillion|euros?|dollars?|pounds?)\b/iu;
-
-function conceptualAnswer(answer: string): boolean {
-  const length = Array.from(answer).length;
-  const checked = answer.normalize('NFKC');
-  return answer === answer.trim() && length >= 20 && length <= 2400
-    && !references.test(checked) && !spelledQuantity.test(checked) && !institutionalAttribution.test(checked)
-    && !/\p{N}/u.test(checked.replaceAll(numberedNames, ' '))
-    && !/[\p{C}\p{Zl}\p{Zp}]/u.test(answer.replaceAll('\n', ''));
-}
+const conceptualFragments: Readonly<Record<string, string>> = conceptualCatalog.v1;
 
 function generalFallback(value: unknown): value is GeneralFallback {
   if (!object(value) || value.triggered !== true || value.verified !== false
-    || !oneOf(fallbackReasons, value.reason)
+    || value.reason !== 'unsupported_operation_or_series'
     || !oneOf(['gemini-3.6-flash', 'gemini-3.5-flash-lite'], value.model_id)) return false;
   const fields = ['triggered', 'verified', 'reason', 'model_id', 'status'];
   if (value.status === 'answered') {
-    return Object.keys(value).every((key) => [...fields, 'answer'].includes(key))
-      && typeof value.answer === 'string' && conceptualAnswer(value.answer);
+    const fragments = value.fragment_ids;
+    return Object.keys(value).every((key) => [...fields, 'answer', 'catalog_version', 'fragment_ids'].includes(key))
+      && value.catalog_version === 'v1' && strings(fragments) && fragments.length >= 1 && fragments.length <= 2
+      && new Set(fragments).size === fragments.length
+      && fragments.every((fragment) => Object.hasOwn(conceptualFragments, fragment))
+      && value.answer === fragments.map((fragment) => conceptualFragments[fragment]).join('\n\n');
   }
   return value.status === 'failed' && Object.keys(value).every((key) => [...fields, 'error'].includes(key))
     && oneOf(['timeout', 'provider_unavailable', 'invalid_response'], value.error);
@@ -393,6 +372,13 @@ export async function askMacroAnalysis(
         throw new Error('Too many administrator requests. Please try again shortly.');
       }
     }
+    if (response.status === 422 && (turnstileToken || adminSecret)) {
+      const failure: unknown = await response.json().catch(() => null);
+      if (object(failure) && failure.code === 'research_question_not_admitted') {
+        throw new Error('Ask a question about the selected indicator or try a definition such as “What is inflation?”');
+      }
+      throw new Error('Review the selected dates and question before trying again.');
+    }
     if (!turnstileToken && !adminSecret) throw new Error('Local macro research is unavailable.');
     if (response.status === 403) throw new Error('Complete a new Turnstile check.');
     if (response.status === 429) throw new Error('The public research quota has been reached. Please try again later.');
@@ -400,7 +386,6 @@ export async function askMacroAnalysis(
     if (response.status === 503 && response.headers.get('Retry-After')) {
       throw new Error('Public research is busy. Please try again shortly.');
     }
-    if (response.status === 422) throw new Error('Review the selected dates and question before trying again.');
     throw new Error('Public research is currently unavailable.');
   }
   const result: unknown = await response.json();
@@ -427,12 +412,12 @@ export async function askMacroAnalysis(
       category !== undefined && researchCategories.includes(category)))) {
     throw new Error('Unexpected Research v2 response.');
   }
-  if ((diagnosis !== undefined && (!researchV2 || result.status !== 'insufficient_evidence'
-    || !oneOf(researchDiagnostics, diagnosis)))
-    || (fallback !== undefined && (!researchV2 || result.status !== 'insufficient_evidence'
-      || !generalFallback(fallback) || fallback.reason !== diagnosis))) {
-    throw new Error('Unexpected Research v2 fallback.');
+  if (diagnosis !== undefined && (!researchV2 || result.status !== 'insufficient_evidence'
+    || !oneOf(researchDiagnostics, diagnosis))) {
+    throw new Error('Unexpected Research v2 diagnosis.');
   }
+  const admittedFallback = researchV2 && result.status === 'insufficient_evidence'
+    && generalFallback(fallback) && fallback.reason === diagnosis ? fallback : undefined;
   const evidence = result.evidence as ResearchEvidence[];
   if (researchV2 && !evidence.every((item) => hasV2Provenance(item, result.publication_cutoff as string))) {
     throw new Error('Unexpected Research v2 provenance.');
@@ -460,7 +445,7 @@ export async function askMacroAnalysis(
       support: result.support as MacroAnalysis['support'],
       publication_cutoff: result.publication_cutoff as string,
       ...(diagnosis !== undefined && { insufficiency_reason: diagnosis as ResearchDiagnostic }),
-      ...(fallback !== undefined && { general_fallback: fallback as GeneralFallback }),
+      ...(admittedFallback !== undefined && { general_fallback: admittedFallback }),
     } : {}),
     narrative: result.narrative as ResearchClaim[] | undefined,
     narrative_kind: result.narrative_kind as MacroAnalysis['narrative_kind'],

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { chromium, devices, webkit } from 'playwright-core';
 import { createServer } from 'vite';
+import concepts from '../../backend/macro_ai/conceptual_catalog.json' with { type: 'json' };
 
 const output = resolve('../.local/codex-telemetry/macro-analyst');
 // Keep the sticky header at its document position in full-page captures.
@@ -98,7 +99,7 @@ async function withPage(options, run) {
           insufficiency_reason: 'unsupported_operation_or_series',
           general_fallback: { status: 'answered', triggered: true, verified: false,
             reason: 'unsupported_operation_or_series', model_id: 'gemini-3.6-flash',
-            answer: 'A supply shock can raise the price level.' } }),
+            catalog_version: 'v1', fragment_ids: ['inflation'], answer: concepts.v1.inflation } }),
       } });
     }
     return url.pathname.startsWith('/api/') ? route.abort() : route.continue();
@@ -188,12 +189,12 @@ test('desktop anchors, original plot geometry and both research views', { skip: 
 
     await page.getByRole('checkbox', { name: 'Use experimental Research v2' }).check();
     await submit.click();
-    await page.getByText('A supply shock can raise the price level.').waitFor();
+    await page.getByText(concepts.v1.inflation).waitFor();
     assert.deepEqual(research[1], { ...research[0], research_version: 'v2' });
     await page.getByRole('button', { name: 'RAG-Based LLM Answer' }).click();
     await page.getByRole('heading', { name: 'Evidence-based analysis' }).waitFor();
-    await page.getByRole('button', { name: 'Pure LLM Answer' }).click();
-    await page.getByText('A supply shock can raise the price level.').waitFor();
+    await page.getByRole('button', { name: 'Conceptual Explanation' }).click();
+    await page.getByText(concepts.v1.inflation).waitFor();
     assert.equal(research.length, 2);
     for (const selector of ['main', '#data', '#ask', '.question-composer']) assert.equal(await page.locator(selector).count(), 1);
     assert.equal(await page.locator('iframe').count(), 0);

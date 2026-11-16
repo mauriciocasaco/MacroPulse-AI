@@ -25,6 +25,23 @@ function error(status, detail, retry, code) {
   });
 }
 
+const researchPolicyCode = 'research_question_not_admitted';
+
+async function isResearchPolicyRejection(upstream, signal) {
+  if (!/^application\/json(?:;|$)/i.test(upstream.headers.get('Content-Type') ?? '')) {
+    void upstream.body?.cancel().catch(() => {});
+    return false;
+  }
+  const body = await boundedBody(upstream.body, 256, signal);
+  if (!body) return false;
+  try {
+    const payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body));
+    return payload?.code === researchPolicyCode && Object.keys(payload).length === 1;
+  } catch {
+    return false;
+  }
+}
+
 function originUrl(env) {
   const raw = env.MARKETPULSE_DEMO_ORIGIN_URL ?? '';
   return /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.onrender\.com\/?$/.test(raw) ? new URL(raw) : null;
@@ -298,6 +315,14 @@ async function serveResearch(request, env, ctx, url, researchId) {
       && upstream.headers.get('X-MacroPulse-Research-Complete') === 'true';
     if (knownCompleted) await releaseLease();
     if (upstream.status !== 200) {
+      if (upstream.status === 422 && knownCompleted) {
+        if (await isResearchPolicyRejection(upstream, timeout)) {
+          return Response.json({ code: researchPolicyCode }, { status: 422, headers: {
+            'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+          } });
+        }
+        return error(422, 'Invalid request parameters');
+      }
       void upstream.body?.cancel().catch(() => {});
       if (upstream.status === 504) return error(504, 'Public Research timed out');
       if (upstream.status === 422) return error(422, 'Invalid request parameters');

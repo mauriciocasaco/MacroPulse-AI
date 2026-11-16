@@ -148,7 +148,7 @@ it('opts into Research v2 only after the catalog advertises it and renders cited
   await screen.findByText('Partial descriptive answer');
   expect(JSON.parse(String(analysis.mock.calls[0][1].body)).research_version).toBe('v2');
   const summary = screen.getByRole('region', { name: 'Evidence-based analysis' });
-  expect(screen.getByRole('button', { name: 'Pure LLM Answer' })).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', { name: 'Conceptual Explanation' })).toHaveProperty('disabled', true);
   expect(screen.getByText(/Paragraph 1 · Official data/).closest('details')?.open).toBe(false);
   expect(within(summary).getByRole('link', { name: 'Source 1, ECB reference rate' }).getAttribute('href'))
     .toBe('https://data.ecb.europa.eu/');

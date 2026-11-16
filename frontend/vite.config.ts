@@ -42,7 +42,8 @@ export default defineConfig(({ command, mode, isPreview }) => {
       strictPort: true,
       cors: false,
       ...(lan && { ws: false, hmr: false }),
-      fs: { allow: [fileURLToPath(new URL('.', import.meta.url))] },
+      fs: { allow: [fileURLToPath(new URL('.', import.meta.url)),
+        fileURLToPath(new URL('../backend/macro_ai/conceptual_catalog.json', import.meta.url))] },
       proxy,
     },
   };

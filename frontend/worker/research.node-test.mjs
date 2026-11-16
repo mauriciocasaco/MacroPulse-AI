@@ -774,3 +774,37 @@ test('Research never uses cache and admin budget failures fail closed', async (t
   assert.equal(origin.mock.callCount(), 3);
   assert.equal(cacheAccess.mock.callCount(), 0);
 });
+
+test('edge propagates only the fixed policy rejection and releases completed leases', async (t) => {
+  const { http: { policy } } = JSON.parse(readFileSync(
+    new URL('../../tests/fixtures/security/fase-12-s2.json', import.meta.url), 'utf-8',
+  ));
+  const cases = [
+    ['policy', JSON.stringify(policy.body), true, 'application/json', true],
+    ['uncompleted', JSON.stringify(policy.body), false, 'application/json', false],
+    ['extra field', JSON.stringify({ ...policy.body, prompt: 'synthetic canary' }), true, 'application/json', false],
+    ['oversized', JSON.stringify(policy.body) + ' '.repeat(260), true, 'application/json', false],
+    ['HTML', '<script>synthetic canary</script>', true, 'text/html', false],
+    ['malformed', '{', true, 'application/json', false],
+  ];
+  for (const [name, body, complete, type, propagates] of cases) {
+    await t.test(name, async (subtest) => {
+      const fixture = sqliteFixture(subtest);
+      const env = fixtureEnv(fixture.instance());
+      subtest.mock.method(globalThis, 'fetch', async (url) => {
+        if (String(url).includes('siteverify')) return Response.json({
+          success: true, hostname: 'demo.example', action: 'research', challenge_ts: new Date().toISOString(),
+        });
+        return new Response(body, { status: 422, headers: {
+          'Content-Type': type, ...(complete && { 'X-MacroPulse-Research-Complete': 'true' }),
+        } });
+      });
+      const result = await worker.fetch(post('synthetic-token'), env);
+      assert.equal(result.status, policy.status);
+      assert.equal(result.headers.get('Cache-Control'), policy.headers['Cache-Control']);
+      assert.deepEqual(await result.json(), propagates ? policy.body : { detail: 'Invalid request parameters' });
+      assert.equal(fixture.db.prepare('SELECT count(*) AS count FROM leases').get().count, complete ? 0 : 1);
+      assert.equal(fixture.db.prepare('SELECT total FROM monthly_reservations').get().total, 1);
+    });
+  }
+});
