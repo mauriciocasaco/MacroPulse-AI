@@ -297,6 +297,7 @@ it('shows the fixed sensitive-input rejection in the local Research UI', async (
   });
   vi.stubGlobal('fetch', fetch);
   render(<MacroResearch {...props} researchV2Available />);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use experimental Research v2' }));
   fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'fixture.person@example.test' } });
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   await screen.findByText("Can't process a question containing sensitive information.");
