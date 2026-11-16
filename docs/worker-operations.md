@@ -1,4 +1,4 @@
-# Fase 10.2 — Operación del Worker público
+# Operación del Worker público
 
 ## Tráfico y límites
 
@@ -53,7 +53,7 @@ del catálogo es de trabajo en origen y no de peticiones HTTP. El caché depende
 de la repetición por ubicación y no se sirve vencido durante caídas.
 [Cache API de Cloudflare](https://developers.cloudflare.com/workers/runtime-apis/cache/).
 
-## Verificación de la fase
+## Verificación local
 
 - Worker 33/33, Vitest 163/163, lint, TypeScript y builds de ambas PWA.
 - Validación anterior con workerd y FastAPI sintético, incluido el límite

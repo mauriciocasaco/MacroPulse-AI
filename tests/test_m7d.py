@@ -14,7 +14,7 @@ from backend.m7d.evaluate import evaluate
 from backend.macro_data.contracts import CATALOG
 
 ROOT = Path(__file__).resolve().parents[1]
-M7B = ROOT / "docs/m7b"
+M7B = ROOT / "resources/evidence/m7b"
 
 
 @pytest.fixture(scope="module")
@@ -303,7 +303,7 @@ def test_unapproved_claim_and_ranker_injection_fail_closed(gate, tmp_path):
 
 
 def test_frozen_m7c_benchmark_meets_claim_recall_and_intent_abstention():
-    report = evaluate(M7B, ROOT / "docs/m7c/evaluation.jsonl", "regression", model=None, repeats=1)
+    report = evaluate(M7B, ROOT / "tests/fixtures/retrieval/evaluation.jsonl", "regression", model=None, repeats=1)
     summary = report["metrics"]["gate_lexical"]
     assert summary["cases"] == 28
     assert summary["claim_hit_at_3"] >= 16 / 18

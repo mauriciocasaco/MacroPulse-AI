@@ -1,7 +1,6 @@
-# Fase 10.1 — DevSecOps
+# DevSecOps
 
-This phase adds repository-level checks for MacroPulse AI without adding application
-accounts, authorization roles, infrastructure changes, or automatic deployments.
+GitHub Actions runs repository-level checks for MacroPulse AI.
 
 ## Checks on pull requests and `main`
 
@@ -34,9 +33,7 @@ A scanner passing does not prove the absence of vulnerabilities.
   Supabase, Gemini, Cloudflare, or Render. Tests requiring disposable PostgreSQL
   are skipped when `MARKET_DATA_TEST_DSN` / `MACRO_DATA_TEST_DSN` are absent.
   This does **not** replace the separate PostgreSQL integration test suite.
-- The files in this phase do not deploy or migrate anything. Render remains
-  manually deployed and `autoDeployTrigger: 'off'`; Cloudflare is not published
-  by these workflows.
+- Render and Cloudflare deployments are manual. Render uses `autoDeployTrigger: 'off'`.
 - GitHub Actions and Gitleaks receive no application secrets. Never put the
   production Gemini key, Supabase credentials, or origin secret in CI.
 - Gitleaks detects recognizable secrets, not all sensitive content. Any

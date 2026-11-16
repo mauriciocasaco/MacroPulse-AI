@@ -49,8 +49,8 @@ function Install-Shortcut {
     [IO.File]::WriteAllBytes($icon, [byte[]]($header + $png))
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut((Join-Path $programs 'MacroPulse AI.lnk'))
-    $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\cmd.exe'
-    $shortcut.Arguments = '/d /c ""{0}""' -f (Join-Path $root 'MacroPulse AI.bat')
+    $shortcut.TargetPath = $windowsPowerShell
+    $shortcut.Arguments = '-NoProfile -ExecutionPolicy RemoteSigned -File "{0}" -Action Start' -f $PSCommandPath
     $shortcut.WorkingDirectory = $root
     $shortcut.IconLocation = "$icon,0"
     $shortcut.Description = 'Start MacroPulse AI for Windows and iPhone Safari'

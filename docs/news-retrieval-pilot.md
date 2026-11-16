@@ -3,7 +3,7 @@
 ## Phase 3.4 · GDELT sample
 
 The pilot selects one record from each of the six archive windows in the
-[provider review](news-provider-research.md). The selection is purposive and
+[source scope and reuse terms](news-historical-corpus.md#alcance-de-los-permisos). The selection is purposive and
 supports verification of the pipeline. Coverage below describes the selected
 records, so it cannot estimate provider coverage or association quality.
 

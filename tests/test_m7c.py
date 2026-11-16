@@ -13,7 +13,7 @@ from backend.m7c.index import LocalE5, ModelUnavailable, build_index, read_vecto
 from backend.m7c.retrieval import BM25, HybridRetriever, Ranked, collapse, reciprocal_fusion
 
 ROOT = Path(__file__).resolve().parents[1]
-M7B = ROOT / "docs/m7b"
+M7B = ROOT / "resources/evidence/m7b"
 
 
 @pytest.fixture(scope="module")

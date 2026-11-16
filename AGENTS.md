@@ -17,8 +17,8 @@ Repository boundaries
   datasets out of prompts, logs, diffs and commits. Avoid reading local .env
   files. Keep tests away from live accounts and production services.
 Mode contract
-The [orchestration guide](docs/codex-orchestration.md) describes the CLI
-launcher and local Codex Desktop. MODE determines roles and participant count.
+MODE determines roles and participant count for the CLI launcher and local
+Codex Desktop.
 Honor the launcher context when present, subject to the host's supported modes.
 Explicit mode selection in Codex Desktop
 In a fresh Desktop chat for this trusted checkout, accept an explicit first
@@ -69,7 +69,7 @@ explain an actual blocking conflict, missing authorization or host limitation;
 do not characterize mere task complexity as a blocker.
 
 For MANUAL, these provisions take precedence over any statement elsewhere in
-this file or in the orchestration guide suggesting that complex or
+this file suggesting that complex or
 security-sensitive local implementation must use ELABORADO. They do not
 supersede higher-priority host or platform instructions.
 Standard modes

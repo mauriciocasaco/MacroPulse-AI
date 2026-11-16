@@ -10,8 +10,8 @@
 Las condiciones y excepciones por serie se detallan en la
 [política de reutilización estadística](macro/data-reuse-policy.md) y el
 [contrato de fuentes oficiales](macro/official-series-contracts.md).
-La revisión editorial de los 24 documentos y 47 afirmaciones figura en el
-[inventario M7.B](m7b/README.md). La demo excluye observaciones
+La revisión editorial de los 30 documentos y 53 afirmaciones figura en el
+[inventario M7.B](../resources/evidence/m7b/README.md). La demo excluye observaciones
 confidenciales, material original de terceros, fuentes de mercado,
 noticias GDELT, corpus de DEV y embeddings. La migración sintética de Fase
 4.4 queda como referencia histórica y no forma parte del despliegue actual.

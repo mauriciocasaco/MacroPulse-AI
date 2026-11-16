@@ -13,8 +13,8 @@ from .index import LocalE5, build_index
 from .retrieval import HybridRetriever
 
 ROOT = Path(__file__).resolve().parents[2]
-CORPUS = ROOT / "docs/m7b"
-EVALUATION = ROOT / "docs/m7c/evaluation.jsonl"
+CORPUS = ROOT / "resources/evidence/m7b"
+EVALUATION = ROOT / "tests/fixtures/retrieval/evaluation.jsonl"
 LEGACY = ROOT / "backend/macro_ai/corpus.json"
 INDEX = ROOT / "data/m7c/index.sqlite3"
 
