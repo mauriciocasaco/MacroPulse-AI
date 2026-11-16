@@ -1,0 +1,18 @@
+{
+  "v1": {
+    "inflation": "Inflation is a sustained rise in the general price level. When prices rise broadly, the same amount of money buys fewer goods and services.",
+    "inflation-channels": "Demand can put upward pressure on prices when spending grows faster than productive capacity. Higher input costs can also raise prices when firms pass some of those costs on to customers.",
+    "monetary-policy": "Monetary policy influences borrowing costs, spending and inflation. A higher policy rate can make new borrowing more expensive and reduce demand over time.",
+    "monetary-transmission": "The strength and timing of transmission depend on how quickly banks and markets pass rates through and on how much household and business debt reprices.",
+    "exchange-rate": "An exchange rate expresses the price of one currency in another. When a currency appreciates, each unit buys more of the other currency, which can make imports cheaper in domestic currency.",
+    "exchange-rate-channels": "Relative interest rates, expected returns and demand for safer assets can all influence exchange rates. Pass-through to consumer prices depends on invoicing, contracts and firms’ pricing decisions.",
+    "deposit-facility": "The ECB deposit facility allows eligible banks to place funds overnight with the Eurosystem. Its rate determines the remuneration on those deposits.",
+    "deposit-facility-transmission": "The remuneration available on overnight deposits affects the rate at which banks are willing to lend cash to one another. That helps transmit monetary policy to short-term money markets.",
+    "m3": "M3 is a broad measure of money. It includes currency and deposits as well as certain short-term instruments that are close substitutes for deposits.",
+    "m3-channels": "Bank lending can create deposits and loan repayment can extinguish them. Shifts between instruments inside and outside M3 can also change measured broad money without a corresponding change in production.",
+    "gdp": "Real GDP measures the volume of final production in an economy after adjusting for price changes. Changes in demand can affect output in the short run when producers have spare capacity.",
+    "gdp-productivity": "Productivity can raise potential output when businesses produce more with the same inputs. Adoption costs and complementary investment influence how quickly a new technology can affect production.",
+    "monetary-policy-inflation": "Higher policy rates can ease inflationary pressure by raising borrowing costs and reducing interest-sensitive spending. The effect depends on credit conditions, expectations and the source of inflation.",
+    "exchange-rate-inflation": "A depreciation can increase domestic prices for imports and imported inputs. The extent and timing of pass-through depend on invoicing, contracts and whether firms absorb changes in their margins."
+  }
+}
