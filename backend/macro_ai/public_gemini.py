@@ -3,7 +3,8 @@
 from asyncio import run, timeout
 from functools import partial
 import json
-from time import monotonic
+from random import uniform
+from time import monotonic, sleep
 from typing import get_args
 
 import httpx
@@ -32,7 +33,20 @@ MAX_GENERATIONS = 2
 INTERPRET_FAILOVER_MODEL = "gemini-3.5-flash-lite"
 INTERPRET_FAILOVER_SECONDS = 10
 INTERPRET_FAILOVER_HEADROOM = 30
+# Lite is designed for low-latency structured extraction. Never let three
+# attempts each consume the legacy 20-second HTTP timeout.
+LITE_INTERPRET_ATTEMPTS = 3
+LITE_INTERPRET_SECONDS = 8
+LITE_INTERPRET_HEADROOM = 30
+LITE_COMPOSE_SECONDS = 10
+LITE_GENERAL_SECONDS = 12
 MAX_PROVIDER_BODY = 64 * 1024
+
+
+def _retryable_lite_interpret_error(error: Exception) -> bool:
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code in (500, 502, 503, 504)
+    return isinstance(error, (TimeoutError, httpx.RequestError))
 
 
 def _provider_status(error: BaseException) -> int | None:
@@ -57,6 +71,8 @@ class PublicGemini:
     def interpret(self, request, *, knowledge_cutoff=None) -> Intent:
         with _gemini_stage("gemini.interpret"):
             inputs = interpretation_inputs(request, self._key, knowledge_cutoff=knowledge_cutoff)
+            if self._model == INTERPRET_FAILOVER_MODEL:
+                return self._interpret_lite_with_retries(inputs)
             try:
                 return self._generate(_INTERPRET, inputs, Intent)
             except (TimeoutError, httpx.HTTPError) as error:
@@ -80,15 +96,46 @@ class PublicGemini:
                         deadline_headroom=INTERPRET_FAILOVER_HEADROOM,
                     )
 
+    def _interpret_lite_with_retries(self, inputs: dict[str, str]) -> Intent:
+        for attempt in range(LITE_INTERPRET_ATTEMPTS):
+            # Each additional generation is allowed ONLY after the preceding
+            # Lite interpretation attempt failed with a transient error.
+            self._interpret_failover_allowance = attempt
+            try:
+                with _gemini_stage(f"gemini.interpret_lite_attempt_{attempt + 1}"):
+                    return self._generate(
+                        _INTERPRET, inputs, Intent,
+                        stage_seconds=LITE_INTERPRET_SECONDS,
+                        deadline_headroom=LITE_INTERPRET_HEADROOM,
+                    )
+            except Exception as error:
+                if not _retryable_lite_interpret_error(error) or attempt + 1 == LITE_INTERPRET_ATTEMPTS:
+                    raise
+                delay = 0.2 * (2 ** attempt) + uniform(0, 0.1)
+                if self._deadline - monotonic() <= (
+                    LITE_INTERPRET_HEADROOM + LITE_INTERPRET_SECONDS + delay
+                ):
+                    raise
+                sleep(delay)
+        raise AssertionError("Unreachable: all attempts terminate or return")
+
     def compose(self, evidence: list[dict]) -> Draft:
         with _gemini_stage("gemini.compose"):
-            return self._generate(_COMPOSE, composition_inputs(evidence), Draft)
+            return self._generate(
+                _COMPOSE, composition_inputs(evidence), Draft,
+                stage_seconds=LITE_COMPOSE_SECONDS
+                if self._model == INTERPRET_FAILOVER_MODEL else GEMINI_STAGE_SECONDS,
+            )
 
     def general(self, request, reason, *, event, knowledge_cutoff) -> GeneralDraft:
         with _gemini_stage("gemini.general"):
             inputs = general_inputs(request, self._key, reason, event=event, knowledge_cutoff=knowledge_cutoff)
-            return self._generate(_GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
-                                  deadline_headroom=GENERAL_DEADLINE_HEADROOM)
+            return self._generate(
+                _GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
+                deadline_headroom=GENERAL_DEADLINE_HEADROOM,
+                stage_seconds=LITE_GENERAL_SECONDS
+                if self._model == INTERPRET_FAILOVER_MODEL else GEMINI_STAGE_SECONDS,
+            )
 
     def _generate(self, template, inputs, schema, *, output_tokens=OUTPUT_TOKENS, deadline_headroom=0,
                   model_override=None, stage_seconds=GEMINI_STAGE_SECONDS):
