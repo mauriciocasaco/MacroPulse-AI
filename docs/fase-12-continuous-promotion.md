@@ -29,9 +29,10 @@ creates the next PR; it never approves or merges one.
 | staging | dev + curated RAG gate, public API/security tests, frozen 28-case RAG benchmark |
 | prod | staging + 32-case holdout, 17-case evidence holdout, manual deployment config guard |
 
-The `Release Quality Gate` workflow tests proposed merges from a trusted
-control-plane workflow; the test runner is read-only and has no application
-secrets. It is not evidence of live Gemini requests, PostgreSQL integration,
+The `Release Quality Gate` workflow runs on the standard `pull_request`
+event and tests the proposed PR merge with a read-only token and no application
+secrets. This avoids the default `pull_request_target` restriction for public
+repositories. It is not evidence of live Gemini requests, PostgreSQL integration,
 model download, load testing, or an actual staging deployment.
 
 Add `Release Quality Gate` to required branch checks once a successful run
@@ -58,8 +59,8 @@ additional release tests are pending.
 
 ## Security and review
 
-- `pull_request_target` has read-only permissions. It executes untrusted
-  candidate merge tests only in a job without production secrets.
+- `pull_request` has read-only permissions. It executes candidate merge tests
+  only in a job without production secrets. No privileged event is needed.
 - Unlike the prior prototype, it contains **no privileged App-token merge
   job**. The only use of the private key is creating a follow-up PR from
   an already-protected branch push.
