@@ -27,6 +27,11 @@ GEMINI_STAGE_SECONDS = 25
 GEMINI_HTTP_SECONDS = 20
 GENERAL_DEADLINE_HEADROOM = 2
 MAX_GENERATIONS = 2
+# One extra generation is permitted exclusively for a transient interpretation
+# failure. This is still one admitted Research request, not an HTTP retry.
+INTERPRET_FAILOVER_MODEL = "gemini-3.5-flash-lite"
+INTERPRET_FAILOVER_SECONDS = 10
+INTERPRET_FAILOVER_HEADROOM = 30
 MAX_PROVIDER_BODY = 64 * 1024
 
 
@@ -47,11 +52,33 @@ class PublicGemini:
         self._model = model
         self._deadline = deadline
         self._calls = 0
+        self._interpret_failover_allowance = 0
 
     def interpret(self, request, *, knowledge_cutoff=None) -> Intent:
         with _gemini_stage("gemini.interpret"):
             inputs = interpretation_inputs(request, self._key, knowledge_cutoff=knowledge_cutoff)
-            return self._generate(_INTERPRET, inputs, Intent)
+            try:
+                return self._generate(_INTERPRET, inputs, Intent)
+            except (TimeoutError, httpx.HTTPError) as error:
+                if self._model == INTERPRET_FAILOVER_MODEL:
+                    raise
+                if isinstance(error, httpx.HTTPStatusError) and error.response.status_code not in (
+                    429, 500, 502, 503, 504,
+                ):
+                    raise
+                # Retain enough time for official-data retrieval, final
+                # composition, validation and serialization. Do not turn a
+                # single provider stall into a 65-second research timeout.
+                if self._deadline - monotonic() <= INTERPRET_FAILOVER_HEADROOM + 1:
+                    raise
+                self._interpret_failover_allowance = 1
+                with _gemini_stage("gemini.interpret_failover"):
+                    return self._generate(
+                        _INTERPRET, inputs, Intent,
+                        model_override=INTERPRET_FAILOVER_MODEL,
+                        stage_seconds=INTERPRET_FAILOVER_SECONDS,
+                        deadline_headroom=INTERPRET_FAILOVER_HEADROOM,
+                    )
 
     def compose(self, evidence: list[dict]) -> Draft:
         with _gemini_stage("gemini.compose"):
@@ -63,8 +90,9 @@ class PublicGemini:
             return self._generate(_GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
                                   deadline_headroom=GENERAL_DEADLINE_HEADROOM)
 
-    def _generate(self, template, inputs, schema, *, output_tokens=OUTPUT_TOKENS, deadline_headroom=0):
-        if self._calls >= MAX_GENERATIONS:
+    def _generate(self, template, inputs, schema, *, output_tokens=OUTPUT_TOKENS, deadline_headroom=0,
+                  model_override=None, stage_seconds=GEMINI_STAGE_SECONDS):
+        if self._calls >= MAX_GENERATIONS + self._interpret_failover_allowance:
             raise ValueError("Research generation limit reached")
         self._calls += 1
         system, user = template.format_messages(**inputs)
@@ -81,16 +109,18 @@ class PublicGemini:
             },
         }
         try:
-            raw = run(self._invoke(payload, deadline_headroom=deadline_headroom))
+            raw = run(self._invoke(payload, deadline_headroom=deadline_headroom,
+                                   model_override=model_override, stage_seconds=stage_seconds))
         except httpx.TimeoutException:
             raise TimeoutError("Gemini timed out") from None
         with _gemini_stage("gemini.validate_schema"):
             return schema.model_validate_json(raw)
 
-    async def _invoke(self, payload: dict, *, deadline_headroom: float) -> str:
-        model = f"models/{self._model}"
+    async def _invoke(self, payload: dict, *, deadline_headroom: float,
+                      model_override=None, stage_seconds=GEMINI_STAGE_SECONDS) -> str:
+        model = f"models/{model_override or self._model}"
         now = monotonic()
-        deadline = min(self._deadline - deadline_headroom, now + GEMINI_STAGE_SECONDS)
+        deadline = min(self._deadline - deadline_headroom, now + stage_seconds)
         remaining = deadline - now
         if remaining <= 0:
             raise TimeoutError("Research deadline reached")
@@ -99,7 +129,8 @@ class PublicGemini:
                 base_url="https://generativelanguage.googleapis.com/v1beta/",
                 headers={"x-goog-api-key": self._key, "Accept": "application/json",
                          "Accept-Encoding": "identity"},
-                trust_env=False, follow_redirects=False, timeout=GEMINI_HTTP_SECONDS,
+                trust_env=False, follow_redirects=False,
+                timeout=min(GEMINI_HTTP_SECONDS, stage_seconds),
             ) as client:
                 with _gemini_stage("gemini.count_tokens"):
                     if monotonic() >= deadline:

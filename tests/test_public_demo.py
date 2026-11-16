@@ -358,7 +358,8 @@ def test_gemini_stage_has_one_25_second_budget_for_both_http_calls(
         reply = research_client.post(RESEARCH, headers=research_attestation.headers(ANALYSIS), json=ANALYSIS)
     assert reply.status_code == 504
     assert "X-MacroPulse-Research-Complete" not in reply.headers
-    assert paths == (["countTokens"] if slow_call == "countTokens" else ["countTokens", "generateContent"])
+    assert paths == (["countTokens", "countTokens"] if slow_call == "countTokens"
+                     else ["countTokens", "generateContent", "countTokens"])
     stage = "gemini.count_tokens" if slow_call == "countTokens" else "gemini.generate_content"
     assert any(record.get("stage") == stage and record.get("error_type") == "TimeoutError"
                for record in map(lambda entry: json.loads(entry.message), caplog.records))
@@ -647,7 +648,7 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
 
 
 @pytest.mark.parametrize("failure,code", [("input limit", 503), ("provider failure", 503), ("timeout", 504)])
-def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch, caplog, failure, code, research_attestation):
+def test_public_gemini_fails_closed_after_bounded_interpret_failover(research_client, monkeypatch, caplog, failure, code, research_attestation):
     paths = []
     error_types = {"input limit": "ValueError", "provider failure": "HTTPStatusError", "timeout": "ReadTimeout"}
     caplog.set_level(logging.INFO, logger="uvicorn.error.macropulse.research")
@@ -668,7 +669,8 @@ def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch
     reply = research_client.post(RESEARCH, headers=headers, json=ANALYSIS)
     assert reply.status_code == code and "synthetic" not in reply.text
     assert demo.RESEARCH_ID_HEADER not in reply.headers
-    assert len(paths) == 1 and paths[0].endswith(":countTokens")
+    assert len(paths) == (1 if failure == "input limit" else 2)
+    assert all(path.endswith(":countTokens") for path in paths)
     events = [json.loads(entry.getMessage()) for entry in caplog.records
               if entry.name == "uvicorn.error.macropulse.research"]
     by_stage = {event["stage"]: event for event in events}
@@ -746,13 +748,20 @@ def test_gemini_generation_logs_provider_status_and_safe_transient_fallback(
     else:
         assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
     assert demo.RESEARCH_ID_HEADER not in reply.headers
-    assert calls == ["countTokens", "generateContent"] * (2 if phase == "compose" else 1)
+    interpret_failover = phase == "interpret" and provider_status in (429, 503)
+    assert calls == ["countTokens", "generateContent"] * (
+        2 if phase == "compose" or interpret_failover else 1
+    )
 
     records = [entry for entry in caplog.records if entry.name == "uvicorn.error.macropulse.research"]
     events = [json.loads(entry.getMessage()) for entry in records]
     assert all(entry.exc_info is None for entry in records)
     provider_events = [event for event in events if "provider_http_status" in event]
-    assert [event["stage"] for event in provider_events] == ["gemini.generate_content", f"gemini.{phase}"]
+    assert [event["stage"] for event in provider_events] == (
+        ["gemini.generate_content", "gemini.generate_content", "gemini.interpret_failover",
+         "gemini.interpret"] if interpret_failover
+        else ["gemini.generate_content", f"gemini.{phase}"]
+    )
     for event in provider_events:
         assert event["event"] == "public_research_stage"
         assert event["outcome"] == "error" and event["error_type"] == "HTTPStatusError"
@@ -783,3 +792,62 @@ def test_research_preload_failure_is_sanitized_and_preserves_disabled_endpoint(d
     ]
     assert events[0]["research_id"] is None and events[1]["research_id"]
     assert "synthetic private" not in caplog.text
+
+
+def test_interpretation_503_uses_bounded_lite_failover_and_keeps_verified_result(
+    research_client, monkeypatch, research_attestation,
+):
+    """One rejected primary generation can recover within the same admitted request."""
+    question = "How did exchange rates move in the selected period?"
+    params = {**ANALYSIS, "question": question}
+    intent = {"purpose": "descriptive", "requirements": [{
+        "excerpt": question, "indicator": "eur-usd", "operation": "trend",
+        "geography": "bilateral", "measure": "spot_reference_rate",
+    }]}
+    calls = []
+
+    def read(_connection, item, window, **_options):
+        values = []
+        for raw, value in (("2020-02-03", "1.1"), ("2020-02-04", "1.2")):
+            period = parse_period(item.frequency, raw)
+            values.append(MacroObservation(
+                period_raw=raw, period_start=period.start, period_end=period.end, effective_date=None,
+                value=Decimal(value), status_kind="normal", status_raw=None,
+            ))
+        return MacroHistory(indicator=indicator_metadata(item), start=window.start, end=window.end,
+                            updated_at=None, observations=values)
+
+    monkeypatch.setattr(demo, "read_history", read)
+    monkeypatch.setattr(public_gemini.PublicGemini, "compose", lambda self, statements: (
+        v2_service.Draft.model_validate({"paragraphs": [
+            {"statement_id": statement["statement_id"], "style": "direct"} for statement in statements
+        ]})
+    ))
+
+    def provider(request):
+        calls.append((request.url.path, request.extensions["timeout"]["read"]))
+        if request.url.path.endswith(":countTokens"):
+            return httpx.Response(200, json={"totalTokens": 200})
+        if "gemini-3.6-flash" in request.url.path:
+            return httpx.Response(503, text="synthetic temporary provider outage")
+        assert "gemini-3.5-flash-lite" in request.url.path
+        return httpx.Response(200, json={
+            "usageMetadata": {"promptTokenCount": 200, "candidatesTokenCount": 60},
+            "candidates": [{"finishReason": "STOP",
+                            "content": {"parts": [{"text": json.dumps(intent)}]}}],
+        })
+
+    client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **options: client(
+        transport=httpx.MockTransport(provider), **options,
+    ))
+    reply = research_client.post(RESEARCH, headers=research_attestation.headers(params), json=params)
+    assert reply.status_code == 200
+    body = reply.json()
+    assert body["status"] == "answered"
+    assert body["narrative"] and all(statement["citations"] for statement in body["narrative"])
+    assert [path.split("/")[-1].split(":")[0] for path, _ in calls] == [
+        "gemini-3.6-flash", "gemini-3.6-flash",
+        "gemini-3.5-flash-lite", "gemini-3.5-flash-lite",
+    ]
+    assert [budget for _, budget in calls] == [20, 20, 10, 10]

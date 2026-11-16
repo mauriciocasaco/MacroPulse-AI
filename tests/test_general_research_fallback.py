@@ -225,10 +225,11 @@ def test_flag_default_and_interpretation_provider_failure_never_trigger_fallback
     assert len(calls) == 2
 
     monkeypatch.setenv(public_demo.GENERAL_FALLBACK_FLAG, "true")
-    calls = simulate_provider(monkeypatch, httpx.ConnectError("synthetic interpreter failure"))
+    calls = simulate_provider(monkeypatch, httpx.ConnectError("synthetic interpreter failure"),
+                              httpx.ConnectError("synthetic alternate model failure"))
     with pytest.raises(httpx.ConnectError):
         public_online.run_online_research(object(), hybrid, "fixture-key", MODEL, monotonic() + 40)
-    assert len(calls) == 2
+    assert len(calls) == 4  # one primary and one bounded alternate; no general fallback
 
     bad_intent = interpret(hybrid, "other")
     bad_intent["requirements"][0]["excerpt"] = "invented excerpt"
