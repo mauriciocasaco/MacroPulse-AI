@@ -357,7 +357,8 @@ def test_gemini_stage_has_one_25_second_budget_for_both_http_calls(
         reply = research_client.post(RESEARCH, headers=research_headers(), json=ANALYSIS)
     assert reply.status_code == 504
     assert "X-MacroPulse-Research-Complete" not in reply.headers
-    assert paths == (["countTokens"] if slow_call == "countTokens" else ["countTokens", "generateContent"])
+    assert paths == (["countTokens", "countTokens"] if slow_call == "countTokens"
+                     else ["countTokens", "generateContent", "countTokens"])
     stage = "gemini.count_tokens" if slow_call == "countTokens" else "gemini.generate_content"
     assert any(record.get("stage") == stage and record.get("error_type") == "TimeoutError"
                for record in map(lambda entry: json.loads(entry.message), caplog.records))
@@ -646,7 +647,7 @@ def test_public_research_uses_only_verified_demo_and_cites_evidence(demo_env, mo
 
 
 @pytest.mark.parametrize("failure,code", [("input limit", 503), ("provider failure", 503), ("timeout", 504)])
-def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch, caplog, failure, code):
+def test_public_gemini_fails_closed_after_bounded_interpret_failover(research_client, monkeypatch, caplog, failure, code):
     paths = []
     error_types = {"input limit": "ValueError", "provider failure": "HTTPStatusError", "timeout": "ReadTimeout"}
     caplog.set_level(logging.INFO, logger="uvicorn.error.macropulse.research")
@@ -667,7 +668,8 @@ def test_public_gemini_fails_closed_without_retries(research_client, monkeypatch
     reply = research_client.post(RESEARCH, headers=headers, json=ANALYSIS)
     assert reply.status_code == code and "synthetic" not in reply.text
     assert demo.RESEARCH_ID_HEADER not in reply.headers
-    assert len(paths) == 1 and paths[0].endswith(":countTokens")
+    assert len(paths) == (1 if failure == "input limit" else 2)
+    assert all(path.endswith(":countTokens") for path in paths)
     events = [json.loads(entry.getMessage()) for entry in caplog.records
               if entry.name == "uvicorn.error.macropulse.research"]
     by_stage = {event["stage"]: event for event in events}
@@ -744,13 +746,20 @@ def test_gemini_generation_logs_provider_status_and_safe_transient_fallback(
     else:
         assert reply.status_code == 503 and reply.json() == {"detail": "Public Research is unavailable"}
     assert demo.RESEARCH_ID_HEADER not in reply.headers
-    assert calls == ["countTokens", "generateContent"] * (2 if phase == "compose" else 1)
+    interpret_failover = phase == "interpret" and provider_status in (429, 503)
+    assert calls == ["countTokens", "generateContent"] * (
+        2 if phase == "compose" or interpret_failover else 1
+    )
 
     records = [entry for entry in caplog.records if entry.name == "uvicorn.error.macropulse.research"]
     events = [json.loads(entry.getMessage()) for entry in records]
     assert all(entry.exc_info is None for entry in records)
     provider_events = [event for event in events if "provider_http_status" in event]
-    assert [event["stage"] for event in provider_events] == ["gemini.generate_content", f"gemini.{phase}"]
+    assert [event["stage"] for event in provider_events] == (
+        ["gemini.generate_content", "gemini.generate_content", "gemini.interpret_failover",
+         "gemini.interpret"] if interpret_failover
+        else ["gemini.generate_content", f"gemini.{phase}"]
+    )
     for event in provider_events:
         assert event["event"] == "public_research_stage"
         assert event["outcome"] == "error" and event["error_type"] == "HTTPStatusError"
