@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import worker from './public-demo.mjs';
@@ -19,7 +19,7 @@ const testEnvironment = () => ({
   MACROPULSE_RESEARCH_ORIGIN_KEYS: JSON.stringify(fixture.origin_keys),
   MACROPULSE_RESEARCH_ORIGIN_ACTIVE_KID: originKey,
   MACROPULSE_RESEARCH_VERIFY_KEYS: JSON.stringify(fixture.verify_keys),
-  MACROPULSE_RESEARCH_HASH_KEY: '1234567890abcdef'.repeat(3) + 'fdecba0987654321',
+  MACROPULSE_RESEARCH_HASH_KEY: createHash('sha256').update('synthetic visitor hashing fixture').digest('hex'),
   MACROPULSE_TURNSTILE_SITE_KEY: 'test_public_site_key',
   MACROPULSE_TURNSTILE_SECRET: 'test_synthetic_turnstile_secret',
   RESEARCH_ATTEMPT_RATE_LIMIT: { limit: async () => ({ success: true }) },
