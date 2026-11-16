@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from dataclasses import replace
 from decimal import Decimal
 import json
+import httpx
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -614,3 +615,69 @@ def test_ukraine_gdp_flash_is_eligible_for_its_quarter():
     )
     assert source.geography == "euro area (EA19)"
     assert "0.7% quarter on quarter" in claim.text
+
+
+@pytest.mark.parametrize("provider_error", [
+    pytest.param(TimeoutError("provider stage expired"), id="stage-timeout"),
+    pytest.param(httpx.ReadTimeout("upstream stalled"), id="http-timeout"),
+    pytest.param(httpx.HTTPStatusError(
+        "upstream rate limited", request=httpx.Request("POST", "https://example.test/generate"),
+        response=httpx.Response(429),
+    ), id="provider-429"),
+    pytest.param(ValueError("malformed generated payload"), id="invalid-response"),
+    pytest.param(KeyError("missing candidates"), id="missing-provider-field"),
+])
+def test_public_compose_failure_preserves_verified_evidence(provider_error):
+    """The public runtime must degrade to server-owned statements, never invented text."""
+    source = SeriesEvidence(
+        id="series:verified-fixture", kind="series", title="Official synthetic fixture",
+        url="https://example.test/verified", attribution="Fixture",
+        series_key="verified-fixture", unit="percent", multiplier=0,
+        geography="fixture", adjustment="fixture",
+    )
+    statement = v2_service.Statement(
+        Claim(text="An official synthetic observation.", citations=[source.id]),
+        "official observation",
+        ("An official synthetic observation.", "The official data records an observation."),
+    )
+
+    def fail_compose(_statements):
+        raise provider_error
+
+    state = {
+        "statements": [statement], "evidence": [source],
+        "limitations": [], "diagnostics": [],
+        "runtime": v2_service.ResearchRuntime(
+            read=lambda *_: pytest.fail("Unexpected DB access"),
+            interpret=lambda *_: pytest.fail("Unexpected interpretation"),
+            compose=fail_compose, model_id="fixture",
+        ),
+    }
+    generated = v2_service.compose_answer(state)
+    assert "draft" not in generated
+    assert any("Gemini drafting was unavailable" in note for note in generated["limitations"])
+    validated = v2_service.validate_answer({**state, **generated})
+    assert validated["model_id"] is None
+    assert len(validated["narrative"]) == 1
+    assert validated["narrative"][0].text == "The official data records an observation."
+    assert validated["narrative"][0].citations == [source.id]
+
+
+def test_public_compose_unknown_programming_defect_is_not_hidden():
+    """Fail-soft applies to provider failures, never arbitrary programming bugs."""
+    def broken(_):
+        raise RuntimeError("unexpected internal bug")
+
+    state = {
+        "statements": [v2_service.Statement(
+            Claim(text="A checked fact.", citations=["series:fixture"]),
+            "official observation", ("A checked fact.", "A checked fact."),
+        )],
+        "limitations": [],
+        "runtime": v2_service.ResearchRuntime(
+            read=lambda *_: None, interpret=lambda *_: None,
+            compose=broken, model_id="fixture",
+        ),
+    }
+    with pytest.raises(RuntimeError, match="unexpected internal bug"):
+        v2_service.compose_answer(state)
