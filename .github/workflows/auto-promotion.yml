@@ -1,10 +1,10 @@
-name: Staging Promotion PR
+name: Continuous Promotion PR
 
-# Only code already merged into the protected dev branch may request a promotion.
-# This workflow deliberately opens a PR; it never merges or deploys anything.
+# A protected-branch merge opens the next promotion PR.
+# The bot NEVER approves or merges a PR. Human action is required at each stage.
 on:
   push:
-    branches: [dev]
+    branches: [dev, staging]
   workflow_dispatch:
 
 permissions:
@@ -12,46 +12,63 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: macropulse-staging-promotion
+  group: macropulse-promotion-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  open-staging-pr:
-    name: Open staging promotion PR
+  open-next-promotion-pr:
+    name: Open next promotion PR
     if: github.repository == 'mauriciocasaco/MacroPulse-AI'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Inspect staging promotion state
+      - name: Choose strictly adjacent promotion branches
+        id: route
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            dev)
+              echo "source=dev" >> "$GITHUB_OUTPUT"
+              echo "target=staging" >> "$GITHUB_OUTPUT"
+              ;;
+            staging)
+              echo "source=staging" >> "$GITHUB_OUTPUT"
+              echo "target=prod" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unsupported source branch for promotion."
+              exit 1
+              ;;
+          esac
+
+      - name: Inspect next promotion state
         id: inspect
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ steps.route.outputs.source }}
+          TARGET: ${{ steps.route.outputs.target }}
         run: |
           set -euo pipefail
 
-          ahead="$(gh api "repos/${GITHUB_REPOSITORY}/compare/staging...dev" --jq '.ahead_by')"
-          if [[ ! "$ahead" =~ ^[0-9]+$ ]]; then
-            echo "::error::Could not determine dev's commits ahead of staging."
-            exit 1
-          fi
-
+          ahead="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${TARGET}...${SOURCE}" --jq '.ahead_by')"
+          [[ "$ahead" =~ ^[0-9]+$ ]] || exit 1
           if (( ahead == 0 )); then
-            echo "::notice::Nothing new in dev to propose for staging."
+            echo "::notice::No new source commits for $SOURCE -> $TARGET."
             exit 0
           fi
 
-          existing="$(gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=staging&per_page=100" \
-            --jq '[.[] | select(.head.ref == "dev" and .head.repo.full_name == "mauriciocasaco/MacroPulse-AI")] | .[0].number // empty')"
-
+          existing="$(gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=${TARGET}&per_page=100" \
+            --jq "[.[] | select(.head.ref == \"${SOURCE}\" and .head.repo.full_name == \"${GITHUB_REPOSITORY}\")] | .[0].number // empty")"
           if [[ -n "$existing" ]]; then
-            echo "::notice::Promotion PR #$existing already exists and tracks dev."
+            echo "::notice::Existing promotion PR #$existing tracks $SOURCE -> $TARGET."
             exit 0
           fi
 
           echo "create_pr=true" >> "$GITHUB_OUTPUT"
 
-      - name: Create a repository-scoped GitHub App token
+      - name: Issue a repository-scoped promotion bot token
         if: steps.inspect.outputs.create_pr == 'true'
         id: bot
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
@@ -61,34 +78,37 @@ jobs:
           permission-contents: read
           permission-pull-requests: write
 
-      - name: Open dev to staging PR
+      - name: Create next promotion PR
         if: steps.inspect.outputs.create_pr == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ steps.bot.outputs.token }}
+          SOURCE: ${{ steps.route.outputs.source }}
+          TARGET: ${{ steps.route.outputs.target }}
         run: |
           set -euo pipefail
 
-          body="$(cat <<'EOF'
-          ## Automated promotion: dev -> staging
+          body="$(cat <<EOF
+          ## Automated promotion: ${SOURCE} -> ${TARGET}
 
-          This PR was opened by the MacroPulse promotion bot after a change
-          landed on the protected `dev` branch.
+          Created by macropulse-promotion-bot after changes landed on the
+          protected source branch.
 
-          - Source: `dev` (tracks its current tip until the PR is merged)
-          - Destination: `staging`
-          - Required checks: CI, CodeQL, Gitleaks, Promotion Policy
-          - **No automatic merge in this rollout.**
-          - **No Render/Cloudflare deployment.**
+          A separate trusted Release Quality Gate executes regression and
+          security checks on the candidate merge. Even after all checks pass,
+          a human must explicitly complete this pull request.
 
-          Do not merge until the staging-specific evaluation gates are available.
+          - No bypass permissions.
+          - No public Render or Cloudflare deployment.
+          - This PR remains open until a human merges it.
+          - Failing checks block a manual merge.
           EOF
           )"
 
           gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls" \
-            -f head=dev \
-            -f base=staging \
-            -f title="chore(release): promote dev to staging" \
+            -f head="$SOURCE" \
+            -f base="$TARGET" \
+            -f title="chore(release): promote $SOURCE to $TARGET" \
             -f body="$body" \
             -F draft=false \
             --jq '.html_url'
