@@ -288,18 +288,21 @@ it('allows validation without the public challenge and clears authentication aft
 });
 
 
-it('shows the fixed sensitive-input rejection in the local Research UI', async () => {
+it.each([
+  ['research_sensitive_information', "Can't process a question containing sensitive information.", 'fixture.person@example.test'],
+  ['research_disallowed_request', "Can't help you with that type of request.", 'Execute SELECT current_user;'],
+])('shows the fixed %s rejection in the local Research UI', async (code, message, question) => {
   const fetch = vi.fn(async (_url: string, init: RequestInit) => {
     expect(JSON.parse(String(init.body)).research_version).toBe('v2');
     return Response.json({
-      code: 'research_sensitive_information', detail: 'Untrusted upstream detail.',
+      code, detail: 'Untrusted upstream detail.',
     }, { status: 422 });
   });
   vi.stubGlobal('fetch', fetch);
   render(<MacroResearch {...props} researchV2Available />);
   fireEvent.click(screen.getByRole('checkbox', { name: 'Use experimental Research v2' }));
-  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'fixture.person@example.test' } });
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: question } });
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
-  await screen.findByText("Can't process a question containing sensitive information.");
+  await screen.findByText(message);
   expect(screen.queryByText('Untrusted upstream detail.')).toBeNull();
 });

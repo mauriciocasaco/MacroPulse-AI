@@ -17,6 +17,7 @@ const dependencies = readdirSync(root).filter((file) => file.endsWith('.mjs')
   && file !== 'public-demo.mjs' && !file.endsWith('.node-test.mjs'));
 
 let captured;
+let relayPort;
 function startRuntime() {
   return new Miniflare(convertV4MiniflareOptions({
     name: 'security-fixture',
@@ -53,6 +54,12 @@ function startRuntime() {
           name === 'content-type' || name.startsWith('x-macropulse-') || name === 'x-marketpulse-client-ip')),
         body: Buffer.from(await request.arrayBuffer()).toString('base64'),
       };
+      if (relayPort) {
+        const result = await fetch('http://127.0.0.1:' + relayPort + '/macro/analysis', {
+          method: 'POST', headers: captured.headers, body: Buffer.from(captured.body, 'base64'),
+        });
+        return new RuntimeResponse(await result.arrayBuffer(), { status: result.status, headers: result.headers });
+      }
       // A lost upstream response keeps the lease alive while the fixture replays these exact bytes.
       return new RuntimeResponse(null, { status: 503 });
     },
@@ -73,20 +80,30 @@ const server = createServer(async (request, reply) => {
       return reply.writeHead(204).end();
     }
     if (request.url === '/admit') {
-      const { scope, reject } = JSON.parse(input);
+      const { scope, reject, question, originPort } = JSON.parse(input);
       captured = null;
-      const response = await runtime.dispatchFetch(host + '/api/macro/analysis', {
-        method: 'POST',
-        headers: {
-          Origin: host, 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.5',
-          ...(scope === 'admin' ? { 'X-MacroPulse-Admin-Secret': digest('synthetic test admin key') }
-            : { 'X-MacroPulse-Turnstile': reject ? 'reject' : randomUUID() }),
-        },
-        body: Buffer.from(fixture.vectors[0].body_base64, 'base64'),
-      });
-      await response.arrayBuffer();
-      return reply.writeHead(200, { 'Content-Type': 'application/json' })
-        .end(JSON.stringify({ status: response.status, wire: captured }));
+      const body = Buffer.from(fixture.vectors[0].body_base64, 'base64');
+      const payload = question === undefined ? body : JSON.stringify({ ...JSON.parse(body), question });
+      relayPort = originPort;
+      try {
+        const response = await runtime.dispatchFetch(host + '/api/macro/analysis', {
+          method: 'POST',
+          headers: {
+            Origin: host, 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.5',
+            ...(scope === 'admin' ? { 'X-MacroPulse-Admin-Secret': digest('synthetic test admin key') }
+              : { 'X-MacroPulse-Turnstile': reject ? 'reject' : randomUUID() }),
+          },
+          body: payload,
+        });
+        const bodyText = await response.text();
+        return reply.writeHead(200, { 'Content-Type': 'application/json' })
+          .end(JSON.stringify({ status: response.status, wire: captured, ...(originPort && {
+            body: JSON.parse(bodyText), cache: response.headers.get('cache-control'),
+            completion: response.headers.get('x-macropulse-research-complete'),
+          }) }));
+      } finally {
+        relayPort = undefined;
+      }
     }
     if (request.url === callback) {
       const response = await runtime.dispatchFetch(host + callback, {

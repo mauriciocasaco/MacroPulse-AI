@@ -351,6 +351,10 @@ export class SensitiveResearchError extends Error {
   constructor() { super("Can't process a question containing sensitive information."); }
 }
 
+export class DisallowedResearchError extends Error {
+  constructor() { super("Can't help you with that type of request."); }
+}
+
 export async function checkAdministrator(secret: string, signal: AbortSignal): Promise<boolean> {
   if (!/^[a-f0-9]{64}$/.test(secret)) return false;
   const unavailable = 'Administrator verification is currently unavailable.';
@@ -401,6 +405,9 @@ export async function askMacroAnalysis(
       const failure: unknown = await response.json().catch(() => null);
       if (object(failure) && failure.code === 'research_sensitive_information') {
         throw new SensitiveResearchError();
+      }
+      if (object(failure) && failure.code === 'research_disallowed_request') {
+        throw new DisallowedResearchError();
       }
       if (turnstileToken || adminSecret) throw new Error('Review the selected dates and question before trying again.');
     }
