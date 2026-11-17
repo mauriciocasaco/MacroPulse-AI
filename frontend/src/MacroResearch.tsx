@@ -1,7 +1,7 @@
 import { RippleButton } from './RippleButton';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AdministratorCredentialError, askMacroAnalysis, checkAdministrator,
+  AdministratorCredentialError, SensitiveResearchError, askMacroAnalysis, checkAdministrator,
   type MacroAnalysis, type MacroIndicator, type ObservedChange, type ResearchDiagnostic, type ResearchEvidence,
 } from './macro-api';
 import { QuestionComposer, type QuestionSubmission } from './QuestionComposer';
@@ -157,7 +157,8 @@ export function MacroResearch({ enabled, indicatorId, indicators, onIndicatorCha
         ...current, result: data, view: data.general_fallback?.status === 'answered' ? 'general' : 'rag',
       } : current);
     }, (cause: unknown) => {
-      const error = publicDemo && cause instanceof Error ? cause.message : 'Local macro research is currently unavailable.';
+      const error = cause instanceof SensitiveResearchError || (publicDemo && cause instanceof Error)
+        ? cause.message : 'Local macro research is currently unavailable.';
       if (controller.signal.aborted) return;
       if (cause instanceof AdministratorCredentialError) {
         setAdminStatus('invalid');
