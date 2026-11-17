@@ -69,7 +69,7 @@ foreach ($target in @(
 }
 $tunnels = @(
     @{ Name='grafana'; Namespace='monitoring'; Service='grafana'; LocalPort=3000; RemotePort=80 },
-    @{ Name='api'; Namespace='k-lab'; Service='macropulse-api'; LocalPort=8000; RemotePort=8000 },
+    @{ Name='FastAPI'; Namespace='k-lab'; Service='macropulse-api'; LocalPort=8000; RemotePort=8000 },
     @{ Name='prometheus'; Namespace='monitoring'; Service='prometheus-server'; LocalPort=9090; RemotePort=80 }
 )
 $previous = @()
