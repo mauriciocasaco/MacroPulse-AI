@@ -20,10 +20,10 @@ Windows 11, Docker Desktop with a running Linux container engine, PowerShell 5.1
 
 ## Start and stop (Windows)
 
-From `kubernates_local/`, double-click `Start-KLab.cmd`, or run:
+Double-click `kubernates_local/Start-KLab.cmd` or, **from the repository root**, run:
 
 ~~~powershell
-./kubernates_local/Start-KLab.ps1
+.\kubernates_local\Start-KLab.ps1
 ~~~
 
 The script starts Docker Desktop if needed, starts the existing kind control-plane container, waits for Kubernetes, checks the API/Grafana/Prometheus deployments and launches loopback-only port forwards in the background. It leaves unrelated processes alone and warns if a local port is occupied. Managed process identifiers and diagnostics are kept **outside Git** in `%LOCALAPPDATA%\MacroPulse-AI\k-lab\`.
@@ -34,10 +34,10 @@ The script starts Docker Desktop if needed, starts the existing kind control-pla
 | FastAPI Swagger | http://127.0.0.1:8000/docs | `k-lab/macropulse-api:8000` |
 | Prometheus | http://127.0.0.1:9090 | `monitoring/prometheus-server:80` |
 
-To shut down the managed forwards and the kind node (not Docker Desktop), double-click `Stop-KLab.cmd`, or run:
+To shut down the managed forwards and the kind node (not Docker Desktop), double-click `Stop-KLab.cmd`, or run from the repository root:
 
 ~~~powershell
-./kubernates_local/Stop-KLab.ps1
+.\kubernates_local\Stop-KLab.ps1
 ~~~
 
 These scripts were derived from the locally used startup helpers; because the cluster is on a separate Windows machine, GitHub changes alone do not constitute an end-to-end local execution test.
@@ -109,16 +109,65 @@ sum by (pod) (
 ) * 1000
 ~~~
 
+**Kubernetes deployment replicas — two queries on the same panel:**
+
+~~~promql
+kube_deployment_spec_replicas{namespace="k-lab",deployment="macropulse-api"}
+~~~
+
+~~~promql
+kube_deployment_status_replicas_available{namespace="k-lab",deployment="macropulse-api"}
+~~~
+
+**Container restarts by pod (accumulated count):**
+
+~~~promql
+sum by (pod) (
+  kube_pod_container_status_restarts_total{namespace="k-lab",pod=~"macropulse-api-.*"}
+)
+~~~
+
+**Network traffic by pod (KiB/s) — two queries on the same panel:**
+
+~~~promql
+sum by (pod) (
+  rate(container_network_receive_bytes_total{namespace="k-lab",pod=~"macropulse-api-.*"}[5m])
+) / 1024
+~~~
+
+~~~promql
+sum by (pod) (
+  rate(container_network_transmit_bytes_total{namespace="k-lab",pod=~"macropulse-api-.*"}[5m])
+) / 1024
+~~~
+
+**Scrape health — two instant queries in a Stat panel:**
+
+~~~promql
+sum(up)
+~~~
+
+~~~promql
+count(up)
+~~~
+
+The local Grafana dashboard uses **three columns by two rows**, with CPU / Memory / Replicas on the first row and Restarts / Network / Scrape Health on the second. A millicore is CPU use, **not** an HTTP request count. Scrape health describes Prometheus targets, not application HTTP success rates. Some queries (notably network metrics) depend on active scrape targets and may show no data if those metrics are absent.
+
 If a saved Grafana dashboard says **No data**, first confirm its time picker is not pinned to an earlier date, then test `up` in Explore. A restart of non-persistent Prometheus storage may have discarded earlier samples. `up=1` shows an individual scrape target is reachable; it does not by itself prove that every application metric or custom panel query is valid.
 
 ## Evidence and screenshots
 
-The intended portfolio evidence is **two unedited screenshots from the actual workstation**:
+Two screenshots supplied from the local workstation are now versioned with this documentation. They capture one point in time; they do not prove ongoing production performance or that all metrics are retained across cluster restarts.
 
-1. `screenshots/grafana-monitoring.png` — Grafana dashboard with three current per-pod CPU / memory time series and a visible relative time range.
-2. `screenshots/kubernetes-pods.png` — PowerShell with `kubectl get pods,deployments,services` showing the running application replicas and monitoring services.
+**Grafana — six-panel infrastructure dashboard**
 
-See [screenshots/README.md](screenshots/README.md) for capture instructions. **Screenshots are not yet committed**, because the live Grafana interface and Windows desktop are not remotely accessible from GitHub. Do not substitute the previously captured **No data** dashboard or a recreated/mock terminal image for real evidence.
+![Grafana infrastructure monitoring dashboard for local MacroPulse AI Kubernetes environment](screenshots/grafana-monitoring.png)
+
+**Kubernetes — PowerShell pod/deployment status**
+
+![PowerShell Kubernetes pod and deployment status from the local MacroPulse AI cluster](screenshots/kubernetes-pods.png)
+
+[Capture instructions, privacy checks and limitations](screenshots/README.md). These images come from the author's local setup, not from a simulated dashboard. Avoid including keys, tokens or private machine identifiers in future captures.
 
 ## Security and scope
 
