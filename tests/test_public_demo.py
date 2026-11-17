@@ -6,6 +6,7 @@ from hashlib import sha256
 import json
 import logging
 import os
+from pathlib import Path
 from types import SimpleNamespace
 import subprocess
 import sys
@@ -851,3 +852,34 @@ def test_interpretation_503_uses_bounded_lite_failover_and_keeps_verified_result
         "gemini-3.5-flash-lite", "gemini-3.5-flash-lite",
     ]
     assert [budget for _, budget in calls] == [20, 20, 10, 10]
+
+
+def test_sensitive_public_research_completes_attestation_without_starting_work(
+    research_client, monkeypatch, research_attestation,
+):
+    fixture = Path(__file__).parent / "fixtures/security/fase-12-s3.json"
+    cases = json.loads(fixture.read_text(encoding="utf-8"))["questions"]["sensitive"]
+    consumed = set()
+
+    async def consume_once(_config, attestation, _commitment):
+        if attestation.nonce in consumed:
+            return False
+        consumed.add(attestation.nonce)
+        return True
+
+    monkeypatch.setattr(demo, "consume_grant", consume_once)
+    monkeypatch.setattr(demo, "run_public_research", lambda *args: pytest.fail("Research runner was called"))
+    monkeypatch.setattr(demo, "connect_demo", lambda *args: pytest.fail("SQL was called"))
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: pytest.fail("Gemini transport was constructed"))
+    for question in [PASSWORD, SECRET, *("".join(case["parts"]) for case in cases if "configured_secret" not in case)]:
+        payload = {**ANALYSIS, "question": question}
+        headers = research_attestation.headers(payload)
+        result = research_client.post(RESEARCH, headers=headers, json=payload)
+        assert result.status_code == 422
+        assert result.headers["Cache-Control"] == "no-store"
+        assert result.headers["X-MacroPulse-Research-Complete"] == "true"
+        assert result.json() == {
+            "code": "research_sensitive_information",
+            "detail": "Can't process a question containing sensitive information.",
+        }
+        assert research_client.post(RESEARCH, headers=headers, json=payload).status_code == 403

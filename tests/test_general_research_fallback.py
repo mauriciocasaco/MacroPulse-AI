@@ -159,6 +159,10 @@ def test_hybrid_keeps_rag_and_limits_the_general_prompt(hybrid, monkeypatch, ope
         mode="json",
     )
     assert context["rag_diagnosis"] == reason
+    assert set(context) == {
+        "question", "indicator_id", "event_id", "start", "end",
+        "interpreted_event", "knowledge_cutoff", "rag_diagnosis",
+    }
     assert "fixture-key" not in json.dumps(prompt)
     assert len(body.model_dump_json().encode("utf-8")) < public_demo.MAX_RESEARCH_RESPONSE
 

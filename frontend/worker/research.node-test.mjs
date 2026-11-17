@@ -548,14 +548,22 @@ test('public and administrator Research share Render validation and separate adm
   assert.equal(publicQuota.db.prepare('SELECT count(*) AS count FROM tokens').get().count, 2);
   assert.equal(publicQuota.db.prepare('SELECT count(*) AS count FROM leases').get().count, 0);
 
+  for (const request of [
+    adminPost(credential, { body: JSON.stringify({ ...payload, question: credential }) }),
+    post('secret-in-question', { body: JSON.stringify({ ...payload, question: credential }) }),
+  ]) {
+    const rejected = await worker.fetch(request, env);
+    assert.equal(rejected.status, 422);
+    assert.deepEqual(await rejected.json(), {
+      code: 'research_sensitive_information', detail: "Can't process a question containing sensitive information.",
+    });
+  }
   for (const [request, status] of [
     [adminPost(credential, { headers: { Origin: 'https://forged.example' } }), 403],
     [adminPost(credential, { method: 'GET', body: undefined }), 405],
     [adminPost(credential, { headers: { 'Content-Type': 'text/plain' } }), 415],
     [adminPost(credential, { body: 'x'.repeat(4097) }), 413],
     [adminPost(credential, { body: JSON.stringify({ ...payload, secret: credential }) }), 422],
-    [adminPost(credential, { body: JSON.stringify({ ...payload, question: credential }) }), 422],
-    [post('secret-in-question', { body: JSON.stringify({ ...payload, question: credential }) }), 422],
     [adminPost(credential, { check: true, body: JSON.stringify(payload) }), 422],
   ]) assert.equal((await worker.fetch(request, env)).status, status);
   assert.equal((await worker.fetch(adminPost(credential), { ...env, MACROPULSE_RESEARCH_ENABLED: 'false' })).status, 503);
@@ -773,4 +781,59 @@ test('Research never uses cache and admin budget failures fail closed', async (t
   assert.equal((await worker.fetch(adminPost(env.MACROPULSE_ADMIN_SECRET), env)).status, 503);
   assert.equal(origin.mock.callCount(), 3);
   assert.equal(cacheAccess.mock.callCount(), 0);
+});
+
+
+test('forwards only the fixed sensitive rejection for completed origin validation', async (t) => {
+  const fixture = sqliteFixture(t);
+  const env = fixtureEnv(fixture.instance());
+  const sensitive = 'fixture.person@example.test';
+  const userQuestion = '-----BEGIN PRIVATE KEY-----\nSYNTHETIC\n-----END PRIVATE KEY-----';
+  const code = 'research_sensitive_information';
+  const events = [];
+  t.mock.method(console, 'info', (event) => events.push(event));
+  t.mock.method(console, 'warn', (event) => events.push(event));
+  let complete = true;
+  let sentBody;
+  let body = JSON.stringify({ code, detail: sensitive });
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (String(url).startsWith('https://challenges.cloudflare.com/')) {
+      return Response.json({ success: true, hostname: 'demo.example', action: 'research',
+        challenge_ts: new Date().toISOString() });
+    }
+    assert.equal(String(url), render + '/macro/analysis');
+    sentBody = JSON.parse(new TextDecoder().decode(init.body));
+    assert.match(init.headers['X-MacroPulse-Origin-Signature'], /^[a-f0-9]{64}$/);
+    return new Response(body, { status: 422, headers: {
+      'Content-Type': 'application/json', 'X-MacroPulse-Origin-Signature': sensitive,
+      ...(complete && { 'X-MacroPulse-Research-Complete': 'true' }),
+    } });
+  });
+  const ask = (token) => worker.fetch(post(token, { body: JSON.stringify({ ...payload, question: userQuestion }) }), env);
+  const response = await ask('pem-fixture');
+  assert.equal(response.status, 422);
+  assert.equal(sentBody.question, userQuestion);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.equal(response.headers.get('X-MacroPulse-Origin-Signature'), null);
+  assert.equal(response.headers.get('X-MacroPulse-Research-Complete'), null);
+  assert.deepEqual(await response.json(), { code, detail: "Can't process a question containing sensitive information." });
+  assert.equal(fixture.db.prepare('SELECT count(*) AS count FROM leases').get().count, 0);
+
+  for (const errorBody of [
+    JSON.stringify({ code: 'unexpected', detail: sensitive }),
+    JSON.stringify({ code, detail: sensitive.repeat(50) }),
+    '{',
+  ]) {
+    body = errorBody;
+    const other = await ask(crypto.randomUUID());
+    assert.equal(other.status, 422);
+    assert.deepEqual(await other.json(), { detail: 'Invalid request parameters' });
+  }
+  complete = false;
+  body = JSON.stringify({ code, detail: sensitive });
+  const incomplete = await ask('incomplete-pem-fixture');
+  assert.deepEqual(await incomplete.json(), { detail: 'Invalid request parameters' });
+  assert.equal(fixture.db.prepare('SELECT count(*) AS count FROM leases').get().count, 1);
+  assert.equal(JSON.stringify(events).includes(sensitive), false);
+  assert.equal(JSON.stringify(events).includes('BEGIN PRIVATE KEY'), false);
 });

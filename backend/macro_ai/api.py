@@ -13,10 +13,12 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
+from fastapi.responses import JSONResponse
 
 from ..macro_data.api import _require_local
 from .config import research_v2_enabled
 from .models import ResearchRequest, ResearchResponse
+from .sensitive_input import SENSITIVE_CODE, SENSITIVE_MESSAGE, contains_sensitive_input
 from .v2_models import ResearchV2Response
 
 
@@ -57,6 +59,17 @@ def _require_research_origin(request: Request) -> None:
     raise HTTPException(status_code=403, detail="Forbidden")
 
 
+def _sensitive_response():
+    return JSONResponse(
+        status_code=422, content={"code": SENSITIVE_CODE, "detail": SENSITIVE_MESSAGE},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def _sensitive_question(question: str) -> bool:
+    return contains_sensitive_input(question, secrets=(os.environ.get("GEMINI_API_KEY", "").strip(),))
+
+
 class _ResearchRoute(APIRoute):
     def get_route_handler(self):
         handler = super().get_route_handler()
@@ -87,7 +100,13 @@ class _ResearchRoute(APIRoute):
 
             try:
                 response = await handler(Request(request.scope, receive))
-            except RequestValidationError:
+            except RequestValidationError as error:
+                body = error.body
+                if (isinstance(body, dict) and body.get("research_version") == "v2"
+                        and research_v2_enabled() and _LAN_AUTH not in request.headers):
+                    question = body.get("question")
+                    if isinstance(question, str) and 5 <= len(question) <= 500 and _sensitive_question(question):
+                        return _sensitive_response()
                 raise HTTPException(status_code=422, detail="Invalid macro research request") from None
             response.headers["Cache-Control"] = "no-store"
             return response
@@ -108,6 +127,8 @@ def analysis(submission: ResearchSubmission, http_request: Request) -> ResearchV
         not research_v2_enabled() or _LAN_AUTH in http_request.headers
     ):
         raise HTTPException(status_code=404, detail="Research v2 unavailable")
+    if submission.research_version == "v2" and _sensitive_question(submission.question):
+        return _sensitive_response()
     if not _SLOT.acquire(blocking=False):
         raise HTTPException(status_code=503, detail="Macro research is busy")
     try:

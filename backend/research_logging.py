@@ -14,6 +14,15 @@ _logger = logging.getLogger("uvicorn.error.macropulse.research")
 research_id: ContextVar[str | None] = ContextVar("public_research_id", default=None)
 
 
+_SAFE_ERROR_TYPES = frozenset({
+    "CancelledError", "ConnectError", "ConnectTimeout", "HTTPStatusError", "ImportError",
+    "InvalidResearchConfiguration", "JSONDecodeError", "ModuleNotFoundError", "OperationalError",
+    "OriginConsumeRejected", "OriginConsumeUnavailable", "ReadError", "ReadTimeout",
+    "RemoteProtocolError", "ResearchBusy", "ResearchUnavailable", "ResponseTooLarge",
+    "RuntimeError", "SensitiveInputError", "TimeoutError", "ValidationError", "ValueError",
+})
+
+
 def research_event(stage: str, started: float, error_type: str | None = None,
                    *, http_status: int | None = None, provider_http_status: int | None = None) -> None:
     record = {
@@ -25,7 +34,7 @@ def research_event(stage: str, started: float, error_type: str | None = None,
         "duration_ms": round((monotonic() - started) * 1000, 2),
     }
     if error_type:
-        record["error_type"] = error_type
+        record["error_type"] = error_type if error_type in _SAFE_ERROR_TYPES else "UnknownError"
     if http_status is not None:
         record["http_status"] = http_status
     if provider_http_status is not None:

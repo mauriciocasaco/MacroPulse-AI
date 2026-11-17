@@ -1,0 +1,35 @@
+{
+  "questions": {
+    "sensitive": [
+      {"id": "gemini_key", "parts": ["Explain ECB rates. ", "AIza", "SYNTHETIC", "_00000000000000000000000000"]},
+      {"id": "password", "parts": ["password = ", "fictional-test-password-42"]},
+      {"id": "bearer", "parts": ["Authorization: Bearer ", "synthetic", "-opaque-token-1234"]},
+      {"id": "private_key", "parts": ["-----BEGIN PRIVATE KEY-----\n", "SYNTHETIC\n", "-----END PRIVATE KEY-----"]},
+      {"id": "connection_uri", "parts": ["postgresql://", "fixture_user", ":fictional@db.invalid/demo"]},
+      {"id": "email", "parts": ["fixture.person", "@example.test"]},
+      {"id": "phone", "parts": ["Call my phone at ", "+1 (202) 555-0142"]},
+      {"id": "mixed", "parts": ["How do deposit rates affect savings? Send it to ", "fixture.person@example.test"]},
+      {"id": "unicode", "parts": ["Explain bank funding. ", "ｐａｓｓｗｏｒｄ ： ", "fictional-test-password-42"]},
+      {"id": "authorization_basic", "parts": ["Authorization: Basic ", "Zml4dHVyZTpzdHVi"]},
+      {"id": "iban", "parts": ["Use test IBAN ", "GB05 TEST 0000 0000 0000 00"]},
+      {"id": "invisible_separator", "parts": ["How did wages change? ", "fixture.person\u200b@example.test"]},
+      {"id": "configured", "parts": ["Compare HICP and wages. ", "synthetic-origin-marker-12s3"], "configured_secret": "synthetic-origin-marker-12s3"}
+    ],
+    "admitted": [
+      {"id": "normal", "parts": ["How did euro-area headline HICP change during COVID-19?"]},
+      {"id": "ordinary_numbers", "parts": ["Compare €1,000,000 in bank deposits with 3.25% inflation in 2023 and annual HICP (ICP.M.U2.N.000000.4.ANR)."]},
+      {"id": "complex", "parts": ["How could changes in energy import costs, bank funding spreads, wage bargaining and ECB policy jointly influence euro-area core inflation while distinguishing headline HICP from second-round effects and keeping the observation window separate from what was knowable at the time?"]},
+      {"id": "conceptual", "parts": ["How can exchange-rate pass-through vary with firms' pricing currency and import dependence?"]}
+    ]
+  },
+  "provider": {
+    "private_marker": "synthetic-unapproved-field-12s3",
+    "private_url": "https://source.invalid/private/fixture-12s3",
+    "private_id": "internal-fixture-source-12s3",
+    "statements": [
+      {"statement_id": 1, "category": "official observation", "statement": "The synthetic annual inflation observation rose over the comparison period."},
+      {"statement_id": 2, "category": "documentary context", "statement": "The synthetic institutional statement describes imported energy costs."},
+      {"statement_id": 3, "category": "calculated from official observations", "statement": "The synthetic difference compares the two official observations."}
+    ]
+  }
+}

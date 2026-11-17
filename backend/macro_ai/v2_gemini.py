@@ -5,12 +5,14 @@ import os
 import re
 
 from datetime import date
+from typing import get_args
 
 from langchain_core.prompts import ChatPromptTemplate
 
 from ..macro_data.contracts import CATALOG
 from .models import EVENT_WINDOWS, ResearchRequest
-from .v2_models import Draft, FallbackReason, Intent
+from .sensitive_input import SensitiveInputError, configured_sensitive_values, contains_sensitive_input
+from .v2_models import Category, Draft, FallbackReason, Intent
 from .v2_statistics import DEFINITIONS
 
 _INTERPRET = ChatPromptTemplate.from_messages([
@@ -70,28 +72,41 @@ _GENERAL = ChatPromptTemplate.from_messages([
     ("human", "{context}"),
 ])
 
-# Never forward the configured key or recognizable credentials pasted into a
-# research question. Arbitrary confidential prose cannot be detected reliably.
-_CREDENTIAL = re.compile(
-    r"AIza[\w-]{20,}|\bAQ\.[\w-]{32,}|(?:postgres(?:ql)?|https?)://[^\s/@]+:[^\s/@]+@|"
-    r"\b(?:sk-|sb_secret_|gh[pousr]_|github_pat_)[\w-]{20,}|"
-    r"\b(?:api[_ -]?key|password|secret|access[_ -]?token|authorization)\s*[:=]\s*\S+|"
-    r"\bbearer\s+[\w.+/=-]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----", re.I,
-)
+def _text_values(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for field in value.values():
+            yield from _text_values(field)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _text_values(item)
 
 
-def _check_sensitive_input(request: ResearchRequest, key: str) -> None:
-    if (key and key in request.question) or _CREDENTIAL.search(request.question):
-        raise ValueError("Sensitive input")
+def check_egress(inputs: dict[str, str], key: str) -> None:
+    secrets = (key, *configured_sensitive_values.get())
+    for field, value in inputs.items():
+        data = json.loads(value) if field in {"scope", "context", "evidence"} else value
+        if any(contains_sensitive_input(item, secrets=secrets) for item in _text_values(data)):
+            raise SensitiveInputError
+
+
+def _filters(request: ResearchRequest) -> dict[str, str | None]:
+    return {
+        "start": request.start.isoformat(),
+        "end": request.end.isoformat(),
+        "indicator_id": request.indicator_id,
+        "event_id": request.event_id,
+    }
 
 
 def general_inputs(
-    request: ResearchRequest, key: str, reason: FallbackReason, *, event: str | None,
+    request: ResearchRequest, reason: FallbackReason, *, event: str | None,
     knowledge_cutoff: date | None,
 ) -> dict[str, str]:
-    _check_sensitive_input(request, key)
     return {"context": json.dumps({
-        **request.model_dump(mode="json"),
+        "question": request.question,
+        **_filters(request),
         "interpreted_event": event,
         "knowledge_cutoff": knowledge_cutoff.isoformat() if knowledge_cutoff else None,
         "rag_diagnosis": reason,
@@ -99,9 +114,8 @@ def general_inputs(
 
 
 def interpretation_inputs(
-    request: ResearchRequest, key: str, *, knowledge_cutoff: date | None = None,
+    request: ResearchRequest, *, knowledge_cutoff: date | None = None,
 ) -> dict[str, str]:
-    _check_sensitive_input(request, key)
     scope = {
         "catalog": [{
             "id": name, "title": CATALOG[name].title, "frequency": CATALOG[name].frequency,
@@ -110,7 +124,7 @@ def interpretation_inputs(
             "adjustment": CATALOG[name].adjustment,
         } for name, definition in DEFINITIONS.items()],
         "events": list(EVENT_WINDOWS),
-        "filters": request.model_dump(mode="json", exclude={"question"}),
+        "filters": _filters(request),
     }
     if knowledge_cutoff is not None:
         scope["knowledge_cutoff"] = knowledge_cutoff.isoformat()
@@ -125,16 +139,29 @@ def interpretation_inputs(
 def invoke_structured(prompt, inputs, schema):
     from .gemini import invoke_structured as local_invoke
 
+    check_egress(inputs, os.environ.get("GEMINI_API_KEY", "").strip())
     return local_invoke(prompt, inputs, schema)
 
 
 def interpret(request: ResearchRequest) -> Intent:
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    return invoke_structured(_INTERPRET, interpretation_inputs(request, key), Intent)
+    return invoke_structured(_INTERPRET, interpretation_inputs(request), Intent)
+
+
+_STATEMENT_URL = re.compile(r'https?://[^\s<>"]+', re.I)
 
 
 def composition_inputs(evidence: list[dict]) -> dict[str, str]:
-    return {"evidence": json.dumps(evidence, ensure_ascii=False)}
+    statements = []
+    categories = get_args(Category)
+    for item in evidence:
+        statement_id, category, statement = item["statement_id"], item["category"], item["statement"]
+        if type(statement_id) is not int or category not in categories or not isinstance(statement, str):
+            raise ValueError("Invalid Research statement")
+        statements.append({
+            "statement_id": statement_id, "category": category,
+            "statement": _STATEMENT_URL.sub("[link omitted]", statement),
+        })
+    return {"evidence": json.dumps(statements, ensure_ascii=False)}
 
 
 def compose(evidence: list[dict]) -> Draft:

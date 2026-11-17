@@ -488,3 +488,30 @@ def test_explicit_cutoff_excludes_late_official_capture(online_db):
             known_at=datetime(2020, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
         )
         assert not historical.observations
+
+
+@pytest.mark.parametrize("scope", ["public", "admin"])
+def test_sensitive_online_research_stops_before_runner(monkeypatch, research_attestation, scope):
+    from contextlib import nullcontext
+
+    monkeypatch.setenv("MARKETPULSE_DEMO_RESEARCH_ENABLED", "true")
+    monkeypatch.setenv("MARKETPULSE_DEMO_GEMINI_API_KEY", "AIza" + "n" * 35)
+    monkeypatch.setenv("MACROPULSE_ONLINE_DYNAMIC_RAG", "true")
+    app = public_demo.create_public_app(
+        settings=public_demo.DemoSettings("password=synthetic-online-password", SECRET),
+        connect=lambda *_: nullcontext(),
+        research_parser=public_online.parse_online_research,
+        research_runner=lambda *_: pytest.fail("Online research runner was called"),
+    )
+    payload = {
+        "question": "Explain inflation; my password is pasted here: -----BEGIN PRIVATE KEY-----\nSYNTHETIC",
+        "start": "2020-02-01", "end": "2020-12-31", "research_version": "v2",
+    }
+    with TestClient(app) as client:
+        response = client.post("/macro/analysis", json=payload, headers=research_attestation.headers(payload, scope=scope))
+    assert response.status_code == 422
+    assert response.headers["X-MacroPulse-Research-Complete"] == "true"
+    assert response.json() == {
+        "code": "research_sensitive_information",
+        "detail": "Can't process a question containing sensitive information.",
+    }
