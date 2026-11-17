@@ -77,8 +77,9 @@ export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, p
     {!validWindow && <p className="muted">Choose an ordered date range of up to 3,660 days.</p>}
     <div className="composer-question-heading">
       <label htmlFor={fieldId}>Research question</label>
-      {custom && <RippleButton type="button" className="composer-reset" disabled={disabled || !indicator}
-        onClick={() => setCustom(undefined)}>Reset to generated question</RippleButton>}
+      <RippleButton type="button" className={`composer-reset${custom ? '' : ' composer-reset-placeholder'}`}
+        aria-hidden={!custom} tabIndex={custom ? undefined : -1} disabled={disabled || !indicator || !custom}
+        onClick={() => setCustom(undefined)}>Reset to generated question</RippleButton>
     </div>
     <textarea id={fieldId} rows={3} required minLength={5} maxLength={500}
       value={question} disabled={disabled || !indicator}
@@ -88,7 +89,7 @@ export function QuestionComposer({ indicators, indicatorId, onIndicatorChange, p
       Your custom question is preserved. Review it for the selected indicator and period before submitting.
     </output>}
     {verification}
-    <div className={`composer-actions${custom ? ' composer-actions-custom' : ''}`}>
+    <div className="composer-actions">
       <RippleButton type="submit" className="primary" disabled={disabled || !indicator || !valid || !validWindow || !canSubmit}>Ask LLM Model</RippleButton>
     </div>
   </form>;
