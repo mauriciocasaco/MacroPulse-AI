@@ -22,7 +22,7 @@ Base remota confirmada en `eabb01452444abdcf7cbd4f10541598e24fc5736`, merge de 1
 
 Cada ataque se ejecutó en FastAPI DEMO con scope público y en FastAPI Online con scopes público y administrativo. Los 150 envíos firmados obtuvieron el cuerpo fijo, `Cache-Control: no-store` y la marca de finalización. Se verificó 403 sin firma y al repetir cada envío. Los mocks impidieron el ingreso al runner, cualquier conexión SQL de investigación y cualquier transporte Gemini, incluido `countTokens`. El fallback Pure vive detrás del runner.
 
-Las 30 preguntas legítimas llegaron intactas a un runner sintético. Las pruebas existentes cubrieron RAG, Pure y el failover Flash → Flash-Lite con mocks. El ensayo local de workerd conectó el Worker y su Durable Object SQLite a FastAPI, verificó ambos 422 y rechazó la repetición de los bytes firmados. Los tests del Worker comprobaron la liberación del lease al recibir una respuesta completada y su retención cuando falta la marca.
+Las 30 preguntas legítimas originales llegaron intactas a un runner sintético. Se añadieron 20 preguntas económicas legítimas con ecuaciones y supuestos numéricos (50 en total), más seis contraejemplos de código que deben seguir rechazándose; la ejecución del nuevo commit queda a cargo de CI. Las pruebas existentes cubrieron RAG, Pure y el failover Flash → Flash-Lite con mocks. El ensayo local de workerd conectó el Worker y su Durable Object SQLite a FastAPI, verificó ambos 422 y rechazó la repetición de los bytes firmados. Los tests del Worker comprobaron la liberación del lease al recibir una respuesta completada y su retención cuando falta la marca.
 
 ## Comprobaciones
 

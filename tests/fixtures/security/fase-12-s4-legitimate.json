@@ -118,5 +118,85 @@
   {
     "id": "30",
     "question": "Compare annual HICP, real GDP and unemployment before and after the pandemic. Discuss the role of fiscal policy, base effects and participation, and distinguish €100 billion in nominal spending from its real value."
+  },
+  {
+    "id": "31",
+    "question": "GDP = 100"
+  },
+  {
+    "id": "32",
+    "question": "CPI = 100"
+  },
+  {
+    "id": "33",
+    "question": "inflation = 2.5"
+  },
+  {
+    "id": "34",
+    "question": "PIB = 100"
+  },
+  {
+    "id": "35",
+    "question": "M3 = 100"
+  },
+  {
+    "id": "36",
+    "question": "HICP = 110"
+  },
+  {
+    "id": "37",
+    "question": "r = 0.05"
+  },
+  {
+    "id": "38",
+    "question": "Y = 100"
+  },
+  {
+    "id": "39",
+    "question": "Please explain the formula: GDP = 100"
+  },
+  {
+    "id": "40",
+    "question": "Please interpret this equation: x = 123"
+  },
+  {
+    "id": "41",
+    "question": "Explica la ecuación: x = 123"
+  },
+  {
+    "id": "42",
+    "question": "Explique a fórmula: x = 123"
+  },
+  {
+    "id": "43",
+    "question": "What does CPI = 100 represent in the base year?"
+  },
+  {
+    "id": "44",
+    "question": "How should we interpret GDP = 100 as an index?"
+  },
+  {
+    "id": "45",
+    "question": "What happens if inflation = 2.5 in a forecast scenario?"
+  },
+  {
+    "id": "46",
+    "question": "Compare GDP = 100 and GDP = 105 in a normalized baseline."
+  },
+  {
+    "id": "47",
+    "question": "Please explain the formula: r = 0.05"
+  },
+  {
+    "id": "48",
+    "question": "What does Y = C + I + G + NX mean?"
+  },
+  {
+    "id": "49",
+    "question": "Can nominal GDP = 100 coexist with real GDP = 95?"
+  },
+  {
+    "id": "50",
+    "question": "Please explain the formula: CPI = 100; GDP = 100"
   }
 ]

@@ -98,8 +98,6 @@ _CODE = re.compile(
     r"\b(?:const|let|var|export)\s+[$a-z_][\w$]*\s*=(?!=)"
     r"|\b(?:define|declare|set|assign|defin[aei]|declar[ae]|asign[ae]|atribu[ai])\s+"
     r"(?:(?:a|the|la|una|uma)\s+)?vari(?:able|avel)\s+[$a-z_][\w$]*\s*=(?!=)"
-    r"|(?:^|[.!?;:\n\x60])\s*[a-z_]\w*\s*=(?!=)\s*"
-    r"""(?:[+-]?\d+(?:\.\d+)?|true|false|null|none|"[^"\n]*"|'[^'\n]*')\s*(?=$|[;!\n\x60]|\.(?:\s|$))"""
     r"|\b(?:async\s+)?def\s+\w+\s*\([^)]*\)\s*:"
     r"|(?:^|[;:\n\x60])\s*(?:import\s+[a-z_][\w.]*|from\s+[a-z_][\w.]*\s+import\s+"
     r"[a-z_][\w.]*)\s*(?=[;\n\x60]|$)"
@@ -110,6 +108,37 @@ _CODE = re.compile(
     r"remove-item\s+\S+|(?:sudo|chmod|kubectl|docker|ssh|psql)\s+[-\w./])",
     re.ASCII,
 )
+
+
+# A bare assignment remains code, except for a numeric economic equation or
+# a numeric formula introduced explicitly as a formula/equation/identity.
+# Other executable syntax (SQL, commands, function calls, const/let/var) is
+# always evaluated independently; this exception cannot mask it.
+_ASSIGNMENT = re.compile(
+    r"(?:^|[.!?;:\n\x60])\s*(?P<name>[a-z_]\w*)\s*=(?!=)\s*"
+    r"""(?P<value>[+-]?\d+(?:\.\d+)?|true|false|null|none|"[^"\n]*"|'[^'\n]*')\s*(?=$|[;!\n\x60]|\.(?:\s|$))""",
+    re.ASCII,
+)
+_ECONOMIC_VARIABLES = frozenset(
+    "gdp cpi hicp pib m3 inflation inflacion inflacao price prices precios "
+    "tasa taxa rate output demand supply y c i g nx p r m v".split()
+)
+_EQUATION_CONTEXT = re.compile(
+    r"\b(?:formula|equation|identity|ecuacion|equacao|identidad|identidade)\b"
+    r"[^.!?;\n]{0,80}$",
+    re.ASCII,
+)
+
+
+def _explanatory_equation(text: str, assignment: re.Match[str]) -> bool:
+    # Never exempt executable non-numeric values, even for GDP = true.
+    if not re.fullmatch(r"[+-]?\d+(?:\.\d+)?", assignment.group("value")):
+        return False
+    if assignment.group("name") in _ECONOMIC_VARIABLES:
+        return True
+    prefix = text[max(0, assignment.start() - 100):assignment.start()]
+    return _EQUATION_CONTEXT.search(prefix) is not None
+
 
 
 def _detection_copy(question: str) -> str:
@@ -130,6 +159,8 @@ def classify_research_intent(question: str) -> ResearchIntent:
     if _EXFILTRATION.search(text):
         return ResearchIntent.EXFILTRATION
     if any(pattern.search(text) for pattern in (_SQL, _EXECUTION, _CODE)):
+        return ResearchIntent.CODE
+    if any(not _explanatory_equation(text, match) for match in _ASSIGNMENT.finditer(text)):
         return ResearchIntent.CODE
     return ResearchIntent.ADMITTED
 
