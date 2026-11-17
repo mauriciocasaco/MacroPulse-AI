@@ -1,6 +1,6 @@
-# Local Kubernetes & Observability Lab
+# Local Kubernetes & Observability
 
-This folder documents an **experimental Windows 11 / Docker Desktop / kind lab** used to run and observe MacroPulse AI's FastAPI backend. It is **not** the application's production infrastructure: the public demo uses Cloudflare Workers and Render.
+This folder documents a **Windows 11 / Docker Desktop / kind environment** used to run and observe MacroPulse AI's FastAPI backend. It is **not** the application's production infrastructure: the public demo uses Cloudflare Workers and Render.
 
 ## Architecture and observed deployment
 
@@ -10,7 +10,7 @@ This folder documents an **experimental Windows 11 / Docker Desktop / kind lab**
 - **Telemetry:** Prometheus scrapes the local cluster; Grafana dashboards can plot container CPU and working-set memory per pod.
 - **Access:** temporary `kubectl port-forward` connections bound to local loopback (`127.0.0.1`).
 
-These component names and readiness counts were observed in the live local lab on **2026-11-17**. They describe a workstation experiment, not an HA or production-certified deployment.
+These component names and readiness counts were observed in the local environment on **2026-11-17**. They describe a workstation deployment, not an HA or production-certified deployment.
 
 ## Prerequisites
 
@@ -124,4 +124,4 @@ See [screenshots/README.md](screenshots/README.md) for capture instructions. **S
 
 Keep API keys, private environment variables, PostgreSQL connection strings, Kubernetes Secrets, local kubeconfig files and unrestricted `kubectl get ... -o yaml` dumps **out of Git**. Screenshots should show no private credentials or personal paths. Service port forwards intentionally bind to `127.0.0.1` only.
 
-This experiment demonstrates containerized workload operation, replica inspection and CPU/memory observability. It does not assert Kubernetes is used by the public deployment, nor that there is auto-scaling, high availability, production SLO alerting or a complete infrastructure-as-code bootstrap.
+This local setup demonstrates containerized workload operation, replica inspection and CPU/memory observability. It does not assert Kubernetes is used by the public deployment, nor that there is auto-scaling, high availability, production SLO alerting or a complete infrastructure-as-code bootstrap.
