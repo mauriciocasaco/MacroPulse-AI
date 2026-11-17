@@ -93,10 +93,39 @@ it('preserves custom edits across context changes and offers explicit regenerati
   fireEvent.click(screen.getByRole('button', { name: 'Ask LLM Model' }));
   expect(props.onSubmit).toHaveBeenCalledWith({ question: 'My custom question?', indicatorId: 'm3-stock',
     eventId: 'ukraine', start: '2022-02-01', end: '2024-02-29' });
-  fireEvent.click(screen.getByRole('button', { name: 'Use generated question' }));
+  const reset = screen.getByRole('button', { name: 'Reset to generated question' });
+  const editor = screen.getByRole('textbox', { name: 'Research question' });
+  const ask = screen.getByRole('button', { name: 'Ask LLM Model' });
+  expect(reset.compareDocumentPosition(editor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(editor.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(reset);
   expect(screen.getByLabelText('Research question')).toHaveProperty('value',
     'How did Eurozone M3 evolve during the war in Ukraine?');
   expect(screen.queryByRole('status')).toBeNull();
+});
+
+
+it('resets an emptied custom question for the current indicator without moving submit above verification', () => {
+  const props = setup({ verification: <div data-testid="verification">Turnstile verification</div> });
+  const view = render(<QuestionComposer {...props} />);
+  const editor = screen.getByRole('textbox', { name: 'Research question' });
+  const ask = screen.getByRole('button', { name: 'Ask LLM Model' });
+
+  expect(screen.queryByRole('button', { name: 'Reset to generated question' })).toBeNull();
+  fireEvent.change(editor, { target: { value: '' } });
+  expect(ask).toHaveProperty('disabled', true);
+  view.rerender(<QuestionComposer {...props} indicatorId="hicp-yoy" />);
+
+  expect(editor).toHaveProperty('value', '');
+  const reset = screen.getByRole('button', { name: 'Reset to generated question' });
+  expect(reset.compareDocumentPosition(editor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByTestId('verification').compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(reset);
+
+  expect(editor).toHaveProperty('value', 'How did Eurozone Inflation evolve during the COVID-19 pandemic?');
+  expect(ask).toHaveProperty('disabled', false);
+  expect(screen.queryByRole('button', { name: 'Reset to generated question' })).toBeNull();
+  expect(props.onSubmit).not.toHaveBeenCalled();
 });
 
 it.each([{ enabled: false }, { pending: true }])('is inert when disabled: %o', (state) => {
