@@ -79,11 +79,11 @@ Public Research availability is controlled at the Worker and origin. Dynamic edi
 - **Admission and timeout budgets.** A SQLite-backed Durable Object checks per-visitor and global quotas and reserves concurrent capacity in one transaction. The configured Worker fetch window is 70 seconds, the origin research deadline is 65 seconds, and the quota lease expires after 90 seconds. Confirmed completion frees capacity early. Uncertain completion holds the lease until expiry, which bounds concurrency at the cost of temporary capacity. [Timeout configuration](docs/public-deployment-runbook.md#presupuesto-temporal-de-research)
 - **Scoped database access.** FastAPI uses a dedicated reader, restricted views, read-only transactions, and PostgreSQL TLS with hostname and CA verification. Startup and connection checks test the reader's effective role and grants. [Security policy](SECURITY.md)
 
-## Local Kubernetes & observability experiment
+## Local Kubernetes & observability
 
-A separate Windows 11 lab runs **three FastAPI replicas** on **Kubernetes (kind + Docker Desktop)**, with **Prometheus** for cluster/container metrics and **Grafana** for per-pod CPU and memory inspection. The lab also includes kube-state-metrics and one-click PowerShell startup/shutdown helpers. This is a **local learning and operations experiment**, not the Cloudflare/Render production stack.
+A separate Windows 11 environment runs **three FastAPI replicas** on **Kubernetes (kind + Docker Desktop)**, with **Prometheus** for cluster/container metrics and **Grafana** for per-pod CPU and memory inspection. The lab also includes kube-state-metrics and one-click PowerShell startup/shutdown helpers. This is a **local infrastructure and observability environment**, not the Cloudflare/Render production stack.
 
-[Lab setup, operational commands, PromQL queries and screenshot evidence guide](kubernates_local/README.md). Real Grafana and Kubernetes screenshots will be added after capture from the workstation; no simulated monitoring data is presented.
+[Local Kubernetes setup, operational commands, PromQL queries and screenshot evidence guide](kubernates_local/README.md). Real Grafana and Kubernetes screenshots will be added after capture from the workstation; no simulated monitoring data is presented.
 
 ## Local development
 
