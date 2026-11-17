@@ -171,7 +171,7 @@ it('keeps the chart, composer and custom question synchronized across selection 
   expect(screen.getByRole('button', { name: 'Eurozone Inflation' }).getAttribute('aria-pressed')).toBe('true');
   expect(screen.getByLabelText('Research question')).toHaveProperty('value', 'What changed in M3?');
   expect(screen.getByText(/Your custom question is preserved\. Review it for the selected indicator/)).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Use generated question' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Reset to generated question' }));
   expect(screen.getByLabelText('Research question')).toHaveProperty('value',
     'How did Eurozone Inflation evolve during the COVID-19 pandemic?');
 });
