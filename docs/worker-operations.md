@@ -21,11 +21,14 @@ frontera si se agregan Workers que hagan subrequests al mismo sitio.
 La vía administrativa autentica antes de reservar. La verificación de
 credenciales no inicia una investigación. Las reservas viven 90 s y cuentan
 aunque falle el origen. Si la finalización es dudosa, la plaza se conserva
-hasta expirar. FastAPI valida el secreto de origen y los plazos, y aplica su
-propio límite de dos investigaciones en curso. Un administrador puede
-competir por esos recursos aunque el presupuesto esté aislado. Las reservas
-limitan investigaciones, con hasta dos generaciones Gemini por investigación,
-y no representan un límite de facturación del proveedor. Consultá el
+hasta expirar. Para Research, el Worker genera una atestación HMAC ligada al
+cuerpo y a la reserva; FastAPI exige su verificación y consumo único antes del
+runner, y mantiene su límite local de dos investigaciones en curso. El secreto
+estático del origen autentica exclusivamente catálogo e históricos. Un
+administrador puede competir por esos recursos aunque el presupuesto esté
+aislado. Con Gemini 3.5 Flash-Lite primario hay hasta tres intentos acotados
+de interpretación más una composición o fallback; la cuota cuenta
+investigaciones, no generaciones ni costo de facturación. Consultá el
 [presupuesto temporal de Research](public-deployment-runbook.md#presupuesto-temporal-de-research).
 
 Los abusos limitados reciben 429 con `Retry-After`, un desafío rechazado
