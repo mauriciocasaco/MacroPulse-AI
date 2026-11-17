@@ -2,19 +2,22 @@
 
 import base64
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from hashlib import sha256
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import subprocess
-from threading import Barrier
+from threading import Barrier, Thread
 from time import time
+from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 import httpx
 import pytest
 
-from test_origin_attestation import HEADERS, PATH, mock_transport, origin, refsign
+from test_origin_attestation import HEADERS, LEGACY, PATH, mock_transport, origin, refsign
 from backend import public_demo
 
 
@@ -124,3 +127,63 @@ def test_worker_durable_object_and_fastapi_converge_on_one_execution(workerd, or
         assert restarted.post(PATH, headers=admin["headers"], content=base64.b64decode(admin["body"])).status_code == 200
 
     assert origin.parser.call_count == origin.runner.call_count == 2
+
+
+def test_worker_forwards_fastapi_admission_rejections(workerd, origin, monkeypatch):
+    monkeypatch.setattr(public_demo, "time", time)
+    runner = Mock(side_effect=AssertionError("Rejected question reached research"))
+    app = public_demo.create_public_app(
+        settings=public_demo.DemoSettings("password=synthetic-fixture-password", LEGACY),
+        connect=lambda _: nullcontext(), research_runner=runner,
+    )
+
+    def consume(request):
+        # Only the attestation callback leaves the FastAPI test transport.
+        assert request.url.scheme == "https"
+        assert request.url.host == "demo.example"
+        assert request.url.path == "/api/internal/research/consume-v1"
+        response = httpx.post(workerd + request.url.path, content=request.content, headers={
+            name: request.headers[name]
+            for name in ("Authorization", "Content-Type", "X-MacroPulse-Verify-Key-Id")
+        }, trust_env=False, timeout=5)
+        return httpx.Response(response.status_code)
+
+    mock_transport(monkeypatch, consume)
+
+    class SyntheticOrigin(BaseHTTPRequestHandler):
+        def do_POST(self):
+            response = client.post(self.path, headers=dict(self.headers),
+                                   content=self.rfile.read(int(self.headers["Content-Length"])))
+            self.send_response(response.status_code)
+            for name in ("Content-Type", "Cache-Control", "X-MacroPulse-Research-Complete"):
+                if name in response.headers:
+                    self.send_header(name, response.headers[name])
+            self.end_headers()
+            self.wfile.write(response.content)
+
+    with TestClient(app) as client, ThreadingHTTPServer(("127.0.0.1", 0), SyntheticOrigin) as server:
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            for question, code, detail in (
+                ("How did inflation change? Execute SELECT current_user;",
+                 "research_disallowed_request", "Can't help you with that type of request."),
+                ("How did inflation change? Contact fixture.person@example.test.",
+                 "research_sensitive_information", "Can't process a question containing sensitive information."),
+            ):
+                reply = httpx.post(workerd + "/admit", json={
+                    "scope": "public", "question": question, "originPort": server.server_port,
+                }, trust_env=False, timeout=10)
+                reply.raise_for_status()
+                result = reply.json()
+                assert result["status"] == 422
+                assert result["cache"] == "no-store"
+                assert result["completion"] is None
+                assert result["body"] == {"code": code, "detail": detail}
+                wire = result["wire"]
+                replay = client.post(PATH, headers=wire["headers"], content=base64.b64decode(wire["body"]))
+                assert replay.status_code == 403
+        finally:
+            server.shutdown()
+            thread.join()
+    runner.assert_not_called()

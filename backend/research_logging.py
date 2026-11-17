@@ -19,7 +19,7 @@ _SAFE_ERROR_TYPES = frozenset({
     "InvalidResearchConfiguration", "JSONDecodeError", "ModuleNotFoundError", "OperationalError",
     "OriginConsumeRejected", "OriginConsumeUnavailable", "ReadError", "ReadTimeout",
     "RemoteProtocolError", "ResearchBusy", "ResearchUnavailable", "ResponseTooLarge",
-    "RuntimeError", "SensitiveInputError", "TimeoutError", "ValidationError", "ValueError",
+    "DisallowedResearchError", "RuntimeError", "SensitiveInputError", "TimeoutError", "ValidationError", "ValueError",
 })
 
 

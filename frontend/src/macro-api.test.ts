@@ -139,12 +139,17 @@ it('accepts a reviewed claim available after the economic window and checks its 
 });
 
 
-it.each([{}, { token: 'synthetic-turnstile' }, { admin: 'synthetic-admin' }])(
-  'shows the fixed sensitive-input message for each Research path (%j)', async (auth) => {
+for (const [code, message] of [
+  ['research_sensitive_information', "Can't process a question containing sensitive information."],
+  ['research_disallowed_request', "Can't help you with that type of request."],
+]) {
+  it.each([{}, { token: 'synthetic-turnstile' }, { admin: 'synthetic-admin' }])(
+    `shows the fixed ${code} message for each Research path (%j)`, async (auth) => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-      code: 'research_sensitive_information', detail: 'Untrusted upstream detail.',
+      code, detail: 'Untrusted upstream detail.',
     }, { status: 422 })));
     const result = askMacroAnalysis(question, start, end, new AbortController().signal, context, auth.token, auth.admin);
-    await expect(result).rejects.toHaveProperty('message', "Can't process a question containing sensitive information.");
-  },
-);
+    await expect(result).rejects.toHaveProperty('message', message);
+    },
+  );
+}

@@ -222,14 +222,17 @@ def _unique_object(pairs):
 
 def parse_research(body: bytes, *, online: bool = False, secrets: tuple[str, ...] = ()) -> ResearchRequest:
     from .macro_ai.models import OnlineResearchRequest, PublicResearchRequest, ResearchRequest
+    from .macro_ai.research_intent_gate import require_admitted_research
     from .macro_ai.sensitive_input import SensitiveInputError, contains_sensitive_input
 
     payload = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object)
     if not isinstance(payload, dict) or any(type(value) is not str for value in payload.values()):
         raise ValueError("Invalid Research request")
     question = payload.get("question", "")
-    if 5 <= len(question) <= 500 and contains_sensitive_input(question, secrets=secrets):
-        raise SensitiveInputError
+    if 5 <= len(question) <= 500:
+        if contains_sensitive_input(question, secrets=secrets):
+            raise SensitiveInputError
+        require_admitted_research(question)
     contract = OnlineResearchRequest if online else PublicResearchRequest
     model = contract.model_validate(payload)
     return ResearchRequest.model_validate(model.model_dump(exclude={"research_version"}))
@@ -353,6 +356,7 @@ def create_public_app(
             research_id.reset(token)
 
     async def serve_research(request: Request) -> Response:
+        from .macro_ai.research_intent_gate import DISALLOWED_CODE, DISALLOWED_MESSAGE, DisallowedResearchError
         from .macro_ai.sensitive_input import (
             SENSITIVE_CODE, SENSITIVE_MESSAGE, SensitiveInputError, configured_sensitive_values,
         )
@@ -360,11 +364,13 @@ def create_public_app(
         started = monotonic()
         try:
             params = research_parser(request.state.research_body, secrets=sensitive_values)
-        except SensitiveInputError:
-            research_event("fastapi.admission", started, "SensitiveInputError", http_status=422)
+        except (SensitiveInputError, DisallowedResearchError) as error:
+            code, message = ((SENSITIVE_CODE, SENSITIVE_MESSAGE) if isinstance(error, SensitiveInputError)
+                             else (DISALLOWED_CODE, DISALLOWED_MESSAGE))
+            research_event("fastapi.admission", started, type(error).__name__, http_status=422)
             return JSONResponse(
                 status_code=422,
-                content={"code": SENSITIVE_CODE, "detail": SENSITIVE_MESSAGE},
+                content={"code": code, "detail": message},
                 headers={"Cache-Control": "no-store", "X-MacroPulse-Research-Complete": "true"},
             )
         except ValueError:
