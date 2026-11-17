@@ -20,6 +20,7 @@ const dayMs = 86_400_000;
 const allowedStatuses = new Set([200, 400, 404, 405, 408, 413, 415, 422, 429, 503, 504]);
 
 const sensitiveCode = 'research_sensitive_information';
+const disallowedCode = 'research_disallowed_request';
 
 function sensitiveQuestion() {
   return error(422, "Can't process a question containing sensitive information.", undefined, sensitiveCode);
@@ -31,8 +32,10 @@ async function researchValidationError(upstream, completed, signal) {
     const bytes = await boundedBody(upstream.body, 512, signal);
     if (bytes) {
       try {
-        if (JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))?.code === sensitiveCode) {
-          return sensitiveQuestion();
+        const code = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))?.code;
+        if (code === sensitiveCode) return sensitiveQuestion();
+        if (code === disallowedCode) {
+          return error(422, "Can't help you with that type of request.", undefined, disallowedCode);
         }
       } catch {
         // Validation errors have one fixed public representation unless explicitly allowed above.

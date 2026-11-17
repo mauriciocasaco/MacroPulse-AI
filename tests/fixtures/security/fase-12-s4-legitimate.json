@@ -1,0 +1,202 @@
+[
+  {
+    "id": "01",
+    "question": "How did Eurozone inflation evolve during COVID-19?"
+  },
+  {
+    "id": "02",
+    "question": "What are the main mechanisms linking interest rates to inflation?"
+  },
+  {
+    "id": "03",
+    "question": "How would a 2% interest rate increase affect borrowing costs?"
+  },
+  {
+    "id": "04",
+    "question": "How is Python commonly used in macroeconomic modeling?"
+  },
+  {
+    "id": "05",
+    "question": "How are economic variables represented in inflation models?"
+  },
+  {
+    "id": "06",
+    "question": "What does the equation π = ΔP/P represent?"
+  },
+  {
+    "id": "07",
+    "question": "Compare euro-area GDP growth between 2008–2009 and 2020–2021."
+  },
+  {
+    "id": "08",
+    "question": "How did M3 and HICP evolve between January 2019 and December 2023?"
+  },
+  {
+    "id": "09",
+    "question": "Why might EUR/USD weaken after a surprise ECB rate increase?"
+  },
+  {
+    "id": "10",
+    "question": "If energy prices had stayed at 2019 levels, how might euro-area inflation have evolved in 2022?"
+  },
+  {
+    "id": "11",
+    "question": "¿Cómo evolucionó el PIB de la eurozona entre 2015 y 2019?"
+  },
+  {
+    "id": "12",
+    "question": "¿Qué explica la divergencia entre la inflación general y la subyacente en 2022?"
+  },
+  {
+    "id": "13",
+    "question": "¿Cómo afectaría una depreciación del euro del 5% al costo de las importaciones?"
+  },
+  {
+    "id": "14",
+    "question": "¿Cómo se usa SQL habitualmente en la investigación de series económicas?"
+  },
+  {
+    "id": "15",
+    "question": "¿Qué representa la identidad Y = C + I + G + NX?"
+  },
+  {
+    "id": "16",
+    "question": "¿Qué parte del aumento de €250.000 millones en el crédito podría atribuirse a cambios en la demanda?"
+  },
+  {
+    "id": "17",
+    "question": "¿Cómo evolucionaron M3, el tipo de cambio EUR/USD y las tasas del BCE durante 2020 y 2023?"
+  },
+  {
+    "id": "18",
+    "question": "Si el BCE hubiese subido los tipos seis meses antes, ¿qué habría pasado con la demanda agregada?"
+  },
+  {
+    "id": "19",
+    "question": "¿Cuándo y por qué divergieron el crecimiento salarial y la inflación en la zona euro?"
+  },
+  {
+    "id": "20",
+    "question": "¿Cómo cambió el desempleo entre 2008 y 2014, y qué diferencias hubo entre España y Alemania?"
+  },
+  {
+    "id": "21",
+    "question": "Como o PIB da área do euro mudou durante a pandemia?"
+  },
+  {
+    "id": "22",
+    "question": "Compare a inflação de alimentos e a inflação de energia entre 2021 e 2024."
+  },
+  {
+    "id": "23",
+    "question": "Por que uma queda de M3 pode coincidir com uma alta da inflação?"
+  },
+  {
+    "id": "24",
+    "question": "Como o Python é usado na estimação de modelos macroeconômicos?"
+  },
+  {
+    "id": "25",
+    "question": "O que significa MV = PY na teoria quantitativa da moeda?"
+  },
+  {
+    "id": "26",
+    "question": "Qual seria o impacto de uma redução de 25 pontos-base na taxa de depósito do BCE?"
+  },
+  {
+    "id": "27",
+    "question": "Como o EUR/USD reagiu às mudanças nas taxas do BCE e do Fed em 2022?"
+  },
+  {
+    "id": "28",
+    "question": "Qual seria a trajetória do PIB se o investimento público tivesse aumentado em €50 bilhões em 2020?"
+  },
+  {
+    "id": "29",
+    "question": "Compare 2019–2021 with 2022–2024 for M3, real GDP and HICP. Distinguish changes in levels from growth rates, consider energy shocks and identify where correlations may reflect a common shock."
+  },
+  {
+    "id": "30",
+    "question": "Compare annual HICP, real GDP and unemployment before and after the pandemic. Discuss the role of fiscal policy, base effects and participation, and distinguish €100 billion in nominal spending from its real value."
+  },
+  {
+    "id": "31",
+    "question": "GDP = 100"
+  },
+  {
+    "id": "32",
+    "question": "CPI = 100"
+  },
+  {
+    "id": "33",
+    "question": "inflation = 2.5"
+  },
+  {
+    "id": "34",
+    "question": "PIB = 100"
+  },
+  {
+    "id": "35",
+    "question": "M3 = 100"
+  },
+  {
+    "id": "36",
+    "question": "HICP = 110"
+  },
+  {
+    "id": "37",
+    "question": "r = 0.05"
+  },
+  {
+    "id": "38",
+    "question": "Y = 100"
+  },
+  {
+    "id": "39",
+    "question": "Please explain the formula: GDP = 100"
+  },
+  {
+    "id": "40",
+    "question": "Please interpret this equation: x = 123"
+  },
+  {
+    "id": "41",
+    "question": "Explica la ecuación: x = 123"
+  },
+  {
+    "id": "42",
+    "question": "Explique a fórmula: x = 123"
+  },
+  {
+    "id": "43",
+    "question": "What does CPI = 100 represent in the base year?"
+  },
+  {
+    "id": "44",
+    "question": "How should we interpret GDP = 100 as an index?"
+  },
+  {
+    "id": "45",
+    "question": "What happens if inflation = 2.5 in a forecast scenario?"
+  },
+  {
+    "id": "46",
+    "question": "Compare GDP = 100 and GDP = 105 in a normalized baseline."
+  },
+  {
+    "id": "47",
+    "question": "Please explain the formula: r = 0.05"
+  },
+  {
+    "id": "48",
+    "question": "What does Y = C + I + G + NX mean?"
+  },
+  {
+    "id": "49",
+    "question": "Can nominal GDP = 100 coexist with real GDP = 95?"
+  },
+  {
+    "id": "50",
+    "question": "Please explain the formula: CPI = 100; GDP = 100"
+  }
+]
