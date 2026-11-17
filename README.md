@@ -34,10 +34,10 @@ Choose an indicator and a preset event or custom dates to scope a research quest
 | Frontend | React 19, TypeScript 6, Vite 8, uPlot for charts, Three.js, GSAP, and Lenis for the motion-enabled interface |
 | Backend | Python 3.12, FastAPI, Pydantic, psycopg |
 | AI orchestration | LangGraph 1.2 and LangChain Core 1.7 |
-| Language model | Gemini Developer API through a bounded HTTP client in the public profile. The Render manifest selects Gemini 3.6 Flash. |
+| Language model | Gemini Developer API through a bounded HTTP client in the public profile. The checked-in Render manifest selects Gemini 3.5 Flash-Lite; the deployed model can differ if overridden in Render. |
 | Retrieval | TF-IDF ranking over versioned, human-reviewed claims with topic, geography, date, and eligibility filters |
 | Data engineering | Python ingestion from ECB and Eurostat, PostgreSQL capture and revision tracking, Supabase read-only views |
-| Cloud and security | Cloudflare Workers, Turnstile, rate-limit bindings, a SQLite-backed Durable Object, and an authenticated FastAPI origin on Render |
+| Cloud and security | Cloudflare Workers, Turnstile, per-visitor/global quotas in a SQLite-backed Durable Object, single-use HMAC origin attestations for Research, and FastAPI on Render |
 | Testing and CI | pytest, Vitest, Node.js Worker tests, GitHub Actions, CodeQL, pip-audit, npm audit, and Gitleaks |
 
 See the [frontend manifest](frontend/package.json) and [public backend requirements](backend/requirements-public-research.txt) for exact pins.
@@ -49,7 +49,8 @@ flowchart TD
     PWA["Browser · React PWA"] --> EDGE["Cloudflare Worker"]
     EDGE -->|"Catalog and history · edge cache"| API["Render · FastAPI"]
     EDGE -->|"Research POST · per-IP limits"| ADMIT["Turnstile and Durable Object quota"]
-    ADMIT -->|"Admitted request · origin credential"| API
+    ADMIT -->|"Signed Research request · bound to one-time grant"| API
+    API -.->|"Verify and consume grant via authenticated callback"| ADMIT
     API -->|"Read-only history"| DB[("Supabase PostgreSQL")]
     API -->|"Research enabled"| GRAPH["LangGraph and LangChain Core"]
     GRAPH -->|"Time series and approved supplemental evidence"| DB
@@ -65,7 +66,7 @@ flowchart TD
     REVIEW --> CORPUS
 ```
 
-The Worker serves the PWA and proxies same-origin API requests to an authenticated Render origin. It can cache validated catalog and history reads at the edge. Public research submissions pass through per-IP attempt limits, Turnstile verification and a global quota reservation. The backend reads persisted observations through restricted Supabase views. ECB and Eurostat retrieval happens during ingestion, outside the interactive request path.
+The Worker serves the PWA and proxies same-origin API requests to an authenticated Render origin. It can cache validated catalog and history reads at the edge. Public research submissions pass through per-IP attempt limits, Turnstile verification and an atomic quota reservation. The Worker signs each Research request with an HMAC bound to its request bytes and reserved grant; Render authenticates the request and verifies one-time grant consumption through an HTTPS callback before processing Research. The older shared origin secret remains limited to catalog/history reads. The backend reads persisted observations through restricted Supabase views. ECB and Eurostat retrieval happens during ingestion, outside the interactive request path.
 
 On Render, the research graph validates a question against the supported catalog and time window, reads observations, computes statistics, and retrieves evidence. Gemini can interpret custom questions and propose the order and style of approved statements. The server validates the plan and builds the cited answer from those statements. It can render a deterministic summary when drafting fails and verified evidence is available. The optional general explanation is a separate branch after an eligible abstention.
 
@@ -77,7 +78,18 @@ Public Research availability is controlled at the Worker and origin. Dynamic edi
 - **Deterministic statistics and provenance.** Python computes comparisons from dated observations using series-specific definitions and units. Responses retain source links, dates, capture information, and calculation inputs where available. That makes a result traceable to the data and revision used. [Series contracts](docs/macro/official-series-contracts.md) · [Data reuse policy](docs/macro/data-reuse-policy.md)
 - **Reviewed retrieval.** The current versioned corpus contains 30 institutional documents and 53 approved claims. Claim metadata preserves scope, publication dates, attribution, and source locators. Ranking and support checks keep contextual evidence within its stated scope. [Corpus and editorial review](resources/evidence/m7b/README.md)
 - **Admission and timeout budgets.** A SQLite-backed Durable Object checks per-visitor and global quotas and reserves concurrent capacity in one transaction. The configured Worker fetch window is 70 seconds, the origin research deadline is 65 seconds, and the quota lease expires after 90 seconds. Confirmed completion frees capacity early. Uncertain completion holds the lease until expiry, which bounds concurrency at the cost of temporary capacity. [Timeout configuration](docs/public-deployment-runbook.md#presupuesto-temporal-de-research)
+- **Single-use Research authorization (Fase 12.S1).** Body-bound HMAC-SHA256 origin attestations, expiration checks and single-use Durable Object grant consumption defend the Research endpoint against direct origin requests and replay; the read-only catalog/history routes retain separate shared-secret authentication. [Protocol](docs/security/fase-12-s1-contract.md) · [Verification](docs/security/fase-12-s1-verification.md)
+- **Sensitive-input and provider-egress controls (Fase 12.S3).** Recognizable secrets and personal-data formats are rejected before Research SQL or Gemini. Provider-bound fields are projected by stage, and structured logs exclude question text and credentials. These are pattern-based and tested with synthetic cases, not a guarantee against all disclosures. [Contract](docs/security/fase-12-s3-contract.md) · [Verification](docs/security/fase-12-s3-verification.md)
+- **Research intent admission (Fase 12.S4).** A deterministic policy rejects recognized instructions to override controls, run code/SQL, or exfiltrate data before the Research workflow. Legitimate economic analysis remains eligible, but paraphrase and obfuscation coverage is incomplete. [Contract](docs/security/fase-12-s4-contract.md) · [Verification](docs/security/fase-12-s4-verification.md)
 - **Scoped database access.** FastAPI uses a dedicated reader, restricted views, read-only transactions, and PostgreSQL TLS with hostname and CA verification. Startup and connection checks test the reader's effective role and grants. [Security policy](SECURITY.md)
+
+## Local Kubernetes & observability
+
+A separate Windows 11 environment runs **three FastAPI replicas** on **Kubernetes (kind + Docker Desktop)**. **Prometheus**, **kube-state-metrics**, and **Grafana** expose container CPU, memory, replica availability and other cluster health signals. One-click PowerShell scripts manage the existing local cluster and loopback-only dashboards. **This is separate from the Cloudflare/Render production deployment.**
+
+![Grafana dashboard monitoring MacroPulse AI Kubernetes infrastructure](kubernates_local/screenshots/grafana-monitoring.png)
+
+[View Kubernetes pod/deployment evidence](kubernates_local/screenshots/kubernetes-pods.png) · [Local setup, operations and monitoring queries](kubernates_local/README.md)
 
 ## Local development
 
@@ -110,7 +122,8 @@ npm --prefix frontend run dev
 | [resources/evidence/](resources/evidence/) | Versioned discovery inputs and editorial corpus |
 | [tests/fixtures/retrieval/](tests/fixtures/retrieval/) | Frozen retrieval, regression, and holdout benchmarks |
 | [scripts/](scripts/), [supabase/](supabase/), [.github/](.github/), and [render.yaml](render.yaml) | Development tools, SQL, CI, and origin configuration |
-| [docs/](docs/) and [assets/](assets/) | Operating guides, data contracts, and screenshots |
+| [docs/](docs/) and [assets/](assets/) | Operating guides, data contracts, and product screenshots |
+| [kubernates_local/](kubernates_local/) | Local kind cluster operations, Prometheus/Grafana queries and real monitoring captures (not production) |
 
 Git ignores local `data/` outputs, including financial backfills, model artifacts, SQLite indexes, and benchmark results. [Evidence rebuild instructions](resources/evidence/m7b/README.md#reproducir-y-verificar) and the [retrieval evaluation guide](docs/retrieval-evaluation.md) cover regeneration.
 
@@ -129,11 +142,11 @@ npm --prefix frontend run lint
 
 GitHub Actions defines Python and frontend checks for pull requests and pushes to `main`. CI runs pytest with fixtures, Vitest, Worker tests, lint, and local and public PWA builds. CodeQL analyzes Python and JavaScript/TypeScript, Gitleaks scans for exposed secrets, and pip-audit and npm audit check dependencies, including on a weekly schedule. Cloudflare and Render releases are manual. [CI and security checks](docs/devsecops.md) · [Deployment and rollback](docs/public-deployment-runbook.md)
 
-The PWA caches its shell, and research responses use `no-store`. The versioned controls still depend on effective hosted permissions and origin configuration. The security audit identifies unresolved risks involving shared origin credentials, sensitive text sent to Gemini, and the limits of filtering unverified fallback output. [Security policy](SECURITY.md) · [Known risks](SECURITY.md#known-risks)
+The PWA caches its shell, and Research responses use `no-store`. Fase 12.S1 replaced the shared-secret admission path for **Research** with HMAC attestations and one-time grant consumption; S3 added sensitive-input filtering and restricted Gemini payloads; S4 added policy-based intent checks. Offline and synthetic verification does not prove the same controls or environment flags are enabled in the hosted deployment. Recognizable patterns can be missed, reviewed evidence can still be wrong, and the unverified fallback remains subject to output-validation limits. [Security policy](SECURITY.md) · [Known risks](SECURITY.md#known-risks)
 
 ## Research limitations
 
 - Corpus coverage is limited by indicator, event, geography, and publication date. Some questions have enough data for a statistical summary and limited documentary support.
 - The workspace studies historical data. Descriptive changes and correlations cannot establish causal effects or support forecasts.
-- Model interpretation can miss a qualifier even when a plan passes validation. Institutional interpretations stay attributed to their sources, and general Gemini explanations remain unverified. [Research v2 review](docs/research-v2.md#limitaciones-conocidas)
+- Model interpretation can miss a qualifier even when a plan passes validation. Institutional interpretations stay attributed to their sources, and general Gemini explanations remain unverified. Rule-based sensitive-input and research-intent admission cannot detect every adversarial or private input. [Research v2 review](docs/research-v2.md#limitaciones-conocidas)
 - Observation periods, publication dates, and capture timestamps represent different events. A document cutoff can restrict eligible sources while the selected series still includes later revisions. Historical windows alone cannot reconstruct the information available on a given date.
