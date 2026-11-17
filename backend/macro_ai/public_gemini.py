@@ -10,7 +10,9 @@ from typing import get_args
 import httpx
 
 from ..research_logging import research_stage
-from .v2_gemini import _COMPOSE, _GENERAL, _INTERPRET, composition_inputs, general_inputs, interpretation_inputs
+from .v2_gemini import (
+    _COMPOSE, _GENERAL, _INTERPRET, check_egress, composition_inputs, general_inputs, interpretation_inputs,
+)
 from .v2_models import Draft, FallbackModelId, GeneralDraft, Intent
 
 
@@ -70,7 +72,7 @@ class PublicGemini:
 
     def interpret(self, request, *, knowledge_cutoff=None) -> Intent:
         with _gemini_stage("gemini.interpret"):
-            inputs = interpretation_inputs(request, self._key, knowledge_cutoff=knowledge_cutoff)
+            inputs = interpretation_inputs(request, knowledge_cutoff=knowledge_cutoff)
             if self._model == INTERPRET_FAILOVER_MODEL:
                 return self._interpret_lite_with_retries(inputs)
             try:
@@ -129,7 +131,7 @@ class PublicGemini:
 
     def general(self, request, reason, *, event, knowledge_cutoff) -> GeneralDraft:
         with _gemini_stage("gemini.general"):
-            inputs = general_inputs(request, self._key, reason, event=event, knowledge_cutoff=knowledge_cutoff)
+            inputs = general_inputs(request, reason, event=event, knowledge_cutoff=knowledge_cutoff)
             return self._generate(
                 _GENERAL, inputs, GeneralDraft, output_tokens=GENERAL_OUTPUT_TOKENS,
                 deadline_headroom=GENERAL_DEADLINE_HEADROOM,
@@ -141,6 +143,7 @@ class PublicGemini:
                   model_override=None, stage_seconds=GEMINI_STAGE_SECONDS):
         if self._calls >= MAX_GENERATIONS + self._interpret_failover_allowance:
             raise ValueError("Research generation limit reached")
+        check_egress(inputs, self._key)
         self._calls += 1
         system, user = template.format_messages(**inputs)
         response_schema = schema.model_json_schema()

@@ -104,21 +104,21 @@ def research_attestation(monkeypatch):
     monkeypatch.setattr(public_demo, "consume_grant", permit)
 
     def headers(payload=None, *, content=None, expires_in=90_000, issued_offset=0, nonce=None,
-                research_id="cb31e1d0-41f6-4a82-8436-30f47564c5cb", client_ip="192.0.2.3"):
+                research_id="cb31e1d0-41f6-4a82-8436-30f47564c5cb", client_ip="192.0.2.3", scope="public"):
         body = content if content is not None else httpx.Request("POST", "https://example.test", json=payload).content
         now = int(public_demo.time() * 1000)
         timestamp, expiration = str(now + issued_offset), str(now + expires_in)
         nonce = nonce or str(uuid4())
         canonical = "\n".join((
             "macropulse/render-research/v1", kid, "POST", "/macro/analysis", "", "application/json",
-            sha256(body).hexdigest(), timestamp, nonce, "public", expiration, research_id, client_ip,
+            sha256(body).hexdigest(), timestamp, nonce, scope, expiration, research_id, client_ip,
         )).encode("ascii")
         return {
             "Content-Type": "application/json",
             "X-MacroPulse-Origin-Key-Id": kid,
             "X-MacroPulse-Origin-Timestamp": timestamp,
             "X-MacroPulse-Origin-Nonce": nonce,
-            "X-MacroPulse-Origin-Scope": "public",
+            "X-MacroPulse-Origin-Scope": scope,
             "X-MacroPulse-Origin-Signature": hmac.digest(bytes.fromhex(secret), canonical, "sha256").hex(),
             "X-MacroPulse-Research-Expires": expiration,
             public_demo.RESEARCH_ID_HEADER: research_id,

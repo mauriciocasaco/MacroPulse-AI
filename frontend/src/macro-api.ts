@@ -347,6 +347,10 @@ export class AdministratorCredentialError extends Error {
   constructor() { super('Administrator credentials rejected.'); }
 }
 
+export class SensitiveResearchError extends Error {
+  constructor() { super("Can't process a question containing sensitive information."); }
+}
+
 export async function checkAdministrator(secret: string, signal: AbortSignal): Promise<boolean> {
   if (!/^[a-f0-9]{64}$/.test(secret)) return false;
   const unavailable = 'Administrator verification is currently unavailable.';
@@ -393,6 +397,13 @@ export async function askMacroAnalysis(
         throw new Error('Too many administrator requests. Please try again shortly.');
       }
     }
+    if (response.status === 422) {
+      const failure: unknown = await response.json().catch(() => null);
+      if (object(failure) && failure.code === 'research_sensitive_information') {
+        throw new SensitiveResearchError();
+      }
+      if (turnstileToken || adminSecret) throw new Error('Review the selected dates and question before trying again.');
+    }
     if (!turnstileToken && !adminSecret) throw new Error('Local macro research is unavailable.');
     if (response.status === 403) throw new Error('Complete a new Turnstile check.');
     if (response.status === 429) throw new Error('The public research quota has been reached. Please try again later.');
@@ -400,7 +411,6 @@ export async function askMacroAnalysis(
     if (response.status === 503 && response.headers.get('Retry-After')) {
       throw new Error('Public research is busy. Please try again shortly.');
     }
-    if (response.status === 422) throw new Error('Review the selected dates and question before trying again.');
     throw new Error('Public research is currently unavailable.');
   }
   const result: unknown = await response.json();

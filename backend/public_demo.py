@@ -220,12 +220,16 @@ def _unique_object(pairs):
     return result
 
 
-def parse_research(body: bytes, *, online: bool = False) -> ResearchRequest:
+def parse_research(body: bytes, *, online: bool = False, secrets: tuple[str, ...] = ()) -> ResearchRequest:
     from .macro_ai.models import OnlineResearchRequest, PublicResearchRequest, ResearchRequest
+    from .macro_ai.sensitive_input import SensitiveInputError, contains_sensitive_input
 
     payload = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object)
     if not isinstance(payload, dict) or any(type(value) is not str for value in payload.values()):
         raise ValueError("Invalid Research request")
+    question = payload.get("question", "")
+    if 5 <= len(question) <= 500 and contains_sensitive_input(question, secrets=secrets):
+        raise SensitiveInputError
     contract = OnlineResearchRequest if online else PublicResearchRequest
     model = contract.model_validate(payload)
     return ResearchRequest.model_validate(model.model_dump(exclude={"research_version"}))
@@ -318,7 +322,10 @@ def create_public_app(
                 workflow()
         except Exception:
             research = None
-    db_password = conninfo_to_dict(settings.dsn)["password"] if research else None
+    sensitive_values = (
+        research[0], conninfo_to_dict(settings.dsn)["password"],
+        settings.origin_secret, *attestation_config.sensitive_values,
+    ) if research and attestation_config else ()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -346,14 +353,20 @@ def create_public_app(
             research_id.reset(token)
 
     async def serve_research(request: Request) -> Response:
+        from .macro_ai.sensitive_input import (
+            SENSITIVE_CODE, SENSITIVE_MESSAGE, SensitiveInputError, configured_sensitive_values,
+        )
+
         started = monotonic()
         try:
-            params = research_parser(request.state.research_body)
-            if ((db_password and db_password in params.question)
-                    or any(secret in params.question for secret in (
-                        settings.origin_secret, *attestation_config.sensitive_values,
-                    ))):
-                raise ValueError("Sensitive input")
+            params = research_parser(request.state.research_body, secrets=sensitive_values)
+        except SensitiveInputError:
+            research_event("fastapi.admission", started, "SensitiveInputError", http_status=422)
+            return JSONResponse(
+                status_code=422,
+                content={"code": SENSITIVE_CODE, "detail": SENSITIVE_MESSAGE},
+                headers={"Cache-Control": "no-store", "X-MacroPulse-Research-Complete": "true"},
+            )
         except ValueError:
             response = _error(422, "Invalid request parameters")
             response.headers["X-MacroPulse-Research-Complete"] = "true"
@@ -368,7 +381,11 @@ def create_public_app(
             with research_stage("fastapi.research_runner"):
                 if monotonic() >= deadline:
                     raise TimeoutError
-                return (research_runner or run_public_research)(settings, params, *research, deadline)
+                token = configured_sensitive_values.set(sensitive_values)
+                try:
+                    return (research_runner or run_public_research)(settings, params, *research, deadline)
+                finally:
+                    configured_sensitive_values.reset(token)
 
         task = get_running_loop().run_in_executor(None, copy_context().run, execute)
         research_tasks.add(task)

@@ -7,6 +7,7 @@ import {
   adminCheckHeader, adminHeader, adminQuotaConfig, authenticateAdmin, configuredAdminSecret, maxResearchBody,
   publicResearchHeader, quotaReady, readResearchPayload, releaseResearch,
   researchAttemptLimiter, researchConfig, researchEnabled, reserveAdminResearch, reserveResearch, siteKeyHeader,
+  SensitiveResearchQuestion,
 } from './research.mjs';
 
 export { ResearchQuota } from './research-quota.mjs';
@@ -17,6 +18,31 @@ const date = /^\d{4}-\d{2}-\d{2}$/;
 const maxMacroDays = 3660;
 const dayMs = 86_400_000;
 const allowedStatuses = new Set([200, 400, 404, 405, 408, 413, 415, 422, 429, 503, 504]);
+
+const sensitiveCode = 'research_sensitive_information';
+
+function sensitiveQuestion() {
+  return error(422, "Can't process a question containing sensitive information.", undefined, sensitiveCode);
+}
+
+async function researchValidationError(upstream, completed, signal) {
+  if (completed && /^application\/json(?:;|$)/i.test(upstream.headers.get('Content-Type') ?? '')
+      && !(Number(upstream.headers.get('Content-Length')) > 512)) {
+    const bytes = await boundedBody(upstream.body, 512, signal);
+    if (bytes) {
+      try {
+        if (JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))?.code === sensitiveCode) {
+          return sensitiveQuestion();
+        }
+      } catch {
+        // Validation errors have one fixed public representation unless explicitly allowed above.
+      }
+    }
+  } else {
+    void upstream.body?.cancel().catch(() => {});
+  }
+  return error(422, 'Invalid request parameters');
+}
 
 function error(status, detail, retry, code) {
   return Response.json({ detail, ...(code && { code }) }, {
@@ -241,7 +267,8 @@ async function serveResearch(request, env, ctx, url, researchId) {
     let body;
     try {
       body = new TextEncoder().encode(readResearchPayload(bytes, adminSecret));
-    } catch {
+    } catch (cause) {
+      if (cause instanceof SensitiveResearchQuestion) return sensitiveQuestion();
       return error(422, 'Invalid request parameters');
     }
     if (config) {
@@ -297,10 +324,10 @@ async function serveResearch(request, env, ctx, url, researchId) {
     const knownCompleted = [200, 400, 403, 405, 408, 413, 415, 422].includes(upstream.status)
       && upstream.headers.get('X-MacroPulse-Research-Complete') === 'true';
     if (knownCompleted) await releaseLease();
+    if (upstream.status === 422) return await researchValidationError(upstream, knownCompleted, timeout);
     if (upstream.status !== 200) {
       void upstream.body?.cancel().catch(() => {});
       if (upstream.status === 504) return error(504, 'Public Research timed out');
-      if (upstream.status === 422) return error(422, 'Invalid request parameters');
       if (upstream.status === 503 && upstream.headers.get('Retry-After') === '1') {
         return error(503, 'Public Research is busy', 1);
       }

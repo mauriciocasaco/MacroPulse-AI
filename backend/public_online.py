@@ -192,8 +192,8 @@ def online_knowledge_cutoff(question: str) -> date | None:
     return next(iter(dates), None)
 
 
-def parse_online_research(body: bytes):
-    request = parse_research(body, online=True)
+def parse_online_research(body: bytes, *, secrets: tuple[str, ...] = ()):
+    request = parse_research(body, online=True, secrets=secrets)
     if environ.get("MACROPULSE_ONLINE_DYNAMIC_RAG") == "true":
         online_knowledge_cutoff(request.question)
     return request
