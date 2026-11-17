@@ -105,6 +105,43 @@ it('preserves custom edits across context changes and offers explicit regenerati
 });
 
 
+it('keeps the reset slot and submit position stable while editing the question', () => {
+  const props = setup({ verification: <div data-testid="verification">Turnstile verification</div> });
+  render(<QuestionComposer {...props} />);
+  const editor = screen.getByRole('textbox', { name: 'Research question' });
+  const ask = screen.getByRole('button', { name: 'Ask LLM Model' });
+  const header = editor.previousElementSibling as HTMLElement;
+  const resetSlot = header.querySelector('.composer-reset') as HTMLButtonElement;
+  const actions = ask.parentElement;
+  expect(resetSlot).toBeTruthy();
+  expect(resetSlot.classList.contains('composer-reset-placeholder')).toBe(true);
+  expect(resetSlot.getAttribute('aria-hidden')).toBe('true');
+  expect(resetSlot.tabIndex).toBe(-1);
+  expect(resetSlot.disabled).toBe(true);
+  expect(screen.queryByRole('button', { name: 'Reset to generated question' })).toBeNull();
+  expect(actions?.className).toBe('composer-actions');
+
+  fireEvent.change(editor, { target: { value: 'How did prices evolve?' } });
+  const reset = screen.getByRole('button', { name: 'Reset to generated question' });
+  expect(reset).toBe(resetSlot);
+  expect(reset.classList.contains('composer-reset-placeholder')).toBe(false);
+  expect(reset.getAttribute('aria-hidden')).toBe('false');
+  expect(reset.tabIndex).toBe(0);
+  expect(header).toBe(editor.previousElementSibling);
+  expect(ask.parentElement).toBe(actions);
+  expect(actions?.className).toBe('composer-actions');
+  expect(screen.getByTestId('verification').compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  fireEvent.click(reset);
+  expect(editor).toHaveProperty('value', 'How did EUR/USD rate evolve during the COVID-19 pandemic?');
+  expect(header.querySelector('.composer-reset')).toBe(resetSlot);
+  expect(resetSlot.classList.contains('composer-reset-placeholder')).toBe(true);
+  expect(resetSlot.disabled).toBe(true);
+  expect(resetSlot.tabIndex).toBe(-1);
+  expect(ask.parentElement).toBe(actions);
+  expect(props.onSubmit).not.toHaveBeenCalled();
+});
+
 it('resets an emptied custom question for the current indicator without moving submit above verification', () => {
   const props = setup({ verification: <div data-testid="verification">Turnstile verification</div> });
   const view = render(<QuestionComposer {...props} />);
