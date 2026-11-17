@@ -84,8 +84,11 @@ Consultar también el [manual de operación del Worker](worker-operations.md) pa
    URLs de vista previa. [Dominio personalizado de Workers](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
 2. Para activar Research, crear una clave Gemini dedicada al servicio y guardarla
    como `MARKETPULSE_DEMO_GEMINI_API_KEY` solo en Render. Configurar
-   `MARKETPULSE_DEMO_RESEARCH_ENABLED` según el corte coordinado. El perfil usa `gemini-3.6-flash`
-   y conserva hasta dos generaciones por investigación y el preflight de tokens.
+   `MARKETPULSE_DEMO_RESEARCH_ENABLED` según el corte coordinado. El [Blueprint](../render.yaml)
+   selecciona `gemini-3.5-flash-lite` por defecto (confirmar cualquier override efectivo
+   en Render). Esta configuración permite hasta tres intentos acotados de
+   interpretación y una composición **o** explicación general, con verificación
+   previa de tokens en cada generación. [Presupuestos y reintentos](research-reliability.md#bounded-gemini-interpretation-retries--flash-lite-primary)
    Research público admite 20 solicitudes por IP en 10 minutos móviles, 50 por IP
    al día UTC, 300 globales al día UTC y 1.000 globales al mes UTC, con hasta dos
    investigaciones simultáneas. Cada admisión cuenta aunque falle.
@@ -200,11 +203,16 @@ usa herramientas de búsqueda ni recibe documentos, series o credenciales.
    comprobar el aviso de Gemini, el diagnóstico RAG, una sola solicitud de
    investigación y la navegación entre vistas. Repetir en modo administrador.
 
-Se mantienen hasta dos generaciones Gemini y hasta dos preflights
-(`countTokens`), sin reintentos. El fallback usa hasta 800 tokens de salida
-incluido el razonamiento, frente a 2.400 para las otras etapas; cada generación
-mantiene el límite de 8.000 tokens de entrada. El Worker y Render limitan
-la respuesta a 64 KiB.
+Con el modelo Flash-Lite primario configurado, una investigación admitida
+puede ejecutar **hasta cuatro generaciones**: tres intentos como máximo para
+interpretar y una composición o explicación general. Los reintentos solo
+corresponden a fallos de transporte/timeout o determinados 5xx y respetan
+el presupuesto restante. Cada generación conserva el preflight de tokens.
+La rama que configura explícitamente `gemini-3.6-flash` mantiene su política
+anterior de failover, no los reintentos de Flash-Lite. No duplicar cuotas del
+Worker ni generar nuevas reservas en los reintentos de interpretación.
+[Contrato de reintentos](research-reliability.md#bounded-gemini-interpretation-retries--flash-lite-primary).
+El Worker y Render limitan la respuesta a 64 KiB.
 
 ### Presupuesto temporal de Research
 
@@ -212,14 +220,19 @@ la respuesta a 64 KiB.
 | --- | --- |
 | Cloudflare Worker | 70 s desde el POST a Render, incluida la lectura de la respuesta |
 | Render FastAPI | 65 s desde la admisión en FastAPI, incluida la serialización |
-| Gemini | 25 s por etapa para `countTokens` y `generateContent`, con timeout HTTP de 20 s |
+| Gemini 3.5 Flash-Lite (interpretación) | Hasta 3 intentos en total; ≤8 s por intento, incluido `countTokens` y `generateContent` |
+| Gemini 3.5 Flash-Lite (composición) | ≤10 s para el borrador opcional |
+| Gemini (Pure fallback opcional) | ≤12 s para explicación conceptual no verificada |
 | Durable Object | Lease de 90 s desde que se reserva una plaza |
 
-Son máximos. Cada etapa devuelve el control cuando termina. Dos etapas
-Gemini pueden consumir hasta 50 s en total, dentro de los 65 s que también
-cubren recuperación, cálculos y validación. El fallback general usa el
-tiempo restante hasta un máximo de 25 s y reserva 2 s para finalizar en
-Render. Catálogo e históricos conservan su timeout de 20 s hacia Render.
+Son máximos por fase, subordinados al límite total de 65 s que también cubre
+recuperación, cálculos y validación. Para Flash-Lite primario, los reintentos
+de interpretación se abortan si el presupuesto restante no permite otro
+intento más **30 s de margen**. La composición y Pure usan el tiempo restante
+y sus propios topes; la ausencia de margen puede impedir el siguiente intento.
+Los tiempos de la rama 3.6 Flash deben verificarse contra su configuración
+efectiva. Catálogo e históricos conservan su timeout de 20 s hacia Render.
+[Detalles de confiabilidad](research-reliability.md).
 
 El Worker exige al menos 72 s restantes del lease. Render exige más de
 67 s y acepta hasta 95 s para conservar la tolerancia de 5 s al desfase
@@ -236,12 +249,11 @@ de la duración de una investigación activa. Las versiones anterior y nueva
 exigen distintos tiempos de lease, por lo que el Worker y Render deben
 coordinarse al activar o revertir este presupuesto.
 
-A tarifa estándar de texto y suponiendo el uso máximo de tokens, una
-generación de fallback se estima en USD 0,009 con Gemini 3.6 Flash hasta el
-31 de diciembre de 2026 (USD 0,018 desde enero de 2027) o USD 0,0044 con
-Gemini 3.5 Flash-Lite. Es un cálculo por tokens, no una medición. Las
-solicitudes que ya requerían interpretación y composición conservan su
-presupuesto. [Tarifas de Gemini](https://ai.google.dev/gemini-api/docs/pricing)
+El costo de Gemini depende del modelo **efectivamente activo**, los tokens
+medidos y el número de intentos. Los valores de versiones anteriores no se
+pueden usar como estimación de una solicitud que reintentó. Medir tokens y
+comparar con las [tarifas vigentes de Gemini](https://ai.google.dev/gemini-api/docs/pricing)
+sin confundir cuotas por solicitud con topes de facturación.
 
 ## Diagnóstico de 503 y 504 de Research
 
