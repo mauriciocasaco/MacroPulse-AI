@@ -3,9 +3,13 @@
 .question-composer legend { margin-bottom: 0.5rem; font-weight: 600; }
 .question-composer .composer-choices, .question-composer .composer-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .question-composer .composer-choices button { white-space: normal; overflow-wrap: anywhere; }
+.question-composer .composer-question-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; }
+.question-composer .composer-reset { font-size: 0.85rem; padding: 0.35rem 0.65rem; }
+.question-composer .composer-actions-custom { padding-inline-start: min(12.85rem, 35%); }
 .question-composer textarea { box-sizing: border-box; width: 100%; min-width: 0; resize: vertical; }
 .question-composer .composer-context { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 480px) {
   .question-composer .composer-choices button { flex: 1 1 9rem; }
   .question-composer .composer-actions button { flex: 1 1 auto; }
+  .question-composer .composer-actions-custom { padding-inline-start: 0; }
 }
