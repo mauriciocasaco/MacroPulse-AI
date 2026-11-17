@@ -83,7 +83,7 @@ Public Research availability is controlled at the Worker and origin. Dynamic edi
 
 A separate Windows 11 lab runs **three FastAPI replicas** on **Kubernetes (kind + Docker Desktop)**, with **Prometheus** for cluster/container metrics and **Grafana** for per-pod CPU and memory inspection. The lab also includes kube-state-metrics and one-click PowerShell startup/shutdown helpers. This is a **local learning and operations experiment**, not the Cloudflare/Render production stack.
 
-[Lab setup, operational commands, PromQL queries and screenshot evidence guide](kubernates_lab/README.md). Real Grafana and Kubernetes screenshots will be added after capture from the workstation; no simulated monitoring data is presented.
+[Lab setup, operational commands, PromQL queries and screenshot evidence guide](kubernates_local/README.md). Real Grafana and Kubernetes screenshots will be added after capture from the workstation; no simulated monitoring data is presented.
 
 ## Local development
 
